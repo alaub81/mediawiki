@@ -1,0 +1,3 @@
+FROM php:8.4-apache
+
+COPY resources/memcache/memcache.php /var/www/html/index.php

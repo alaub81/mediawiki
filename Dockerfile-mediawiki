@@ -1,0 +1,39 @@
+ARG MW_VERSION=1.42
+FROM mediawiki:${MW_VERSION}
+
+ARG MW_VERSION=1.42
+ENV MW_BRANCH=REL${MW_VERSION}
+ENV DEBIAN_FRONTEND=noninteractive
+
+COPY resources/mediawiki/mediawiki-entrypoint.sh /usr/local/bin/mediawiki-entrypoint.sh
+COPY resources/mediawiki/generate-sitemap.sh    /usr/local/bin/generate-sitemap.sh
+COPY resources/mediawiki/.htaccess             /var/www/html/.htaccess
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates curl tzdata \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* \
+ && chmod +x /usr/local/bin/mediawiki-entrypoint.sh /usr/local/bin/generate-sitemap.sh
+
+# ENV WMF_EXT="Lockdown Description2 RelatedArticles MobileFrontend"
+# RUN set -eux; cd /var/www/html/extensions; \
+#   for ext in $WMF_EXT; do \
+#     git clone --depth=1 -b "$MW_BRANCH" "https://gerrit.wikimedia.org/r/mediawiki/extensions/$ext"; \
+#   done; \
+#   git clone --depth=1 -b master "https://gerrit.wikimedia.org/r/mediawiki/extensions/WikiCategoryTagCloud"; \
+#   git clone --depth=1 "https://github.com/miraheze/RottenLinks.git"; \
+#   cd /var/www/html/skins; \
+#   git clone --depth=1 -b $MW_BRANCH "https://gerrit.wikimedia.org/r/mediawiki/skins/MinervaNeue"; \
+#   find /var/www/html/extensions -name .git -type d -prune -exec rm -rf {} +; \
+#   find /var/www/html/skins -name .git -type d -prune -exec rm -rf {} +; \
+#   chown -R www-data:www-data /var/www/html/extensions; \
+#   chown -R www-data:www-data /var/www/html/skins
+
+# Supercronic (arch-agnostisch)
+ARG TARGETARCH
+RUN curl -fsSLo /usr/local/bin/supercronic \
+  "https://github.com/aptible/supercronic/releases/download/v0.2.36/supercronic-linux-${TARGETARCH}" \
+  && chmod +x /usr/local/bin/supercronic
+
+ENTRYPOINT ["/usr/local/bin/mediawiki-entrypoint.sh"]
+CMD ["apache2-foreground"]

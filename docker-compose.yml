@@ -1,0 +1,120 @@
+services:
+  mediawiki:
+    build:
+      context: .
+      dockerfile: Dockerfile-mediawiki
+      args:
+        MW_VERSION: ${MW_VERSION}
+    image: mediawiki:${MW_VERSION}
+    depends_on:
+      - database
+      - memcached
+    restart: unless-stopped
+    environment:
+      MW_VERSION: ${MW_VERSION}
+      SITEMAP_CRON: "${SITEMAP_CRON:-20 */12 * * *}"
+      SITEMAP_SERVER: "${SITEMAP_SERVER:-https://www.example.com}"
+      SITEMAP_FSPATH: "${SITEMAP_FSPATH:-/var/www/html/sitemap}"
+      SITEMAP_URLPATH: "${SITEMAP_URLPATH:-sitemap/}"
+      SITEMAP_SKIP_REDIRECTS: "${SITEMAP_SKIP_REDIRECTS:-true}"
+      SITEMAP_RUN_ON_START: "${SITEMAP_RUN_ON_START:-false}"
+      TZ: ${TZ}
+    ports:
+      - ${MW_HTTP_PORT}:80
+    labels:
+        com.centurylinklabs.watchtower.enable: "true"
+    volumes:
+      - data_mw_images:/var/www/html/images
+      # - ./data/sitemap:/var/www/html/sitemap
+      # After initial setup, download LocalSettings.php to data/conf directory
+      # and uncomment the following line and use compose to restart
+      # the mediawiki service
+      # - ./data/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
+      # - ./data/conf/.htaccess:/var/www/html/.htaccess:ro
+      - ./data/conf/robots.txt:/var/www/html/robots.txt:ro
+      # - ./data/conf/ads.txt:/var/www/html/ads.txt:ro
+      # - ./data/conf/favicon.ico:/var/www/html/favicon.ico:ro
+      # - ./data/conf/browserconfig.xml:/var/www/html/browserconfig.xml:ro
+      # - ./data/conf/loaderio-6e9f1d0addd92099f02be40c8be3a4db.txt:/var/www/html/loaderio-6e9f1d0addd92099f02be40c8be3>
+      # Mediwaiki Extensions
+      # - ./data/extensions/WikiCategoryTagCloud:/var/www/html/extensions/WikiCategoryTagCloud:ro
+      # - ./data/extensions/Lockdown:/var/www/html/extensions/Lockdown:ro
+      # - ./data/extensions/MobileFrontend:/var/www/html/extensions/MobileFrontend:ro
+      # - ./data/extensions/RelatedArticles:/var/www/html/extensions/RelatedArticles:ro
+      # - ./data/extensions/Description2:/var/www/html/extensions/Description2:ro
+      # - ./data/extensions/RottenLinks:/var/www/html/extensions/RottenLinks:ro
+      # - ./data/skins/MinervaNeue:/var/www/html/skins/MinervaNeue:ro
+    networks:
+      app-nw:
+      backend-nw:
+        aliases:
+          - wiki
+
+  database:
+    image: mariadb:11.8
+    volumes:
+      - data_mw_db:/var/lib/mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+      TZ: ${TZ}
+    labels:
+        com.centurylinklabs.watchtower.enable: "true"
+    networks:
+      backend-nw:
+        aliases:
+          - db
+
+  memcached:
+    image: memcached:alpine
+    restart: unless-stopped
+    command: ["-m", "${CACHE}"]
+    environment:
+        - TZ=${TZ}
+    labels:
+        com.centurylinklabs.watchtower.enable: "true"
+    networks:
+      backend-nw:
+        aliases:
+            - wikimemcached
+
+  memcachephp:
+    build:
+      context: .
+      dockerfile: Dockerfile-memcachephp
+    image: memcachephp:latest
+    restart: unless-stopped
+    depends_on:
+      - memcached
+    environment:
+        TZ: ${TZ}
+        MEMCACHEPHP_SERVERS: ${MEMCACHEPHP_SERVERS}
+        MEMCACHEPHP_ADMIN_USER: ${MEMCACHEPHP_ADMIN_USER}
+        MEMCACHEPHP_ADMIN_PASS: ${MEMCACHEPHP_ADMIN_PASS}
+        MEMCACHEPHP_DATE_FORMAT: ${MEMCACHEPHP_DATE_FORMAT}
+        MEMCACHEPHP_GRAPH_SIZE: ${MEMCACHEPHP_GRAPH_SIZE}
+        MEMCACHEPHP_MAX_ITEM_DUMP: ${MEMCACHEPHP_MAX_ITEM_DUMP}
+    ports:
+      - ${MEMCACHEPHP_HTTP_PORT}:80
+    networks:
+      app-nw:
+      backend-nw:
+
+volumes:
+  data_mw_db:
+  data_mw_images:
+
+networks:
+  app-nw:
+    internal: false
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: app-${PROJECT_NAME}
+  backend-nw:
+    internal: true
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: be-${PROJECT_NAME}
