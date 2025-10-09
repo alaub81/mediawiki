@@ -1,6 +1,5 @@
 .git
 **/*.log
-data/syslog-ng/log/*
 secrets/*
 .env
 .env.example

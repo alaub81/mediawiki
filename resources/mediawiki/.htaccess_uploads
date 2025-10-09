@@ -1,0 +1,31 @@
+# Serve HTML as plaintext, don't execute SHTML
+AddType text/plain .html .htm .shtml .phtml .php .php3 .php4 .php5 .php7
+
+# Old way of registering php with AddHandler
+RemoveHandler .php
+
+# Recent way of registering php with SetHandler
+<FilesMatch "\.ph(p[3457]?s?|tml)$">
+   SetHandler None
+</FilesMatch>
+
+# Protect against bug T30235
+<IfModule rewrite_module>
+        RewriteEngine On
+        RewriteOptions inherit
+        RewriteCond %{QUERY_STRING} \.[^\\/:*?\x22<>|%]+(#|\?|$) [nocase]
+        RewriteRule . - [forbidden]
+        # Fix for bug T64289
+        Options +FollowSymLinks
+</IfModule>
+
+<IfModule headers_module>
+Header set X-Content-Type-Options nosniff
+</IfModule>
+<IfModule php7_module>
+php_flag engine off
+</IfModule>
+# In php8, php dropped the version number.
+<IfModule php_module>
+php_flag engine off
+</IfModule>

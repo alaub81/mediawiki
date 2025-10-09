@@ -4,14 +4,15 @@ services:
       context: .
       dockerfile: Dockerfile-mediawiki
       args:
-        MW_VERSION: ${MW_VERSION}
-    image: mediawiki:${MW_VERSION}
+        MW_VERSION: "${MW_VERSION}"
+        MW_EXTENSIONS: ${MW_EXTENSIONS:-}
+        MW_SKINS: ${MW_SKINS:-}
+    image: mediawiki:${MW_VERSION}.1
     depends_on:
       - database
       - memcached
     restart: unless-stopped
     environment:
-      MW_VERSION: ${MW_VERSION}
       SITEMAP_CRON: "${SITEMAP_CRON:-20 */12 * * *}"
       SITEMAP_SERVER: "${SITEMAP_SERVER:-https://www.example.com}"
       SITEMAP_FSPATH: "${SITEMAP_FSPATH:-/var/www/html/sitemap}"
@@ -29,9 +30,9 @@ services:
       # After initial setup, download LocalSettings.php to data/conf directory
       # and uncomment the following line and use compose to restart
       # the mediawiki service
-      # - ./data/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
+      - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
       # - ./data/conf/.htaccess:/var/www/html/.htaccess:ro
-      - ./data/conf/robots.txt:/var/www/html/robots.txt:ro
+      - ./data/mediawiki/conf/robots.txt:/var/www/html/robots.txt:ro
       # - ./data/conf/ads.txt:/var/www/html/ads.txt:ro
       # - ./data/conf/favicon.ico:/var/www/html/favicon.ico:ro
       # - ./data/conf/browserconfig.xml:/var/www/html/browserconfig.xml:ro
