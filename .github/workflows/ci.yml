@@ -127,22 +127,22 @@ jobs:
           docker compose --env-file .env.ci up -d --build
           # Warten bis MediaWiki erreichbar (max ~90s)
           for i in $(seq 1 30); do
-            if curl -fsS 'http://localhost:8080/api.php?action=query&meta=siteinfo&format=json' | grep -q '"query"'; then
+            if curl -fsS 'http://localhost' | grep -q "${MW_VERSION}"; then
               echo "API OK"; exit 0
             fi
             sleep 3
           done
           echo "MW API nicht erreichbar"; docker compose logs --no-color > compose-logs.txt || true
           exit 1
-          for i in $(seq 1 30); do
-            if curl -fsS http://${MEMCACHEPHP_ADMIN_USER}:${MEMCACHEPHP_ADMIN_PASS}@localhost:8097/
-              | grep -Eiq 'memcache|server stats|slabs'; then
-              echo "MEMCACHEPHP OK"; exit 0
-            fi
-            sleep 3
-          done
-          echo "MemcachePHP nicht erreichbar"; docker compose logs --no-color > compose-logs.txt || true
-          exit 1
+          # for i in $(seq 1 30); do
+          #   if curl -fsS http://${MEMCACHEPHP_ADMIN_USER}:${MEMCACHEPHP_ADMIN_PASS}@localhost:8097/
+          #     | grep -Eiq 'memcache|server stats|slabs'; then
+          #     echo "MEMCACHEPHP OK"; exit 0
+          #   fi
+          #   sleep 3
+          # done
+          # echo "MemcachePHP nicht erreichbar"; docker compose logs --no-color > compose-logs.txt || true
+          # exit 1
 
       - name: Show logs on failure
         if: failure()
