@@ -27,7 +27,7 @@ services:
       # After initial setup, download LocalSettings.php to data/conf directory
       # and uncomment the following line and use compose to restart
       # the mediawiki service
-      - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
+      # - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
       - ./data/mediawiki/conf/robots.txt:/var/www/html/robots.txt:ro
       - ./data/mediawiki/conf/.htaccess:/var/www/html/.htaccess:ro
       - ./data/mediawiki/favicon/:/var/www/html/favicon:ro
