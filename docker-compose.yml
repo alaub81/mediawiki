@@ -7,7 +7,7 @@ services:
         MW_VERSION: "${MW_VERSION:-1.42}"
         MW_EXTENSIONS: ${MW_EXTENSIONS:-}
         MW_SKINS: ${MW_SKINS:-}
-    image: mediawiki:${MW_VERSION}.1
+    image: mediawiki:${MW_VERSION:-1.42}.1
     depends_on:
       - database
       - memcached
