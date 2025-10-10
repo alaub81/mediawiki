@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # für SARIF Upload (Trivy)
+  security-events: write  # für Trivy SARIF Upload
 
 jobs:
   lint:
@@ -16,59 +16,42 @@ jobs:
       fail-fast: false
       matrix:
         dockerfile:
-          - Dockerfile-loganalyzer
-          - Dockerfile-syslogng
-          - Dockerfile-dbcleanup
-          # optional: falls du zusätzlich einen "Dockerfile" im Root hast
-          # - Dockerfile
+          - Dockerfile-mediawiki
+          - Dockerfile-memcachephp
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Hadolint
         uses: hadolint/hadolint-action@v3.3.0
         with:
-          dockerfile: ${{ matrix.dockerfile }}   # <-- genau 1 Datei
+          dockerfile: ${{ matrix.dockerfile }}
           config: .hadolint.yaml
           failure-threshold: warning
 
-      # ShellCheck (alle Shell-Skripte)
       - name: ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
         with:
           scandir: .
-          # Beispiel-Excludes – falls du welche brauchst:
-          ignore_names: |
-            *.log
-            *.sql
+          ignore_names: "*.log\n*.sql\n"
 
-      # Yamllint (.yml/.yaml)
       - name: Yamllint
         uses: ibiqlik/action-yamllint@v3
         with:
           config_file: .yamllint.yaml
-          file_or_dir: |
-            .
+          file_or_dir: ".\n"
           strict: true
 
   build_and_scan:
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
     needs: lint
     strategy:
       fail-fast: false
       matrix:
         image:
-          - name: loganalyzer
-            dockerfile: Dockerfile-loganalyzer
-            context: .
-          - name: syslogng
-            dockerfile: Dockerfile-syslogng
-            context: .
-          - name: dbcleanup
-            dockerfile: Dockerfile-dbcleanup
-            context: .
+          - { name: "mediawiki",    dockerfile: "Dockerfile-mediawiki",    context: "." }
+          - { name: "memcachephp",  dockerfile: "Dockerfile-memcachephp",  context: "." }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -76,33 +59,35 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker meta (tags + labels)
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-${{ matrix.image.name }}
+          # Tags: PR bekommt pr-XYZ und sha; main bekommt main und sha
           tags: |
-            type=ref,event=branch
             type=ref,event=pr
             type=sha
-          labels: |
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+            type=raw,value=main,enable={{is_default_branch}}
 
-      - name: Build (multi-arch, no push)
+      - name: Build (amd64, für Trivy "load")
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
+          load: true
           push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
-      # Trivy Image Scan (SARIF)
       - name: Trivy scan
         uses: aquasecurity/trivy-action@0.33.1
         with:
@@ -119,109 +104,39 @@ jobs:
         with:
           sarif_file: trivy-${{ matrix.image.name }}.sarif
 
-  trivy-pr-local:
-    name: Trivy (PR, local image scan)
-    if: github.event_name == 'pull_request'   # läuft NUR bei PRs (inkl. Dependabot)
-    runs-on: ubuntu-latest
-    needs: lint
-    strategy:
-      matrix:
-        include:
-          - name: syslogng
-            file: Dockerfile-syslogng
-            context: .
-          - name: loganalyzer
-            file: Dockerfile-loganalyzer
-            context: .
-          - name: dbcleanup
-            file: Dockerfile-dbcleanup
-            context: .
-    env:
-      LOCAL_TAG: ${{ matrix.name }}:pr-${{ github.event.number || github.run_number }}
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # Build ins lokale Docker laden (kein Push!)
-      - name: Build (no push, load to daemon)
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.file }}
-          push: false
-          load: true
-          tags: ${{ env.LOCAL_TAG }}
-
-      # Trivy scannt das lokale Image (kein GHCR-Pull nötig)
-      - name: Trivy scan (local image)
-        uses: aquasecurity/trivy-action@0.33.1
-        with:
-          scan-type: image
-          image-ref: ${{ env.LOCAL_TAG }}
-          format: 'table'
-          ignore-unfixed: true
-          output: trivy-${{ matrix.image.name }}.sarif
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH,MEDIUM'
-
   e2e:
     runs-on: ubuntu-latest
     needs: build_and_scan
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
       - name: Write CI .env (override)
         run: |
           cat > .env.ci <<'EOF'
           TZ=Europe/Berlin
-          DB_NAME=syslogdb
-          DB_USER=syslog
-          DB_PASSWORD=ciPassw0rd!
-          DB_ROOT_PASSWORD=ciRootPassw0rd!
-          SYSLOG_UDP_PORT=514
-          SYSLOG_TCP_PORT=514
-          LOGANALYZER_HTTP_PORT=8181
-          LOG_RETENTION_DAYS=7
-          DBCLEANUP_CRON=*/2 * * * *
+          MW_HTTP_PORT=8080
+          MARIADB_ROOT_PASSWORD=ciRootPassw0rd!
+          # optional: MEMCACHEPHP_HTTP_PORT=8097
           EOF
 
       - name: Compose up (detached, build)
         run: |
           docker compose --env-file .env.ci up -d --build
-          # Warten bis DB & syslogng healthy (max 90s)
-          for i in {1..30}; do
-            unhealthy=$(docker compose ps --format json | jq -r '.[] | select(.Health!="" and .Health!="healthy") | .Name' | wc -l)
-            [ "$unhealthy" -eq 0 ] && break
+          # Warten bis MediaWiki erreichbar (max ~90s)
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/api.php?action=query&meta=siteinfo&format=json | grep -q '"query"'; then
+              echo "API OK"; exit 0
+            fi
             sleep 3
           done
-          docker compose ps
-
-      - name: Send test log via busybox logger (UDP)
-        run: |
-          NET=$(docker network ls --format '{{.Name}}' | grep syslogserver || true)
-          MSG="ci-test-$(date +%s)"
-          docker run --rm --network ${NET:-bridge} debian:trixie-slim bash -c \
-            "logger -n syslogng -P 514 -d \"$MSG\" || nc -u -w1 syslogng 514 <<<\"<14>$MSG\""
-          echo "TEST_MSG=$MSG" >> $GITHUB_ENV
-
-      - name: Verify DB contains the test log
-        run: |
-          docker compose exec -T -e TEST_MSG="$TEST_MSG" database sh -lc '
-            mariadb -u"$MARIADB_USER" --password="$MARIADB_PASSWORD" -D "$MARIADB_DATABASE" -Nse \
-            "SELECT COUNT(*) AS cnt
-              FROM SystemEvents
-              WHERE Message LIKE '\''%'"$TEST_MSG"'%'\''\G"
-          ' | tee /tmp/db_check.txt
-          grep -q " 1. row" /tmp/db_check.txt
+          echo "MediaWiki API nicht erreichbar"; docker compose logs --no-color > compose-logs.txt || true
+          exit 1
 
       - name: Show logs on failure
         if: failure()
         run: |
-          docker compose logs --no-color > compose-logs.txt || true
-          sed -n '1,400p' compose-logs.txt
+          sed -n '1,400p' compose-logs.txt || true
+          docker compose ps || true
 
       - name: Tear down
         if: always()
