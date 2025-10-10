@@ -54,7 +54,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
-            type=sha
+            type=raw,value=latest,enable={{is_semver && !is_prerelease}}
 
       - name: Build & Push (multi-arch)
         uses: docker/build-push-action@v6
