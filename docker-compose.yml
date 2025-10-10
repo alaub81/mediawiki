@@ -84,7 +84,7 @@ services:
     networks:
       backend-nw:
         aliases:
-            - wikimemcached
+          - wikimemcached
 
   memcachephp:
     build:
@@ -95,13 +95,13 @@ services:
     depends_on:
       - memcached
     environment:
-        TZ: ${TZ}
-        MEMCACHEPHP_SERVERS: ${MEMCACHEPHP_SERVERS}
-        MEMCACHEPHP_ADMIN_USER: ${MEMCACHEPHP_ADMIN_USER}
-        MEMCACHEPHP_ADMIN_PASS: ${MEMCACHEPHP_ADMIN_PASS}
-        MEMCACHEPHP_DATE_FORMAT: ${MEMCACHEPHP_DATE_FORMAT}
-        MEMCACHEPHP_GRAPH_SIZE: ${MEMCACHEPHP_GRAPH_SIZE}
-        MEMCACHEPHP_MAX_ITEM_DUMP: ${MEMCACHEPHP_MAX_ITEM_DUMP}
+      TZ: ${TZ}
+      MEMCACHEPHP_SERVERS: ${MEMCACHEPHP_SERVERS}
+      MEMCACHEPHP_ADMIN_USER: ${MEMCACHEPHP_ADMIN_USER}
+      MEMCACHEPHP_ADMIN_PASS: ${MEMCACHEPHP_ADMIN_PASS}
+      MEMCACHEPHP_DATE_FORMAT: ${MEMCACHEPHP_DATE_FORMAT}
+      MEMCACHEPHP_GRAPH_SIZE: ${MEMCACHEPHP_GRAPH_SIZE}
+      MEMCACHEPHP_MAX_ITEM_DUMP: ${MEMCACHEPHP_MAX_ITEM_DUMP}
     labels:
       - "com.centurylinklabs.watchtower.enable: true"
     ports:
