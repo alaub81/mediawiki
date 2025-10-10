@@ -6,6 +6,8 @@ ARG MW_VERSION=1.42
 ENV MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend"
 ENV MW_SKINS=""
 
+COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
+
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
       git \
@@ -14,7 +16,8 @@ RUN apt-get update \
       tzdata \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* \
-  && a2enmod headers
+  && a2enmod headers \
+  && a2enconf mediawiki-rewrites
 
 RUN set -eux; \
   BR="${MW_BRANCH:-REL${MW_VERSION%%.*}_${MW_VERSION#*.}}"; \
@@ -48,17 +51,14 @@ RUN set -eux; \
   cd /var/www/html/skins; \
   find /var/www/html/extensions -name .git -type d -prune -exec rm -rf {} +; \
   find /var/www/html/skins -name .git -type d -prune -exec rm -rf {} +; \
-  chown -R 1000:1000 /var/www/html/extensions; \
-  chown -R 1000:1000 /var/www/html/skins
+  chown -R www-data:www-data /var/www/html/extensions; \
+  chown -R www-data:www-data /var/www/html/skins
 
 # Supercronic (arch-agnostisch)
 ARG TARGETARCH
 RUN curl -fsSLo /usr/local/bin/supercronic \
   "https://github.com/aptible/supercronic/releases/download/v0.2.36/supercronic-linux-${TARGETARCH}" \
   && chmod +x /usr/local/bin/supercronic
-
-COPY resources/mediawiki/.htaccess /var/www/html/.htaccess
-RUN chown 1000:1000 /var/www/html/.htaccess
 
 COPY resources/mediawiki/mediawiki-entrypoint.sh /usr/local/bin/mediawiki-entrypoint.sh
 COPY resources/mediawiki/generate-sitemap.sh    /usr/local/bin/generate-sitemap.sh

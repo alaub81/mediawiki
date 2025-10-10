@@ -31,7 +31,7 @@ $wgSitename = "TEST";
 $wgScriptPath = "";
 
 ## The protocol and server name to use in fully-qualified URLs
-$wgServer = "http://localhost:8181";
+$wgServer = "http://127.0.0.1:8181";
 
 ## The URL path to static resources (images, scripts, etc.)
 $wgResourceBasePath = $wgScriptPath;
@@ -58,9 +58,9 @@ $wgEmailAuthentication = true;
 ## Database settings
 $wgDBtype = "mysql";
 $wgDBserver = "db";
-$wgDBname = "my_wiki";
-$wgDBuser = "root";
-$wgDBpassword = "R00tPassword";
+$wgDBname = "wiki";
+$wgDBuser = "wikiuser";
+$wgDBpassword = "WikiDBPaSSword";
 
 # MySQL specific settings
 $wgDBprefix = "mw";
@@ -84,12 +84,12 @@ $wgUseImageMagick = true;
 $wgImageMagickConvertCommand = "/usr/bin/convert";
 
 # InstantCommons allows wiki to use images from https://commons.wikimedia.org
-$wgUseInstantCommons = true;
+$wgUseInstantCommons = false;
 
 # Periodically send a pingback to https://www.mediawiki.org/ with basic data
 # about this MediaWiki instance. The Wikimedia Foundation shares this data
 # with MediaWiki developers to help guide future development efforts.
-$wgPingback = true;
+$wgPingback = false;
 
 # Site language code, should be one of the list in ./includes/languages/data/Names.php
 $wgLanguageCode = "de";
@@ -102,14 +102,14 @@ $wgLocaltimezone = "UTC";
 ## be publicly accessible from the web.
 #$wgCacheDirectory = "$IP/cache";
 
-$wgSecretKey = "a5e1f50733e28d7c97a31d4fc76b3c2109163d769c6eb18dec2d90d6922e4fc1";
+$wgSecretKey = "edeb02b4cd9320388b91f6d2b929dae9a68b213bcd94d0419273ac75f4c39553";
 
 # Changing this will log out all existing sessions.
 $wgAuthenticationTokenVersion = "1";
 
 # Site upgrade key. Must be set to a string (default provided) to turn on the
 # web installer while LocalSettings.php is in place
-$wgUpgradeKey = "c6576361d469c5d9";
+$wgUpgradeKey = "15758aeaff60d3fa";
 
 ## For attaching licensing metadata to pages, and displaying an
 ## appropriate copyright notice / icon. GNU Free Documentation
@@ -138,12 +138,11 @@ wfLoadSkin( 'Vector' );
 # wfLoadExtension( 'ExtensionName' );
 # to LocalSettings.php. Check specific extension documentation for more details.
 # The following extensions were automatically enabled:
-wfLoadExtension( 'CategoryTree' );
 wfLoadExtension( 'CodeEditor' );
 wfLoadExtension( 'Description2' );
+wfLoadExtension( 'Linter' );
 wfLoadExtension( 'Lockdown' );
-wfLoadExtension( 'MobileFrontend' );
-wfLoadExtension( 'RelatedArticles' );
+wfLoadExtension( 'ReplaceText' );
 wfLoadExtension( 'RottenLinks' );
 wfLoadExtension( 'SyntaxHighlight_GeSHi' );
 wfLoadExtension( 'VisualEditor' );
@@ -154,3 +153,7 @@ wfLoadExtension( 'WikiEditor' );
 # End of automatically generated settings.
 # Add more configuration options below.
 
+# Short URLs
+$wgScriptExtension  = ".php";
+$wgArticlePath = "/wiki/$1";
+$wgUsePathInfo = true;

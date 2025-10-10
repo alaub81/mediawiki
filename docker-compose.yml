@@ -13,6 +13,8 @@ services:
       - memcached
     restart: unless-stopped
     environment:
+      MW_PHP_UPLOAD_MAX_FILESIZE: ${MW_PHP_UPLOAD_MAX_FILESIZE:-100M}
+      MW_PHP_POST_MAX_SIZE: ${MW_PHP_POST_MAX_SIZE:-100M}
       SITEMAP_CRON: "${SITEMAP_CRON:-20 */12 * * *}"
       SITEMAP_SERVER: "${SITEMAP_SERVER:-https://www.example.com}"
       SITEMAP_FSPATH: "${SITEMAP_FSPATH:-/var/www/html/sitemap}"
@@ -26,25 +28,21 @@ services:
         com.centurylinklabs.watchtower.enable: "true"
     volumes:
       - data_mw_images:/var/www/html/images
-      # - ./data/sitemap:/var/www/html/sitemap
       # After initial setup, download LocalSettings.php to data/conf directory
       # and uncomment the following line and use compose to restart
       # the mediawiki service
       - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
-      # - ./data/conf/.htaccess:/var/www/html/.htaccess:ro
       - ./data/mediawiki/conf/robots.txt:/var/www/html/robots.txt:ro
-      # - ./data/conf/ads.txt:/var/www/html/ads.txt:ro
-      # - ./data/conf/favicon.ico:/var/www/html/favicon.ico:ro
-      # - ./data/conf/browserconfig.xml:/var/www/html/browserconfig.xml:ro
-      # - ./data/conf/loaderio-6e9f1d0addd92099f02be40c8be3a4db.txt:/var/www/html/loaderio-6e9f1d0addd92099f02be40c8be3>
-      # Mediwaiki Extensions
-      # - ./data/extensions/WikiCategoryTagCloud:/var/www/html/extensions/WikiCategoryTagCloud:ro
-      # - ./data/extensions/Lockdown:/var/www/html/extensions/Lockdown:ro
-      # - ./data/extensions/MobileFrontend:/var/www/html/extensions/MobileFrontend:ro
-      # - ./data/extensions/RelatedArticles:/var/www/html/extensions/RelatedArticles:ro
-      # - ./data/extensions/Description2:/var/www/html/extensions/Description2:ro
-      # - ./data/extensions/RottenLinks:/var/www/html/extensions/RottenLinks:ro
-      # - ./data/skins/MinervaNeue:/var/www/html/skins/MinervaNeue:ro
+      - ./data/mediawiki/conf/.htaccess:/var/www/html/.htaccess:ro
+      - ./data/mediawiki/favicon/:/var/www/html/favicon:ro
+      # - ./data/mediawiki/conf/ads.txt:/var/www/html/ads.txt:ro
+      # - ./data/mediawiki/favicon/browserconfig.xml:/var/www/html/browserconfig.xml:ro
+      # - ./data/mediawiki/conf/loaderio-6e9f1d0addd92099f02be40c8be3a4db.txt:/var/www/html/loaderio-6e9f1d0addd92099f02be40c8be3>
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost/api.php?action=query&meta=siteinfo&format=json' | grep -q '\"query\"'"]
+      interval: 30s
+      timeout: 3s
+      retries: 10
     networks:
       app-nw:
       backend-nw:
@@ -57,13 +55,19 @@ services:
       - data_mw_db:/var/lib/mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASS}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
       TZ: ${TZ}
     labels:
         com.centurylinklabs.watchtower.enable: "true"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mariadb -u root -p$${MARIADB_ROOT_PASSWORD} -e 'SELECT 1'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       backend-nw:
         aliases:
@@ -100,6 +104,12 @@ services:
         MEMCACHEPHP_MAX_ITEM_DUMP: ${MEMCACHEPHP_MAX_ITEM_DUMP}
     ports:
       - ${MEMCACHEPHP_HTTP_PORT}:80
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://${MEMCACHEPHP_ADMIN_USER}:${MEMCACHEPHP_ADMIN_PASS}@localhost/ | grep -Eiq 'memcache|server stats|slabs'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
     networks:
       app-nw:
       backend-nw:
@@ -113,9 +123,9 @@ networks:
     internal: false
     driver: bridge
     driver_opts:
-      com.docker.network.bridge.name: app-${PROJECT_NAME}
+      com.docker.network.bridge.name: app-${PROJECT_NAME:-mw}
   backend-nw:
     internal: true
     driver: bridge
     driver_opts:
-      com.docker.network.bridge.name: be-${PROJECT_NAME}
+      com.docker.network.bridge.name: be-${PROJECT_NAME:-mw}

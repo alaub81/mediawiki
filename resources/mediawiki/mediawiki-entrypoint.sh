@@ -6,6 +6,16 @@ if [[ "${1:-}" == -* ]]; then
   set -- apache2-foreground "$@"
 fi
 
+# PHP-Uploadgrößen setzen (per .env änderbar)
+: "${MW_PHP_UPLOAD_MAX_FILESIZE:=100M}"
+: "${MW_PHP_POST_MAX_SIZE:=100M}"
+
+mkdir -p /usr/local/etc/php/conf.d
+cat >/usr/local/etc/php/conf.d/zz-uploads.ini <<EOF
+upload_max_filesize=${MW_PHP_UPLOAD_MAX_FILESIZE}
+post_max_size=${MW_PHP_POST_MAX_SIZE}
+EOF
+
 # Sitemap-Ziel vorbereiten
 mkdir -p "${SITEMAP_FSPATH:-/var/www/html/sitemap}"
 chown -R www-data:www-data "${SITEMAP_FSPATH:-/var/www/html/sitemap}" || true
