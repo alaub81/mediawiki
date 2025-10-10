@@ -19,8 +19,8 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - { name: "mediawiki",    dockerfile: "Dockerfile-mediawiki",    context: "." }
-          - { name: "memcachephp",  dockerfile: "Dockerfile-memcachephp",  context: "." }
+          - {name: "mediawiki", dockerfile: "Dockerfile-mediawiki", context: "."}
+          - {name: "memcachephp", dockerfile: "Dockerfile-memcachephp", context: "."}
 
     steps:
       - uses: actions/checkout@v4
