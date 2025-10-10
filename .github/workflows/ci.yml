@@ -70,7 +70,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}-${{ matrix.image.name }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
           # Tags: PR bekommt pr-XYZ und sha; main bekommt main und sha
           tags: |
             type=ref,event=pr
@@ -100,6 +100,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Upload SARIF
+        if: ${{ github.event.repository.private == false }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-${{ matrix.image.name }}.sarif

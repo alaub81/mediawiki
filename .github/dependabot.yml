@@ -1,13 +1,13 @@
 version: 2
 updates:
   # 1) GitHub Actions
-  - package-ecosystem: "github-actions"
+  - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: weekly
+      day: monday
       time: "05:00"
-      timezone: "Europe/Berlin"
+      timezone: Europe/Berlin
     open-pull-requests-limit: 10
     rebase-strategy: auto
     labels: ["dependencies", "github-actions"]
@@ -15,29 +15,31 @@ updates:
       gh-actions:
         patterns: ["*"]
 
-  # 2) Docker (Dockerfiles, ggf. docker-compose)
-  - package-ecosystem: "docker"
+  # 2) Docker (FROM-Basisimages)
+  - package-ecosystem: docker
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: weekly
+      day: monday
       time: "05:15"
-      timezone: "Europe/Berlin"
+      timezone: Europe/Berlin
     open-pull-requests-limit: 10
     rebase-strategy: auto
     labels: ["dependencies", "docker"]
     commit-message:
       prefix: "deps(docker)"
       include: "scope"
-    registries: ["dockerhub"]  # ← optional, aber empfehlenswert
+    registries: ["dockerhub"]   # vermeidet Docker Hub Rate-Limits
     groups:
       php-base:
         patterns: ["php", "php:*", "php/*"]
       debian-ubuntu-base:
         patterns: ["debian", "ubuntu"]
-      minimalist-base:
+      alpine-base:
         patterns: ["alpine", "busybox"]
       mediawiki-base:
         patterns: ["mediawiki", "bitnami/mediawiki"]
-      ghcr-images:
-        patterns: ["ghcr.io/*"]
+    # Optional konservativ: keine Major-Bumps automatisch
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

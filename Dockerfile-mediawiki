@@ -1,8 +1,8 @@
-ARG MW_VERSION=1.42
+ARG MW_VERSION=1.43
 FROM mediawiki:${MW_VERSION}
 ENV DEBIAN_FRONTEND=noninteractive
 
-ARG MW_VERSION=1.42
+ARG MW_VERSION=1.43
 ENV MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend"
 ENV MW_SKINS=""
 
@@ -39,7 +39,7 @@ RUN set -eux; \
     clone_or_replace "https://gerrit.wikimedia.org/r/mediawiki/extensions/$ext" "/var/www/html/extensions/$ext" "$BR"; \
   done; \
   for skin in $MW_SKINS; do \
-    clone_or_replace "https://gerrit.wikimedia.org/r/mediawiki/extensions/$ext" "/var/www/html/skins/$skin" "$BR"; \
+    clone_or_replace "https://gerrit.wikimedia.org/r/mediawiki/extensions/$skin" "/var/www/html/skins/$skin" "$BR"; \
   done; \
   # Sonderfälle
   rm -rf /var/www/html/extensions/WikiCategoryTagCloud; \

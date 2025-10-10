@@ -1,7 +1,13 @@
 services:
   mediawiki:
-    #image: ghcr.io/alaub81/mediawiki:${MW_VERSION:-1.42}.1
-    image: ghcr.io/alaub81/mediawiki:latest
+    build:
+      context: .
+      dockerfile: Dockerfile-mediawiki
+      args:
+        MW_VERSION: "${MW_VERSION:-1.42}"
+        MW_EXTENSIONS: ${MW_EXTENSIONS:-}
+        MW_SKINS: ${MW_SKINS:-}
+    image: mediawiki:${MW_VERSION:-1.42}.1
     depends_on:
       database:
         condition: service_healthy
@@ -27,7 +33,7 @@ services:
       # After initial setup, download LocalSettings.php to data/conf directory
       # and uncomment the following line and use compose to restart
       # the mediawiki service
-      - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
+      # - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
       - ./data/mediawiki/conf/robots.txt:/var/www/html/robots.txt:ro
       - ./data/mediawiki/conf/.htaccess:/var/www/html/.htaccess:ro
       - ./data/mediawiki/favicon/:/var/www/html/favicon:ro
@@ -73,7 +79,7 @@ services:
   memcached:
     image: memcached:alpine
     restart: unless-stopped
-    command: ["-m", "${MEMCACHE_CACHE_MB:-16}"]
+    command: ["-m", "${MEMCACHE_CACHE:-16M}"]
     environment:
       - TZ=${TZ}
     labels:
@@ -84,7 +90,10 @@ services:
           - wikimemcached
 
   memcachephp:
-    image: ghcr.io/alaub81/memcachephp:latest
+    build:
+      context: .
+      dockerfile: Dockerfile-memcachephp
+    image: memcachephp:latest
     restart: unless-stopped
     depends_on:
       - memcached
