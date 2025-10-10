@@ -127,7 +127,7 @@ jobs:
           docker compose --env-file .env.ci up -d --build
           # Warten bis MediaWiki erreichbar (max ~90s)
           for i in $(seq 1 30); do
-            if curl -fsS 'http://localhost' | grep -q "${MW_VERSION}"; then
+            if curl -fsS 'http://localhost:8080' | grep -q "${MW_VERSION}"; then
               echo "API OK"; exit 0
             fi
             sleep 3
