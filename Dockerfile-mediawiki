@@ -3,7 +3,7 @@ FROM mediawiki:${MW_VERSION}
 ENV DEBIAN_FRONTEND=noninteractive
 
 ARG MW_VERSION=1.43
-ENV MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend"
+ENV MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud"
 ENV MW_SKINS=""
 
 COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
@@ -42,10 +42,6 @@ RUN set -eux; \
     clone_or_replace "https://gerrit.wikimedia.org/r/mediawiki/extensions/$skin" "/var/www/html/skins/$skin" "$BR"; \
   done; \
   # Sonderfälle
-  rm -rf /var/www/html/extensions/WikiCategoryTagCloud; \
-  git clone --depth=1 --single-branch -b master \
-    "https://gerrit.wikimedia.org/r/mediawiki/extensions/WikiCategoryTagCloud" \
-    "/var/www/html/extensions/WikiCategoryTagCloud"; \
   rm -rf /var/www/html/extensions/RottenLinks; \
   clone_or_replace "https://github.com/miraheze/RottenLinks.git" "/var/www/html/extensions/RottenLinks" "$BR"; \
   cd /var/www/html/skins; \

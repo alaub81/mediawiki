@@ -1,6 +1,6 @@
 services:
   mediawiki:
-    #image: ghcr.io/alaub81/mediawiki:${MW_VERSION:-1.42}.1
+    # image: ghcr.io/alaub81/mediawiki:${MW_VERSION:-1.42}.1
     image: ghcr.io/alaub81/mediawiki:latest
     depends_on:
       database:
