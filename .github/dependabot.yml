@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # 1) GitHub Actions (Workflows)
+  # 1) GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -13,9 +13,9 @@ updates:
     labels: ["dependencies", "github-actions"]
     groups:
       gh-actions:
-        patterns: ["*"]   # alle Actions-Updates in eine PR bündeln
+        patterns: ["*"]
 
-  # 2) Docker (Dockerfiles + docker-compose.*)
+  # 2) Docker (Dockerfiles, ggf. docker-compose)
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -26,11 +26,10 @@ updates:
     open-pull-requests-limit: 10
     rebase-strategy: auto
     labels: ["dependencies", "docker"]
-    # Commit-Message-Format
     commit-message:
       prefix: "deps(docker)"
       include: "scope"
-    # Sinnvolle Gruppen, damit du nicht 5 einzelne PRs pro Woche bekommst
+    registries: ["dockerhub"]  # ← optional, aber empfehlenswert
     groups:
       php-base:
         patterns: ["php", "php:*", "php/*"]
@@ -38,7 +37,7 @@ updates:
         patterns: ["debian", "ubuntu"]
       minimalist-base:
         patterns: ["alpine", "busybox"]
-      syslog-ng:
-        patterns: ["*mediawiki*"]
+      mediawiki-base:
+        patterns: ["mediawiki", "bitnami/mediawiki"]
       ghcr-images:
         patterns: ["ghcr.io/*"]
