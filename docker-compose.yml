@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile-mediawiki
       args:
-        MW_VERSION: "${MW_VERSION}"
+        MW_VERSION: "${MW_VERSION:-1.42}"
         MW_EXTENSIONS: ${MW_EXTENSIONS:-}
         MW_SKINS: ${MW_SKINS:-}
     image: mediawiki:${MW_VERSION}.1
@@ -76,7 +76,7 @@ services:
   memcached:
     image: memcached:alpine
     restart: unless-stopped
-    command: ["-m", "${CACHE}"]
+    command: ["-m", "${MEMCACHE_CACHE:-16M}"]
     environment:
       - TZ=${TZ}
     labels:
@@ -96,12 +96,12 @@ services:
       - memcached
     environment:
       TZ: ${TZ}
-      MEMCACHEPHP_SERVERS: ${MEMCACHEPHP_SERVERS}
-      MEMCACHEPHP_ADMIN_USER: ${MEMCACHEPHP_ADMIN_USER}
-      MEMCACHEPHP_ADMIN_PASS: ${MEMCACHEPHP_ADMIN_PASS}
-      MEMCACHEPHP_DATE_FORMAT: ${MEMCACHEPHP_DATE_FORMAT}
-      MEMCACHEPHP_GRAPH_SIZE: ${MEMCACHEPHP_GRAPH_SIZE}
-      MEMCACHEPHP_MAX_ITEM_DUMP: ${MEMCACHEPHP_MAX_ITEM_DUMP}
+      MEMCACHEPHP_SERVERS: ${MEMCACHEPHP_SERVERS:-memcached:11211}
+      MEMCACHEPHP_ADMIN_USER: ${MEMCACHEPHP_ADMIN_USER:-admin}
+      MEMCACHEPHP_ADMIN_PASS: ${MEMCACHEPHP_ADMIN_PASS:-supersecret}
+      MEMCACHEPHP_DATE_FORMAT: ${MEMCACHEPHP_DATE_FORMAT:-%Y-%m-%d %H:%M:%S}
+      MEMCACHEPHP_GRAPH_SIZE: ${MEMCACHEPHP_GRAPH_SIZE:-200}
+      MEMCACHEPHP_MAX_ITEM_DUMP: ${MEMCACHEPHP_MAX_ITEM_DUMP:-50}
     labels:
       - "com.centurylinklabs.watchtower.enable: true"
     ports:
