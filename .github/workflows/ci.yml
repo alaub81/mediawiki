@@ -127,7 +127,7 @@ jobs:
           MW_DB_ADMIN_USER=root
 
           # MediaWiki
-          MW_SITENAME=Wiki CI
+          MW_SITENAME="Wiki CI"
           MW_LANG=de
           MW_ADMIN_USER=Admin
           MW_ADMIN_PASS=AdminPass123
