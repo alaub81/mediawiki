@@ -181,7 +181,7 @@ jobs:
                 --dbuser    "${MW_DB_USER:-wikiuser}" \
                 --dbpass    "${MW_DB_PASS:-w1k1pass}" \
                 --installdbuser "${MW_DB_ADMIN_USER:-root}" \
-                --installdbpass "${MARIADB_ROOT_PASSWORD:-R00tPassword}" \
+                --installdbpass "${MARIADB_ROOT_PASSWORD:-ciRootPassw0rd}" \
                 --lang      "${MW_LANG:-de}" \
                 --server    http://localhost:${MW_HTTP_PORT:-8080} \
                 --scriptpath "" \
