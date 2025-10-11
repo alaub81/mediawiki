@@ -2,7 +2,7 @@ name: Release (build & push)
 
 on:
   push:
-    #branches: [main]
+    # branches: [main]
     tags: ['v*.*.*']  # SemVer-Tags pushen ebenfalls
   workflow_dispatch:
   schedule:
