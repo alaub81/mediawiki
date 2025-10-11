@@ -131,6 +131,7 @@ jobs:
           MW_LANG=de
           MW_ADMIN_USER=Admin
           MW_ADMIN_PASS=AdminPass123
+          MW_EXTENSIONS="RottenLinks, Lockdown, Description2, RelatedArticles, MobileFrontend, WikiCategoryTagCloud"
           SITEMAP_IDENTIFIER=wiki
 
           # MemcachePHP
@@ -187,6 +188,7 @@ jobs:
                 --server    http://localhost:${MW_HTTP_PORT:-8080} \
                 --scriptpath "" \
                 --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
+                --extensions "${MW_EXTENSIONS:-}" \
                 "${MW_SITENAME:-Wiki CI}" \
                 "${MW_ADMIN_USER:-Admin}"
             fi
@@ -327,7 +329,21 @@ jobs:
           echo "$OUT" | grep -q '"server":"' || { echo "::error::no server in siteinfo"; exit 1; }
           [ -n "${MW_SITENAME:-}" ] && echo "$OUT" | grep -q "\"sitename\":\"${MW_SITENAME}\"" || true
 
-      - name: E2E check — memcachephp UI
+      - name: E2E — sitemap index is recent
+        shell: bash
+        run: |
+          [ -f .env ] && { set -a; . ./.env; set +a; }
+          : "${SITEMAP_IDENTIFIER:=wiki}"
+          docker compose exec -T mediawiki sh -lc '
+            f="/var/www/html/sitemap/sitemap-index-'"$SITEMAP_IDENTIFIER"'.xml"
+            [ -s "$f" ] || { echo "::error::missing sitemap index: $f"; exit 1; }
+            now=$(date +%s); mt=$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f")
+            age=$(( now - mt ))
+            echo "sitemap age: ${age}s"
+            [ "$age" -le 600 ] || { echo "::warning::sitemap older than 10 minutes"; }
+          '
+
+      - name: E2E — memcachephp UI
         shell: bash
         run: |
           # .env einlesen (falls vorhanden)
@@ -348,20 +364,6 @@ jobs:
             fi
             sleep 3
           done
-
-      - name: E2E — sitemap index is recent
-        shell: bash
-        run: |
-          [ -f .env ] && { set -a; . ./.env; set +a; }
-          : "${SITEMAP_IDENTIFIER:=wiki}"
-          docker compose exec -T mediawiki sh -lc '
-            f="/var/www/html/sitemap/sitemap-index-'"$SITEMAP_IDENTIFIER"'.xml"
-            [ -s "$f" ] || { echo "::error::missing sitemap index: $f"; exit 1; }
-            now=$(date +%s); mt=$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f")
-            age=$(( now - mt ))
-            echo "sitemap age: ${age}s"
-            [ "$age" -le 600 ] || { echo "::warning::sitemap older than 10 minutes"; }
-          '
 
       - name: Show logs on failure
         if: failure()
