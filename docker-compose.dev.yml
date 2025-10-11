@@ -42,11 +42,28 @@ services:
       # - ./data/mediawiki/favicon/browserconfig.xml:/var/www/html/browserconfig.xml:ro
       # - ./data/mediawiki/conf/loaderio-6e9f1d0addd92099f02be40c8be3a4db.txt:/var/www/html/loaderio-6e9f1d0addd92099f02be40c8be3>
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS 'http://localhost/api.php?action=query&meta=siteinfo&format=json' | grep -q '\"query\"'"]
-      # curl -fsS 'http://localhost' | grep -q "${MW_VERSION}"
+      test:
+        - CMD-SHELL
+        - |
+          set -e
+          ident="$${SITEMAP_IDENTIFIER:-wiki1}"
+
+          # 1) API muss antworten
+          curl -fsS "http://localhost/api.php?action=query&meta=siteinfo&format=json" | grep -q '"query"'
+
+          # 2) /sitemap.xml → 301 + Location auf erwarteten Index-Namen
+          headers="$$(curl -fsSI http://localhost/sitemap.xml)"
+          echo "$$headers" | grep -qiE '^HTTP/.* 301 '
+          loc="$$(echo "$$headers" | awk 'BEGIN{IGNORECASE=1} /^Location:/{print $$2}' | tr -d "\r")"
+          echo "$$loc" | grep -q "/sitemap/sitemap-index-$$ident\.xml"
+
+          # 3) Ziel muss 200 liefern
+          code="$$(curl -fsSI "$$loc" | awk 'NR==1{print $$2}')"
+          [ "$$code" = "200" ]
       interval: 30s
-      timeout: 3s
+      timeout: 5s
       retries: 10
+      start_period: 90s
     networks:
       app-nw:
       backend-nw:

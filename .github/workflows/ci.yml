@@ -266,7 +266,7 @@ jobs:
           if [ -f .env ]; then set -a; . ./.env; set +a; fi
           : "${MEMCACHEPHP_HTTP_PORT:=8097}"
           : "${MEMCACHEPHP_ADMIN_USER:=admin}"
-          : "${MEMCACHEPHP_ADMIN_PASS:=changeme}"
+          : "${MEMCACHEPHP_ADMIN_PASS:=supersecret}"
 
           BASE="http://localhost:${MEMCACHEPHP_HTTP_PORT}/"
 
