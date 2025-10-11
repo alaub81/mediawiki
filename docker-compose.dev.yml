@@ -23,6 +23,7 @@ services:
       SITEMAP_URLPATH: "${SITEMAP_URLPATH:-sitemap/}"
       SITEMAP_SKIP_REDIRECTS: "${SITEMAP_SKIP_REDIRECTS:-true}"
       SITEMAP_RUN_ON_START: "${SITEMAP_RUN_ON_START:-false}"
+      SITEMAP_IDENTIFIER: "${SITEMAP_IDENTIFIER:-wiki}"
       TZ: ${TZ}
     ports:
       - ${MW_HTTP_PORT}:80

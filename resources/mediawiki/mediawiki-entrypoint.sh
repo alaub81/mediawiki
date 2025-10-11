@@ -9,6 +9,7 @@ fi
 # PHP-Uploadgrößen setzen (per .env änderbar)
 : "${MW_PHP_UPLOAD_MAX_FILESIZE:=100M}"
 : "${MW_PHP_POST_MAX_SIZE:=100M}"
+: "${SITEMAP_IDENTIFIER:-wiki}"
 
 mkdir -p /usr/local/etc/php/conf.d
 cat >/usr/local/etc/php/conf.d/zz-uploads.ini <<EOF
@@ -19,6 +20,12 @@ EOF
 # Sitemap-Ziel vorbereiten
 mkdir -p "${SITEMAP_FSPATH:-/var/www/html/sitemap}"
 chown -R www-data:www-data "${SITEMAP_FSPATH:-/var/www/html/sitemap}" || true
+
+# Sitemap-Redirect in Apache konfigurieren (Identifier aus .env)
+cat >/etc/apache2/conf-available/zz-sitemap-redirect.conf <<EOF
+Redirect 301 /sitemap.xml /sitemap/sitemap-index-${SITEMAP_IDENTIFIER}.xml
+EOF
+a2enconf zz-sitemap-redirect || true
 
 # Cronfile für supercronic erzeugen (wichtig: 5-Feld-Cronsyntax, kein "root")
 CRON_FILE="/etc/cron.d/mediawiki-sitemap"
