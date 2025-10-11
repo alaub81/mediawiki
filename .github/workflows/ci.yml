@@ -213,6 +213,39 @@ jobs:
             fi
           '
 
+      - name: Ensure Short URLs in LocalSettings.php
+        shell: bash
+        run: |
+          # Datei im Container patchen – idempotent
+          docker compose exec -T -u www-data mediawiki sh -lc '
+            set -eu
+            f=/var/www/html/LocalSettings.php
+            [ -f "$f" ] || { echo "::error::LocalSettings.php missing"; exit 1; }
+
+            # $wgScriptPath = "";
+            if grep -q "^\$wgScriptPath" "$f"; then
+              sed -i '\''s#^\$wgScriptPath\s*=.*#\$wgScriptPath = "";#'\'' "$f"
+            else
+              # vor dem PHP-Schluss einfügen, falls vorhanden – sonst ans Ende
+              if grep -q "^?>" "$f"; then
+                sed -i '\''s#^?>#\$wgScriptPath = "";\n?>#'\'' "$f"
+              else
+                printf "\n\$wgScriptPath = \"\";\n" >> "$f"
+              fi
+            fi
+
+            # $wgArticlePath = "/wiki/$1";
+            if grep -q "^\$wgArticlePath" "$f"; then
+              sed -i '\''s#^\$wgArticlePath\s*=.*#\$wgArticlePath = "/wiki/\$1";#'\'' "$f"
+            else
+              if grep -q "^?>" "$f"; then
+                sed -i '\''s#^?>#\$wgArticlePath = "/wiki/\$1";\n?>#'\'' "$f"
+              else
+                printf "\n\$wgArticlePath = \"/wiki/\\\$1\";\n" >> "$f"
+              fi
+            fi
+          '
+
       - name: generate sitemap
         run: |
           docker compose exec -T mediawiki sh -lc '
@@ -292,7 +325,7 @@ jobs:
           for i in $(seq 1 30); do
             H="$(curl -fsSI "${BASE}/index.php/Special:Version" || true)"
             echo "$H" | grep -qiE '^HTTP/.* 301 ' || { sleep 2; continue; }
-            echo "$H" | grep -qiE '^Location: .*/wiki/Special:Version\s*$' && { echo "Short URLs OK"; exit 0; }
+            echo "$H" | grep -qiE '^Location: .*/wiki/(Special|Spezial):Version\s*$' && { echo "Short URLs OK"; exit 0; }
             sleep 2
           done
           echo "::error::Short URL redirect failed"
