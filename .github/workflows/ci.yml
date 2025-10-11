@@ -311,7 +311,7 @@ jobs:
             || { echo "::error::nosniff header missing on /images/ci.txt"; exit 1; }
           docker compose exec -T -u www-data mediawiki rm -f /var/www/html/images/ci.txt
 
-      - name: E2E — extensions loaded (optional)
+      - name: E2E — which extensions loaded
         shell: bash
         run: |
           [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
@@ -330,22 +330,23 @@ jobs:
           done
           exit $fail
 
-      # - name: E2E — extensions loaded
-      #   shell: bash
-      #   run: |
-      #     [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
-      #     : "${MW_HTTP_PORT:=8080}"
-      #     : "${E2E_EXPECT_EXTENSIONS:=${MW_EXTENSIONS:-}}"
-      #     JSON="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=extensions&format=json")"
-      #     fail=0
-      #     for ext in $(echo "$E2E_EXPECT_EXTENSIONS" | tr ',' ' '); do
-      #       ext="$(echo "$ext" | xargs)"  # trim
-      #       [ -z "$ext" ] && continue
-      #       echo "$JSON" | grep -q "\"name\":\"$ext\"" \
-      #         && echo "✓ $ext" \
-      #         || { echo "::error::Extension not loaded: $ext"; fail=1; }
-      #     done
-      #     exit $fail
+      - name: E2E — all extensions are loaded
+        continue-on-error: true
+        shell: bash
+        run: |
+          [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
+          : "${MW_HTTP_PORT:=8080}"
+          : "${E2E_EXPECT_EXTENSIONS:=${MW_EXTENSIONS:-}}"
+          JSON="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=extensions&format=json")"
+          fail=0
+          for ext in $(echo "$E2E_EXPECT_EXTENSIONS" | tr ',' ' '); do
+            ext="$(echo "$ext" | xargs)"  # trim
+            [ -z "$ext" ] && continue
+            echo "$JSON" | grep -q "\"name\":\"$ext\"" \
+              && echo "✓ $ext" \
+              || { echo "::error::Extension not loaded: $ext"; fail=1; }
+          done
+          exit $fail
 
       - name: E2E — memcached reachable from mediawiki
         shell: bash
