@@ -209,6 +209,8 @@ jobs:
 
       - name: E2E check (API)
         run: |
+          # .env einlesen (falls vorhanden)
+          [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           for i in $(seq 1 30); do
             if curl -fsS "http://localhost:${MW_HTTP_PORT:-8080}/api.php?action=query&meta=siteinfo&format=json" | grep -q '"query"'; then
               echo "MediaWiki API OK"; exit 0
@@ -219,39 +221,23 @@ jobs:
           docker compose logs --no-color > compose-logs.txt || true
           exit 1
 
-      - name: E2E check — sitemap redirect and target
+      - name: E2E — sitemap redirect and target
         shell: bash
         run: |
-          # Werte aus .env (falls vorhanden) einlesen, sonst Defaults
-          if [ -f .env ]; then set -a; . ./.env; set +a; fi
+          [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           : "${MW_HTTP_PORT:=8080}"
           : "${SITEMAP_IDENTIFIER:=wiki}"
           BASE="http://localhost:${MW_HTTP_PORT}"
 
-          echo "[e2e] Expect: ${BASE}/sitemap.xml -> /sitemap/sitemap-index-${SITEMAP_IDENTIFIER}.xml and target 200"
-
           ok=0
           for i in $(seq 1 40); do
-            # 1) Header von /sitemap.xml holen
-            headers="$(curl -fsSI "${BASE}/sitemap.xml" || true)"
-
-            # a) 301?
-            echo "$headers" | grep -qiE '^HTTP/.* 301 ' || { sleep 3; continue; }
-
-            # b) Location extrahieren
-            loc="$(echo "$headers" | awk 'BEGIN{IGNORECASE=1} /^Location:/{print $2}' | tr -d '\r')"
-            [ -n "$loc" ] || { sleep 3; continue; }
-
-            # c) Pfad im Location korrekt?
-            echo "$loc" | grep -q "/sitemap/sitemap-index-${SITEMAP_IDENTIFIER}\.xml$" || { sleep 3; continue; }
-
-            # 2) Ziel-Status prüfen
-            code="$(curl -fsSI "$loc" | awk 'NR==1{print $2}')"
-            if [ "$code" = "200" ]; then
-              echo "[e2e] OK: redirect to ${loc} and target 200"
-              ok=1
-              break
-            fi
+            H="$(curl -fsSI "${BASE}/sitemap.xml" || true)"
+            echo "$H" | grep -qiE '^HTTP/.* 301 ' || { sleep 3; continue; }
+            LOC="$(echo "$H" | awk 'BEGIN{IGNORECASE=1} /^Location:/{print $2}' | tr -d '\r')"
+            PATH="$(echo "$LOC" | sed -E 's@^[a-z]+://[^/]+@@')"
+            echo "$PATH" | grep -q "^/sitemap/sitemap-index-${SITEMAP_IDENTIFIER}\.xml$" || { sleep 3; continue; }
+            CODE="$(curl -fsSI "$LOC" | awk 'NR==1{print $2}')"
+            [ "$CODE" = "200" ] && { echo "Sitemap OK → $LOC"; ok=1; break; }
             sleep 3
           done
 
@@ -286,7 +272,7 @@ jobs:
       - name: E2E — X-Content-Type-Options on /images
         shell: bash
         run: |
-          [ -f .env ] && { set -a; . ./.env; set +a; }
+          [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           : "${MW_HTTP_PORT:=8080}"
           BASE="http://localhost:${MW_HTTP_PORT}"
           docker compose exec -T -u www-data mediawiki sh -lc 'printf test > /var/www/html/images/ci.txt'
@@ -298,7 +284,7 @@ jobs:
       - name: E2E — extensions loaded (optional)
         shell: bash
         run: |
-          [ -f .env ] && { set -a; . ./.env; set +a; }
+          [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           : "${MW_HTTP_PORT:=8080}"
           : "${E2E_EXPECT_EXTENSIONS:=}"   # leer = nur auflisten
           JSON="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=extensions&format=json")"
@@ -329,7 +315,7 @@ jobs:
       - name: E2E — siteinfo sanity
         shell: bash
         run: |
-          [ -f .env ] && { set -a; . ./.env; set +a; }
+          [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           : "${MW_HTTP_PORT:=8080}"
           OUT="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&format=json")"
           echo "$OUT" | grep -q '"server":"' || { echo "::error::no server in siteinfo"; exit 1; }
@@ -338,7 +324,7 @@ jobs:
       - name: E2E — sitemap index is recent
         shell: bash
         run: |
-          [ -f .env ] && { set -a; . ./.env; set +a; }
+          [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           : "${SITEMAP_IDENTIFIER:=wiki}"
           docker compose exec -T mediawiki sh -lc '
             f="/var/www/html/sitemap/sitemap-index-'"$SITEMAP_IDENTIFIER"'.xml"
@@ -353,7 +339,7 @@ jobs:
         shell: bash
         run: |
           # .env einlesen (falls vorhanden)
-          if [ -f .env ]; then set -a; . ./.env; set +a; fi
+          [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           : "${MEMCACHEPHP_HTTP_PORT:=8097}"
           : "${MEMCACHEPHP_ADMIN_USER:=admin}"
           : "${MEMCACHEPHP_ADMIN_PASS:=supersecret}"
