@@ -353,7 +353,7 @@ jobs:
         shell: bash
         run: |
           [ -f .env ] && { set -a; . ./.env; set +a; }
-          : "${SITEMAP_IDENTIFIER:=wiki1}"
+          : "${SITEMAP_IDENTIFIER:=wiki}"
           docker compose exec -T mediawiki sh -lc '
             f="/var/www/html/sitemap/sitemap-index-'"$SITEMAP_IDENTIFIER"'.xml"
             [ -s "$f" ] || { echo "::error::missing sitemap index: $f"; exit 1; }
