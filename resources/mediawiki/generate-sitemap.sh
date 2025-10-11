@@ -6,7 +6,7 @@ server="${SITEMAP_SERVER:?SITEMAP_SERVER is required}"
 fspath="${SITEMAP_FSPATH:-/var/www/html/sitemap}"
 urlpath="${SITEMAP_URLPATH:-sitemap/}"
 
-args=(maintenance/generateSitemap.php --server "$server" --fspath "$fspath" --urlpath "$urlpath")
+args=(maintenance/run.php generateSitemap --server "$server" --fspath "$fspath" --urlpath "$urlpath")
 if [[ "${SITEMAP_SKIP_REDIRECTS:-true}" == "true" ]]; then
   args+=(--skip-redirects)
 fi
