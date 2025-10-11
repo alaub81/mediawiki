@@ -131,7 +131,7 @@ jobs:
           MW_LANG=de
           MW_ADMIN_USER=Admin
           MW_ADMIN_PASS=AdminPass123
-          # MW_EXTENSIONS="RottenLinks, Lockdown, Description2, RelatedArticles, MobileFrontend, WikiCategoryTagCloud"
+          MW_EXTENSIONS="RottenLinks Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud"
           SITEMAP_IDENTIFIER=wiki
 
           # MemcachePHP
@@ -164,9 +164,21 @@ jobs:
           docker compose exec -T -u www-data mediawiki sh -lc '
             set -e
             cd /var/www/html
-
-            # Wrapper/Fallback bestimmen
             run="php maintenance/run.php"
+
+            # Space → CSV (komma-getrennt), robust & POSIX
+            EXT_CSV=""
+            if [ -n "${MW_EXTENSIONS:-}" ]; then
+              for e in $MW_EXTENSIONS; do
+                [ -z "$EXT_CSV" ] && EXT_CSV="$e" || EXT_CSV="$EXT_CSV,$e"
+              done
+            fi
+
+            # --extensions nur nutzen, wenn unterstützt
+            EXT_FLAG=""
+            if $run install --help 2>&1 | grep -q -- '--extensions'; then
+              [ -n "$EXT_CSV" ] && EXT_FLAG="--extensions $EXT_CSV"
+            fi
 
             if [ -f LocalSettings.php ]; then
               echo "[e2e] LocalSettings.php exists → running update.php"
@@ -195,6 +207,7 @@ jobs:
                 --server    http://localhost:${MW_HTTP_PORT:-8080} \
                 --scriptpath "" \
                 --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
+                ${EXT_FLAG:+$EXT_FLAG} \
                 "${MW_SITENAME:-Wiki CI}" \
                 "${MW_ADMIN_USER:-Admin}"
             fi
@@ -299,6 +312,23 @@ jobs:
               || { echo "::error::Extension not loaded: $ext"; fail=1; }
           done
           exit $fail
+
+      # - name: E2E — extensions loaded
+      #   shell: bash
+      #   run: |
+      #     [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
+      #     : "${MW_HTTP_PORT:=8080}"
+      #     : "${E2E_EXPECT_EXTENSIONS:=${MW_EXTENSIONS:-}}"
+      #     JSON="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=extensions&format=json")"
+      #     fail=0
+      #     for ext in $(echo "$E2E_EXPECT_EXTENSIONS" | tr ',' ' '); do
+      #       ext="$(echo "$ext" | xargs)"  # trim
+      #       [ -z "$ext" ] && continue
+      #       echo "$JSON" | grep -q "\"name\":\"$ext\"" \
+      #         && echo "✓ $ext" \
+      #         || { echo "::error::Extension not loaded: $ext"; fail=1; }
+      #     done
+      #     exit $fail
 
       - name: E2E — memcached reachable from mediawiki
         shell: bash
