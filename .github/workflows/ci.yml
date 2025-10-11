@@ -192,6 +192,13 @@ jobs:
             fi
           '
 
+      - name: generate sitemap
+        run: |
+          docker compose exec -T mediawiki sh -lc '
+            set -e
+            /usr/local/bin/generate-sitemap.sh
+          '
+
       - name: E2E check (API)
         run: |
           for i in $(seq 1 30); do
@@ -203,13 +210,6 @@ jobs:
           echo "MediaWiki API not reachable"
           docker compose logs --no-color > compose-logs.txt || true
           exit 1
-
-      - name: generate sitemap
-        run: |
-          docker compose exec -T mediawiki sh -lc '
-            set -e
-            /usr/local/bin/generate-sitemap.sh
-          '
 
       - name: E2E check — sitemap redirect and target
         shell: bash
@@ -259,6 +259,74 @@ jobs:
             exit 1
           fi
 
+      - name: E2E — short URLs rewrite
+        shell: bash
+        run: |
+          [ -f .env ] && { set -a; . ./.env; set +a; }
+          : "${MW_HTTP_PORT:=8080}"
+          BASE="http://localhost:${MW_HTTP_PORT}"
+          for i in $(seq 1 30); do
+            H="$(curl -fsSI "${BASE}/index.php/Foo" || true)"
+            echo "$H" | grep -qiE '^HTTP/.* 301 ' || { sleep 2; continue; }
+            echo "$H" | grep -qiE '^Location: .*/wiki/Foo\s*$' && { echo "Short URLs OK"; exit 0; }
+            sleep 2
+          done
+          echo "::error::Short URL redirect failed"
+          curl -v -sI "${BASE}/index.php/Foo" || true
+          exit 1
+
+      - name: E2E — X-Content-Type-Options on /images
+        shell: bash
+        run: |
+          [ -f .env ] && { set -a; . ./.env; set +a; }
+          : "${MW_HTTP_PORT:=8080}"
+          BASE="http://localhost:${MW_HTTP_PORT}"
+          docker compose exec -T -u www-data mediawiki sh -lc 'printf test > /var/www/html/images/ci.txt'
+          curl -fsSI "${BASE}/images/ci.txt" | grep -qi '^X-Content-Type-Options: *nosniff' \
+            && echo "nosniff OK" \
+            || { echo "::error::nosniff header missing on /images/ci.txt"; exit 1; }
+          docker compose exec -T -u www-data mediawiki rm -f /var/www/html/images/ci.txt
+
+      - name: E2E — extensions loaded (optional)
+        shell: bash
+        run: |
+          [ -f .env ] && { set -a; . ./.env; set +a; }
+          : "${MW_HTTP_PORT:=8080}"
+          : "${E2E_EXPECT_EXTENSIONS:=}"   # leer = nur auflisten
+          JSON="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=extensions&format=json")"
+          if [ -z "$E2E_EXPECT_EXTENSIONS" ]; then
+            echo "$JSON" | grep -o '"name":"[^"]*"' | sed 's/.*:"//;s/"$//' | sort -u | sed 's/^/ - /'
+            exit 0
+          fi
+          fail=0
+          for ext in $E2E_EXPECT_EXTENSIONS; do
+            echo "$JSON" | grep -q "\"name\":\"$ext\"" \
+              && echo "✓ $ext" \
+              || { echo "::error::Extension not loaded: $ext"; fail=1; }
+          done
+          exit $fail
+
+      - name: E2E — memcached reachable from mediawiki
+        shell: bash
+        run: |
+          docker compose exec -T mediawiki bash -lc '
+            set -e
+            exec 3<>/dev/tcp/memcached/11211
+            printf "version\r\n" >&3
+            read -r LINE <&3
+            echo "$LINE" | grep -q "^VERSION" && echo "memcached OK" || { echo "$LINE"; exit 1; }
+            exec 3>&- 3<&-
+          '
+
+      - name: E2E — siteinfo sanity
+        shell: bash
+        run: |
+          [ -f .env ] && { set -a; . ./.env; set +a; }
+          : "${MW_HTTP_PORT:=8080}"
+          OUT="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&format=json")"
+          echo "$OUT" | grep -q '"server":"' || { echo "::error::no server in siteinfo"; exit 1; }
+          [ -n "${MW_SITENAME:-}" ] && echo "$OUT" | grep -q "\"sitename\":\"${MW_SITENAME}\"" || true
+
       - name: E2E check — memcachephp UI
         shell: bash
         run: |
@@ -280,6 +348,20 @@ jobs:
             fi
             sleep 3
           done
+
+      - name: E2E — sitemap index is recent
+        shell: bash
+        run: |
+          [ -f .env ] && { set -a; . ./.env; set +a; }
+          : "${SITEMAP_IDENTIFIER:=wiki1}"
+          docker compose exec -T mediawiki sh -lc '
+            f="/var/www/html/sitemap/sitemap-index-'"$SITEMAP_IDENTIFIER"'.xml"
+            [ -s "$f" ] || { echo "::error::missing sitemap index: $f"; exit 1; }
+            now=$(date +%s); mt=$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f")
+            age=$(( now - mt ))
+            echo "sitemap age: ${age}s"
+            [ "$age" -le 600 ] || { echo "::warning::sitemap older than 10 minutes"; }
+          '
 
       - name: Show logs on failure
         if: failure()
