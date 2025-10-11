@@ -188,8 +188,9 @@ jobs:
                 --server    http://localhost:${MW_HTTP_PORT:-8080} \
                 --scriptpath "" \
                 --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
-                --extensions
-                  "${MW_EXTENSIONS:-RottenLinks, Lockdown, Description2, RelatedArticles, MobileFrontend, WikiCategoryTagCloud}" \
+                --extensions "RottenLinks,Lockdown,Description2,RelatedArticles,MobileFrontend,WikiCategoryTagCloud" \
+                # --extensions
+                #   "${MW_EXTENSIONS:-RottenLinks, Lockdown, Description2, RelatedArticles, MobileFrontend, WikiCategoryTagCloud}" \
                 "${MW_SITENAME:-Wiki CI}" \
                 "${MW_ADMIN_USER:-Admin}"
             fi
