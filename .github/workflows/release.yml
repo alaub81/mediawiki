@@ -2,8 +2,9 @@ name: Release (build & push)
 
 on:
   push:
-    branches: [main]
+    #branches: [main]
     tags: ['v*.*.*']  # SemVer-Tags pushen ebenfalls
+  workflow_dispatch:
   schedule:
     - cron: '17 01 * * 2'   # weekly rebuild (Mon 03:17 UTC)
 
