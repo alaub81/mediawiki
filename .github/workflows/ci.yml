@@ -131,7 +131,7 @@ jobs:
           MW_LANG=de
           MW_ADMIN_USER=Admin
           MW_ADMIN_PASS=AdminPass123
-          MW_EXTENSIONS="RottenLinks Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud"
+          MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud RottenLinks"
           SITEMAP_GENERATION=true
           SITEMAP_RUN_ON_START=true
           SITEMAP_IDENTIFIER=wiki
