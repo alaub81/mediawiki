@@ -152,7 +152,7 @@ jobs:
           set +a
 
       - name: Compose up
-        run: docker compose --env-file .env.ci up -d --build
+        run: docker compose -f docker-compose.dev.yml --env-file .env.ci up -d --build
 
       - name: Wait for database
         run: |
