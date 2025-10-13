@@ -129,7 +129,8 @@ services:
       test:
         [
           "CMD-SHELL",
-          "curl -fsS -u \"$${MEMCACHEPHP_ADMIN_USER}:$${MEMCACHEPHP_ADMIN_PASS}\" http://localhost/ | grep -Eiq 'memcache|server stats|slabs'"
+          "curl -fsS -u \"$${MEMCACHEPHP_ADMIN_USER}:$${MEMCACHEPHP_ADMIN_PASS}\" http://localhost/ | \
+          grep -Eiq 'memcache|server stats|slabs'"
         ]
       interval: 10s
       timeout: 5s
