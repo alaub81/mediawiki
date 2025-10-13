@@ -56,9 +56,9 @@ RUN curl -fsSLo /usr/local/bin/supercronic \
   "https://github.com/aptible/supercronic/releases/download/v0.2.36/supercronic-linux-${TARGETARCH}" \
   && chmod +x /usr/local/bin/supercronic
 
-COPY resources/mediawiki/mediawiki-entrypoint.sh /usr/local/bin/mediawiki-entrypoint.sh
-COPY resources/mediawiki/generate-sitemap.sh    /usr/local/bin/generate-sitemap.sh
-RUN chmod +x /usr/local/bin/mediawiki-entrypoint.sh /usr/local/bin/generate-sitemap.sh
+COPY --chmod=0755 resources/mediawiki/mediawiki-entrypoint.sh /usr/local/bin/mediawiki-entrypoint.sh
+COPY --chmod=0755 resources/mediawiki/generate-sitemap.sh /usr/local/bin/generate-sitemap.sh
+COPY --chmod=0755 resources/mediawiki/generate-rottenlinks.sh /usr/local/bin/generate-rottenlinks.sh
 
 ENTRYPOINT ["/usr/local/bin/mediawiki-entrypoint.sh"]
 CMD ["apache2-foreground"]

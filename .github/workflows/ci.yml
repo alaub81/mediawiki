@@ -132,7 +132,11 @@ jobs:
           MW_ADMIN_USER=Admin
           MW_ADMIN_PASS=AdminPass123
           MW_EXTENSIONS="RottenLinks Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud"
+          SITEMAP_GENERATION=true
+          SITEMAP_RUN_ON_START=true
           SITEMAP_IDENTIFIER=wiki
+          ROTTENLINKS_GENERATION=true
+          ROTTENLINKS_RUN_ON_START=true
 
           # MemcachePHP
           MEMCACHEPHP_HTTP_PORT=8097
@@ -316,7 +320,6 @@ jobs:
           fi
 
       - name: E2E — short URLs rewrite
-        continue-on-error: true
         shell: bash
         run: |
           [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
