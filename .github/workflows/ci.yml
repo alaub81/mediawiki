@@ -140,7 +140,7 @@ jobs:
           SITEMAP_IDENTIFIER=wiki
           ROTTENLINKS_GENERATION=true
           ROTTENLINKS_RUN_ON_START=true
-          E2E_EXPECT_SKIN="Vector-2022"
+          E2E_EXPECT_SKIN=vector-2022
 
           # MemcachePHP
           MEMCACHEPHP_HTTP_PORT=8097
@@ -428,28 +428,34 @@ jobs:
           # .env.ci sicher laden (ohne PATH zu zerstören)
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           : "${MW_HTTP_PORT:=8080}"
-          : "${E2E_EXPECT_SKIN:=vector-2022}"   # gewünschter Skin-Code/Name
+          : "${E2E_EXPECT_SKIN:=vector-2022}"
 
-          # Normalisierung: lowercase, Space/_ -> -, sonst nur [a-z0-9-]
+          # Normalisierung: lowercase, Space/_ -> -, nur [a-z0-9-]
           norm() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
                   | sed -E 's/[ _]+/-/g; s/[^a-z0-9-]+//g'; }
 
           want="$(norm "$E2E_EXPECT_SKIN")"
 
-          # 1) Installed?  (siteinfo.skins[].code)
+          # 1) Installed? (siteinfo.skins[].code)
           JSON1="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=skins&format=json")"
           API_SKINS="$(printf '%s' "$JSON1" | grep -o '"code":"[^"]*"' | cut -d'"' -f4)"
-          API_SKINS_NORM="$(printf '%s\n' $API_SKINS | while read -r s; do norm "$s"; done)"
+
+          # WICHTIG: jede Normalisierung mit \n ausgeben!
+          API_SKINS_NORM="$(
+            printf '%s\n' "$API_SKINS" | while IFS= read -r s; do
+              printf '%s\n' "$(norm "$s")"
+            done
+          )"
 
           if printf '%s\n' "$API_SKINS_NORM" | grep -qx "$want"; then
             echo "✓ Skin installed: $E2E_EXPECT_SKIN"
           else
             echo "::error::Skin not installed: $E2E_EXPECT_SKIN"
-            echo "$API_SKINS" | sed 's/^/ - installed: /'
+            printf '%s\n' "$API_SKINS" | sed 's/^/ - installed: /'
             exit 1
           fi
 
-          # 2) Default?  (siteinfo.defaultoptions.skin)
+          # 2) Default? (siteinfo.defaultoptions.skin)
           JSON2="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=defaultoptions&format=json")"
           def="$(printf '%s' "$JSON2" | grep -o '"skin":"[^"]*"' | head -n1 | cut -d'"' -f4)"
           def_norm="$(norm "$def")"
@@ -458,14 +464,15 @@ jobs:
             echo "✓ Default skin is: $def"
           else
             echo "::error::Default skin is '$def_norm', expected '$want'"
+            # nicht zwingend fatal? -> exit 1 ggf. weglassen
             exit 1
           fi
 
-          # 3) HTML-Sanity: Body-Klasse enthält skin-<code>
+          # 3) HTML-Sanity (optional)
           body="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/")"
           echo "$body" | grep -qi "class=.*skin-${want}" \
             && echo "✓ HTML body includes skin-${want}" \
-            || echo "::warning::Body class 'skin-${want}' not found (kann bei custom HTML/Cache variieren)"
+            || echo "::warning::Body class 'skin-${want}' not found (kann durch Cache/Theme variieren)"
 
       - name: E2E — memcached reachable from mediawiki
         shell: bash
