@@ -6,12 +6,12 @@ services:
       args:
         MW_EXTENSIONS: ${MW_EXTENSIONS:-}
         MW_SKINS: ${MW_SKINS:-}
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mediawiki:ci-${GITHUB_SHA}
+    image: mediawiki:latest
     pull_policy: never
 
   memcachephp:
     build:
       context: .
       dockerfile: Dockerfile-memcachephp
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/memcachephp:ci-${GITHUB_SHA}
+    image: memcachephp:latest
     pull_policy: never
