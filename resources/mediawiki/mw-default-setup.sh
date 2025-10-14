@@ -55,23 +55,23 @@ fi
 f="/var/www/html/LocalSettings.php"
 
 # $wgScriptPath = "";
-if grep -q '^\$wgScriptPath' "$f"; then
+if grep -q "^\$wgScriptPath" "$f"; then
   sed -i "s#^\$wgScriptPath[[:space:]]*=.*#\$wgScriptPath = \"\";#" "$f"
 else
   if grep -q '^?>' "$f"; then
     sed -i "s#^?>#\$wgScriptPath = \"\";\\n?>#" "$f"
   else
-    printf '\n$wgScriptPath = "";\n' >> "$f"
+    printf "\n\$wgScriptPath = "";\n" >> "$f"
   fi
 fi
 
 # $wgArticlePath = "/wiki/$1";
-if grep -q '^\$wgArticlePath' "$f"; then
+if grep -q "^\$wgArticlePath" "$f"; then
   sed -i "s#^\$wgArticlePath[[:space:]]*=.*#\$wgArticlePath = \"/wiki/\\\$1\";#" "$f"
 else
   if grep -q '^?>' "$f"; then
     sed -i "s#^?>#\$wgArticlePath = \"/wiki/\\\$1\";\\n?>#" "$f"
   else
-    printf '\n$wgArticlePath = "/wiki/\$1";\n' >> "$f"
+    printf "\n\$wgArticlePath = "/wiki/\$1";\n" >> "$f"
   fi
 fi
