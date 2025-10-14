@@ -6,15 +6,18 @@ ENV MW_SKINS="DeskMessMirrored"
 
 COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
 
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends \
-      git \
-      ca-certificates \
-      curl \
-      tzdata \
-  && apt-get clean \
-  && rm -rf /var/lib/apt/lists/* \
-  && a2enmod headers \
+# RUN apt-get update \
+#   && apt-get install -y --no-install-recommends \
+#       git \
+#       ca-certificates \
+#       curl \
+#       tzdata \
+#   && apt-get clean \
+#   && rm -rf /var/lib/apt/lists/* \
+#   && a2enmod headers \
+#   && a2enconf mediawiki-rewrites
+
+RUN a2enmod headers \
   && a2enconf mediawiki-rewrites
 
 RUN set -eux; \
@@ -57,6 +60,7 @@ RUN curl -fsSLo /usr/local/bin/supercronic \
 COPY --chmod=0755 resources/mediawiki/mediawiki-entrypoint.sh /usr/local/bin/mediawiki-entrypoint.sh
 COPY --chmod=0755 resources/mediawiki/generate-sitemap.sh /usr/local/bin/generate-sitemap.sh
 COPY --chmod=0755 resources/mediawiki/generate-rottenlinks.sh /usr/local/bin/generate-rottenlinks.sh
+COPY --chmod=0755 resources/mediawiki/mw-default-setup.sh /usr/local/bin/mw-default-setup.sh
 
 ENTRYPOINT ["/usr/local/bin/mediawiki-entrypoint.sh"]
 CMD ["apache2-foreground"]

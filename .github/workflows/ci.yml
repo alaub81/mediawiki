@@ -209,20 +209,6 @@ jobs:
               [ -n "$EXT_CSV" ] && EXT_FLAG="--extensions $EXT_CSV"
             fi
 
-            # # Space → CSV (komma-getrennt), robust & POSIX
-            # SKINS_CSV=""
-            # if [ -n "${MW_SKINS:-}" ]; then
-            #   for e in $MW_SKINS; do
-            #     [ -z "$SKINS_CSV" ] && SKINS_CSV="$e" || SKINS_CSV="$SKINS_CSV,$e"
-            #   done
-            # fi
-
-            # # --extensions nur nutzen, wenn unterstützt
-            # SKINS_FLAG=""
-            # if $run install --help 2>&1 | grep -q -- '--skins'; then
-            #   [ -n "$SKINS_CSV" ] && SKINS_FLAG="--extensions $SKINS_CSV"
-            # fi
-
             if [ -f LocalSettings.php ]; then
               echo "[e2e] LocalSettings.php exists → running update.php"
               $run update --quick --no-interactive
@@ -470,7 +456,6 @@ jobs:
             c="$(to_code "$s")"
             [ -n "$c" ] && WANT="${WANT}${c}\n"
           done
-          printf '%b' "$WANT"
 
           # 3) Installierte/geladene Skins aus der API – WICHTIG: mit \n pro Eintrag!
           JSON="$(curl -fsS "http://localhost:${MW_HTTP_PORT:-8080}/api.php?action=query&meta=siteinfo&siprop=skins&format=json")"
@@ -479,7 +464,6 @@ jobs:
             | grep -o '"code":"[^"]*"' | cut -d'"' -f4 \
             | while IFS= read -r x; do printf '%s\n' "$(norm "$x")"; done
           )"
-          printf '%s\n' "$API_CODES"
 
           # 4) Vergleichen (exakte Zeilen-Treffer)
           fail=0
