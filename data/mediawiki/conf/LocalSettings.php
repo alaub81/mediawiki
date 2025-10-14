@@ -132,6 +132,7 @@ wfLoadSkin( 'MinervaNeue' );
 wfLoadSkin( 'MonoBook' );
 wfLoadSkin( 'Timeless' );
 wfLoadSkin( 'Vector' );
+wfLoadSkin( 'DeskMessMirrored' );
 
 
 # Enabled extensions. Most of the extensions are enabled by adding
@@ -157,3 +158,25 @@ wfLoadExtension( 'WikiEditor' );
 $wgScriptExtension  = ".php";
 $wgArticlePath = "/wiki/$1";
 $wgUsePathInfo = true;
+$actions = [
+//	'view',
+	'edit',
+	'watch',
+	'unwatch',
+	'delete',
+	'revert',
+	'rollback',
+	'protect',
+	'unprotect',
+	'markpatrolled',
+	'render',
+	'submit',
+	'history',
+	'purge',
+	'info',
+];
+
+foreach ( $actions as $action ) {
+  $wgActionPaths[$action] = "/wiki/$action/$1";
+}
+//$wgArticlePath = $wgActionPaths['view'];

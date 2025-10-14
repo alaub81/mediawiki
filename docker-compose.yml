@@ -1,7 +1,7 @@
 services:
   mediawiki:
-    # image: ghcr.io/alaub81/mediawiki:${MW_VERSION:-1.42}.1
-    image: ghcr.io/alaub81/mediawiki:latest
+    # image: ghcr.io/alaub81/mediawiki-custom:${MW_VERSION:-latest}.1
+    image: ghcr.io/alaub81/mediawiki-custom:latest
     depends_on:
       database:
         condition: service_healthy
@@ -11,14 +11,14 @@ services:
     environment:
       MW_PHP_UPLOAD_MAX_FILESIZE: ${MW_PHP_UPLOAD_MAX_FILESIZE:-100M}
       MW_PHP_POST_MAX_SIZE: ${MW_PHP_POST_MAX_SIZE:-100M}
-      SITEMAP_GENERATION: ${SITEMAP_GENERATION:-false}
-      SITEMAP_CRON: "${SITEMAP_CRON:-20 */12 * * *}"
-      SITEMAP_SERVER: "${SITEMAP_SERVER:-https://www.example.com}"
-      SITEMAP_FSPATH: "${SITEMAP_FSPATH:-/var/www/html/sitemap}"
-      SITEMAP_URLPATH: "${SITEMAP_URLPATH:-sitemap/}"
-      SITEMAP_SKIP_REDIRECTS: "${SITEMAP_SKIP_REDIRECTS:-true}"
-      SITEMAP_RUN_ON_START: "${SITEMAP_RUN_ON_START:-false}"
-      SITEMAP_IDENTIFIER: "${SITEMAP_IDENTIFIER:-wiki}"
+      MW_SITEMAP_GENERATION: ${MW_SITEMAP_GENERATION:-false}
+      MW_SITEMAP_CRON: "${MW_SITEMAP_CRON:-20 */12 * * *}"
+      MW_SITEMAP_SERVER: "${MW_SITEMAP_SERVER:-https://www.example.com}"
+      MW_SITEMAP_FSPATH: "${MW_SITEMAP_FSPATH:-/var/www/html/sitemap}"
+      MW_SITEMAP_URLPATH: "${MW_SITEMAP_URLPATH:-sitemap/}"
+      MW_SITEMAP_SKIP_REDIRECTS: "${MW_SITEMAP_SKIP_REDIRECTS:-true}"
+      MW_SITEMAP_RUN_ON_START: "${MW_SITEMAP_RUN_ON_START:-false}"
+      MW_SITEMAP_IDENTIFIER: "${MW_SITEMAP_IDENTIFIER:-wiki}"
       ROTTENLINKS_GENERATION: ${ROTTENLINKS_GENERATION:-false}
       ROTTENLINKS_CRON: "${ROTTENLINKS_CRON:-30 */12 * * *}"
       ROTTENLINKS_RUN_ON_START: "${ROTTENLINKS_RUN_ON_START:-false}"
@@ -44,7 +44,7 @@ services:
         - CMD-SHELL
         - |
           set -e
-          ident="$${SITEMAP_IDENTIFIER:-wiki1}"
+          ident="$${MW_SITEMAP_IDENTIFIER:-wiki1}"
           curl -fsS "http://localhost/api.php?action=query&meta=siteinfo&format=json" | grep -q '"query"'
           headers="$$(curl -fsSI http://localhost/sitemap.xml)"
           echo "$$headers" | grep -qiE '^HTTP/.* 301 '

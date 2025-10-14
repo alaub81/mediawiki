@@ -9,7 +9,7 @@ fi
 # PHP-Uploadgrößen setzen (per .env änderbar)
 : "${MW_PHP_UPLOAD_MAX_FILESIZE:=100M}"
 : "${MW_PHP_POST_MAX_SIZE:=100M}"
-: "${SITEMAP_IDENTIFIER:-wiki}"
+: "${MW_SITEMAP_IDENTIFIER:-wiki}"
 
 mkdir -p /usr/local/etc/php/conf.d
 cat >/usr/local/etc/php/conf.d/zz-uploads.ini <<EOF
@@ -18,12 +18,12 @@ post_max_size=${MW_PHP_POST_MAX_SIZE}
 EOF
 
 # Sitemap-Ziel vorbereiten
-mkdir -p "${SITEMAP_FSPATH:-/var/www/html/sitemap}"
-chown -R www-data:www-data "${SITEMAP_FSPATH:-/var/www/html/sitemap}" || true
+mkdir -p "${MW_SITEMAP_FSPATH:-/var/www/html/sitemap}"
+chown -R www-data:www-data "${MW_SITEMAP_FSPATH:-/var/www/html/sitemap}" || true
 
 # Sitemap-Redirect in Apache konfigurieren (Identifier aus .env)
 cat >/etc/apache2/conf-available/zz-sitemap-redirect.conf <<EOF
-Redirect 301 /sitemap.xml /sitemap/sitemap-index-${SITEMAP_IDENTIFIER}.xml
+Redirect 301 /sitemap.xml /sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml
 EOF
 a2enconf -q zz-sitemap-redirect || true
 
@@ -31,7 +31,7 @@ a2enconf -q zz-sitemap-redirect || true
 # CRON_FILE="/etc/cron.d/mediawiki"
 # mkdir -p /etc/cron.d
 # # Log direkt auf Container-STDOUT/STDERR leiten
-# printf "%s %s\n" "${SITEMAP_CRON:-20 */12 * * *}" "/usr/local/bin/generate-sitemap.sh >> /proc/1/fd/1 2>&1" > "$CRON_FILE"
+# printf "%s %s\n" "${MW_SITEMAP_CRON:-20 */12 * * *}" "/usr/local/bin/generate-sitemap.sh >> /proc/1/fd/1 2>&1" > "$CRON_FILE"
 # printf "%s %s\n" "${ROTTENLINKS_CRON:-20 */12 * * *}" "/usr/local/bin/generate-rottenlinks.sh >> /proc/1/fd/1 2>&1" >> "$CRON_FILE"
 
 # --- Cronfile vorbereiten ---
@@ -47,16 +47,16 @@ add_cron_if_missing() {
 }
 
 # --- Sitemap-Job (nur wenn Skript existiert) ---
-if [ "${SITEMAP_GENERATION:-}" != "true" ]; then
-  echo "[entrypoint] INFO: SITEMAP_GENERATION not set to 'true' – sitemap cron skipped"
+if [ "${MW_SITEMAP_GENERATION:-}" != "true" ]; then
+  echo "[entrypoint] INFO: MW_SITEMAP_GENERATION not set to 'true' – sitemap cron skipped"
 else
-  if [ "${SITEMAP_RUN_ON_START:-false}" == "true" ]; then
+  if [ "${MW_SITEMAP_RUN_ON_START:-false}" == "true" ]; then
     echo "[entrypoint] Running sitemap generation once on start..."
     /usr/local/bin/generate-sitemap.sh || echo "[entrypoint] Initial sitemap run failed (continuing)"
   fi
   if [ -x /usr/local/bin/generate-sitemap.sh ]; then
     add_cron_if_missing \
-      "${SITEMAP_CRON:-20 */12 * * *}" \
+      "${MW_SITEMAP_CRON:-20 */12 * * *}" \
       "/usr/local/bin/generate-sitemap.sh >> /proc/1/fd/1 2>&1"
   else
     echo "[entrypoint] WARN: /usr/local/bin/generate-sitemap.sh not found – sitemap cron skipped"

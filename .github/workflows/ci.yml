@@ -135,9 +135,9 @@ jobs:
           MW_ADMIN_PASS=AdminPass123
           MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud RottenLinks"
           MW_SKINS="DeskMessMirrored"
-          SITEMAP_GENERATION=true
-          SITEMAP_RUN_ON_START=true
-          SITEMAP_IDENTIFIER=wiki
+          MW_SITEMAP_GENERATION=true
+          MW_SITEMAP_RUN_ON_START=true
+          MW_SITEMAP_IDENTIFIER=wiki
           ROTTENLINKS_GENERATION=true
           ROTTENLINKS_RUN_ON_START=true
 
@@ -302,10 +302,10 @@ jobs:
           # Werte aus .env (falls vorhanden) einlesen, sonst Defaults
           if [ -f .env ]; then set -a; . ./.env; set +a; fi
           : "${MW_HTTP_PORT:=8080}"
-          : "${SITEMAP_IDENTIFIER:=wiki}"
+          : "${MW_SITEMAP_IDENTIFIER:=wiki}"
           BASE="http://localhost:${MW_HTTP_PORT}"
 
-          echo "[e2e] Expect: ${BASE}/sitemap.xml -> /sitemap/sitemap-index-${SITEMAP_IDENTIFIER}.xml and target 200"
+          echo "[e2e] Expect: ${BASE}/sitemap.xml -> /sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml and target 200"
 
           ok=0
           for i in $(seq 1 40); do
@@ -320,7 +320,7 @@ jobs:
             [ -n "$loc" ] || { sleep 3; continue; }
 
             # c) Pfad im Location korrekt?
-            echo "$loc" | grep -q "/sitemap/sitemap-index-${SITEMAP_IDENTIFIER}\.xml$" || { sleep 3; continue; }
+            echo "$loc" | grep -q "/sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}\.xml$" || { sleep 3; continue; }
 
             # 2) Ziel-Status prüfen
             code="$(curl -fsSI "$loc" | awk 'NR==1{print $2}')"
@@ -336,7 +336,7 @@ jobs:
             echo "::error::Sitemap redirect/target check failed"
             echo "[debug] HEAD /sitemap.xml"
             curl -v -sI "${BASE}/sitemap.xml" || true
-            echo "[debug] Expected suffix: /sitemap/sitemap-index-${SITEMAP_IDENTIFIER}.xml"
+            echo "[debug] Expected suffix: /sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml"
             echo "[debug] Apache enabled conf (first 60 lines):"
             docker compose exec -T mediawiki sh -lc 'sed -n "1,60p" /etc/apache2/conf-enabled/*.conf 2>/dev/null || true'
             echo "[debug] List sitemap dir:"
@@ -503,9 +503,9 @@ jobs:
         shell: bash
         run: |
           [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
-          : "${SITEMAP_IDENTIFIER:=wiki}"
+          : "${MW_SITEMAP_IDENTIFIER:=wiki}"
           docker compose exec -T mediawiki sh -lc '
-            f="/var/www/html/sitemap/sitemap-index-'"$SITEMAP_IDENTIFIER"'.xml"
+            f="/var/www/html/sitemap/sitemap-index-'"$MW_SITEMAP_IDENTIFIER"'.xml"
             [ -s "$f" ] || { echo "::error::missing sitemap index: $f"; exit 1; }
             now=$(date +%s); mt=$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f")
             age=$(( now - mt ))

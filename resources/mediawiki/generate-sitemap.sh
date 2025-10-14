@@ -2,13 +2,13 @@
 set -euo pipefail
 cd /var/www/html
 
-server="${SITEMAP_SERVER:?SITEMAP_SERVER is required}"
-fspath="${SITEMAP_FSPATH:-/var/www/html/sitemap}"
-urlpath="${SITEMAP_URLPATH:-sitemap/}"
-identifier="${SITEMAP_IDENTIFIER:-wiki}"
+server="${MW_SITEMAP_SERVER:?MW_SITEMAP_SERVER is required}"
+fspath="${MW_SITEMAP_FSPATH:-/var/www/html/sitemap}"
+urlpath="${MW_SITEMAP_URLPATH:-sitemap/}"
+identifier="${MW_SITEMAP_IDENTIFIER:-wiki}"
 
 args=(maintenance/run.php generateSitemap --identifier "$identifier" --server "$server" --fspath "$fspath" --urlpath "$urlpath")
-if [[ "${SITEMAP_SKIP_REDIRECTS:-true}" == "true" ]]; then
+if [[ "${MW_SITEMAP_SKIP_REDIRECTS:-true}" == "true" ]]; then
   args+=(--skip-redirects)
 fi
 
