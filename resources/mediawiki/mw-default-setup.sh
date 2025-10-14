@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -eu
 
+: "${MW_CONFIG_FILE:=/var/www/html/LocalSettings.php}"
+
 cd /var/www/html
 run="php maintenance/run.php"
 
@@ -18,11 +20,11 @@ if $run install --help 2>&1 | grep -q -- '--extensions'; then
   [ -n "$EXT_CSV" ] && EXT_FLAG="--extensions $EXT_CSV"
 fi
 
-if [ -f LocalSettings.php ]; then
-  echo "[e2e] LocalSettings.php exists → running update.php"
+if [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
+  echo "${MW_CONFIG_FILE} exists → running update.php"
   $run update --quick --no-interactive
 else
-  echo "[e2e] No LocalSettings.php → running install.php"
+  echo "No ${MW_CONFIG_FILE} → running install.php"
 
   # DB-Port erreichbar? (failsafe zusätzlich zum vorherigen DB-Wait)
   end=$((SECONDS+120))
@@ -33,7 +35,7 @@ else
 
   # Installation
   $run install \
-    --confpath /var/www/html \
+    --confpath /tmp \
     --dbtype mysql \
     --dbserver  "${MW_DB_HOST:-database}:${MW_DB_PORT:-3306}" \
     --dbname    "${MW_DB_NAME:-wikidb}" \
@@ -49,10 +51,12 @@ else
     "${MW_SITENAME:-Wiki CI}" \
     "${MW_ADMIN_USER:-Admin}"
 fi
+mv /tmp/LocalSettings.php "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}"
 
 # --- $wgScriptPath und $wgArticlePath in LocalSettings.php setzen ---
 # Datei
-f="/var/www/html/LocalSettings.php"
+f="${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}"
+  [ -f "$f" ] || { echo "Config file $f not found"; exit 1; }
 
 # $wgScriptPath = "";
 if grep -q "^\$wgScriptPath" "$f"; then

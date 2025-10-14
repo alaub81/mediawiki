@@ -8,6 +8,11 @@ services:
         MW_SKINS: ${MW_SKINS:-}
     image: mmediawiki-custom
     pull_policy: never
+    environment:
+      MW_CONFIG_FILE: ${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}
+    env_file:
+      - .env.ci
+
 
   memcachephp:
     build:
