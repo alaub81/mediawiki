@@ -235,7 +235,6 @@ jobs:
                 --scriptpath "" \
                 --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
                 ${EXT_FLAG:+$EXT_FLAG} \
-                # ${SKINS_FLAG:+$SKINS_FLAG} \
                 "${MW_SITENAME:-Wiki CI}" \
                 "${MW_ADMIN_USER:-Admin}"
             fi
