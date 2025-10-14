@@ -8,7 +8,6 @@ services:
         MW_SKINS: ${MW_SKINS:-}
     image: mmediawiki-custom
     pull_policy: never
-    volumes: []
 
   memcachephp:
     build:
