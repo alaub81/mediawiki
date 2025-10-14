@@ -20,7 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - {name: "mediawiki", dockerfile: "Dockerfile-mediawiki", context: "."}
+          - {name: "mediawiki-custom", dockerfile: "Dockerfile-mediawiki", context: "."}
           - {name: "memcachephp", dockerfile: "Dockerfile-memcachephp", context: "."}
 
     steps:
