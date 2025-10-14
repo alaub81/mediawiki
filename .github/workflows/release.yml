@@ -24,7 +24,7 @@ jobs:
           - {name: "memcachephp", dockerfile: "Dockerfile-memcachephp", context: "."}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Login to GHCR
         uses: docker/login-action@v3
