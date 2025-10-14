@@ -129,6 +129,7 @@ jobs:
           MW_DB_ADMIN_USER=root
 
           # MediaWiki
+          MW_CONFIG_FILE="/var/www/html/LocalSettings.ci.php"
           MW_SITENAME="Wiki CI"
           MW_LANG=de
           MW_ADMIN_USER=Admin
@@ -191,55 +192,56 @@ jobs:
       - name: Ensure MediaWiki is installed (install or update)
         run: |
           docker compose exec -T -u www-data mediawiki sh -lc '
-            set -e
-            cd /var/www/html
-            run="php maintenance/run.php"
+            /usr/local/bin/mw-default-setup.sh
+            # set -e
+            # cd /var/www/html
+            # run="php maintenance/run.php"
 
-            # Space → CSV (komma-getrennt), robust & POSIX
-            EXT_CSV=""
-            if [ -n "${MW_EXTENSIONS:-}" ]; then
-              for e in $MW_EXTENSIONS; do
-                [ -z "$EXT_CSV" ] && EXT_CSV="$e" || EXT_CSV="$EXT_CSV,$e"
-              done
-            fi
+            # # Space → CSV (komma-getrennt), robust & POSIX
+            # EXT_CSV=""
+            # if [ -n "${MW_EXTENSIONS:-}" ]; then
+            #   for e in $MW_EXTENSIONS; do
+            #     [ -z "$EXT_CSV" ] && EXT_CSV="$e" || EXT_CSV="$EXT_CSV,$e"
+            #   done
+            # fi
 
-            # --extensions nur nutzen, wenn unterstützt
-            EXT_FLAG=""
-            if $run install --help 2>&1 | grep -q -- '--extensions'; then
-              [ -n "$EXT_CSV" ] && EXT_FLAG="--extensions $EXT_CSV"
-            fi
+            # # --extensions nur nutzen, wenn unterstützt
+            # EXT_FLAG=""
+            # if $run install --help 2>&1 | grep -q -- '--extensions'; then
+            #   [ -n "$EXT_CSV" ] && EXT_FLAG="--extensions $EXT_CSV"
+            # fi
 
-            if [ -f LocalSettings.php ]; then
-              echo "[e2e] LocalSettings.php exists → running update.php"
-              $run update --quick --no-interactive
-            else
-              echo "[e2e] No LocalSettings.php → running install.php"
+            # if [ -f LocalSettings.php ]; then
+            #   echo "[e2e] LocalSettings.php exists → running update.php"
+            #   $run update --quick --no-interactive
+            # else
+            #   echo "[e2e] No LocalSettings.php → running install.php"
 
-              # DB-Port erreichbar? (failsafe zusätzlich zum vorherigen DB-Wait)
-              end=$((SECONDS+120))
-              until php -r "exit(@fsockopen(getenv(\"MW_DB_HOST\")?: \"database\", (int)(getenv(\"MW_DB_PORT\")?:3306))?0:1);"; do
-                [ $SECONDS -ge $end ] && { echo "DB not reachable"; exit 1; }
-                sleep 2
-              done
+            #   # DB-Port erreichbar? (failsafe zusätzlich zum vorherigen DB-Wait)
+            #   end=$((SECONDS+120))
+            #   until php -r "exit(@fsockopen(getenv(\"MW_DB_HOST\")?: \"database\", (int)(getenv(\"MW_DB_PORT\")?:3306))?0:1);"; do
+            #     [ $SECONDS -ge $end ] && { echo "DB not reachable"; exit 1; }
+            #     sleep 2
+            #   done
 
-              # Installation
-              $run install \
-                --confpath /var/www/html \
-                --dbtype mysql \
-                --dbserver  "${MW_DB_HOST:-database}:${MW_DB_PORT:-3306}" \
-                --dbname    "${MW_DB_NAME:-wikidb}" \
-                --dbuser    "${MW_DB_USER:-wikiuser}" \
-                --dbpass    "${MW_DB_PASS:-w1k1pass}" \
-                --installdbuser "${MW_DB_ADMIN_USER:-root}" \
-                --installdbpass "${MARIADB_ROOT_PASSWORD:-ciRootPassw0rd}" \
-                --lang      "${MW_LANG:-de}" \
-                --server    http://localhost:${MW_HTTP_PORT:-8080} \
-                --scriptpath "" \
-                --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
-                ${EXT_FLAG:+$EXT_FLAG} \
-                "${MW_SITENAME:-Wiki CI}" \
-                "${MW_ADMIN_USER:-Admin}"
-            fi
+            #   # Installation
+            #   $run install \
+            #     --confpath /var/www/html \
+            #     --dbtype mysql \
+            #     --dbserver  "${MW_DB_HOST:-database}:${MW_DB_PORT:-3306}" \
+            #     --dbname    "${MW_DB_NAME:-wikidb}" \
+            #     --dbuser    "${MW_DB_USER:-wikiuser}" \
+            #     --dbpass    "${MW_DB_PASS:-w1k1pass}" \
+            #     --installdbuser "${MW_DB_ADMIN_USER:-root}" \
+            #     --installdbpass "${MARIADB_ROOT_PASSWORD:-ciRootPassw0rd}" \
+            #     --lang      "${MW_LANG:-de}" \
+            #     --server    http://localhost:${MW_HTTP_PORT:-8080} \
+            #     --scriptpath "" \
+            #     --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
+            #     ${EXT_FLAG:+$EXT_FLAG} \
+            #     "${MW_SITENAME:-Wiki CI}" \
+            #     "${MW_ADMIN_USER:-Admin}"
+            # fi
           '
 
       - name: Ensure Short URLs in LocalSettings.php
