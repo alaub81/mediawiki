@@ -250,7 +250,7 @@ jobs:
           # Datei im Container patchen – idempotent
           docker compose exec -T -u www-data mediawiki sh -lc '
             set -eu
-            f=/var/www/html/LocalSettings.php
+            f=${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}
             [ -f "$f" ] || { echo "::error::LocalSettings.php missing"; exit 1; }
 
             # $wgScriptPath = "";
