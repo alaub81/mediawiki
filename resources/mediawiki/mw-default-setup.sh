@@ -72,6 +72,6 @@ else
   if grep -q '^?>' "$f"; then
     sed -i "s#^?>#\$wgArticlePath = \"/wiki/\\\$1\";\\n?>#" "$f"
   else
-    printf "\n\$wgArticlePath = "/wiki/\$1";\n" >> "$f"
+    printf "\n\$wgArticlePath = \"/wiki/\$1\";\n" >> "$f"
   fi
 fi
