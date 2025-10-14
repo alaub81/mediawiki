@@ -42,7 +42,7 @@ else
     --installdbuser "${MW_DB_ADMIN_USER:-root}" \
     --installdbpass "${MARIADB_ROOT_PASSWORD:-ciRootPassw0rd}" \
     --lang      "${MW_LANG:-de}" \
-    --server    http://localhost:${MW_HTTP_PORT:-8080} \
+    --server    "http://localhost:${MW_HTTP_PORT:-8080}" \
     --scriptpath "" \
     --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
     ${EXT_FLAG:+$EXT_FLAG} \
@@ -51,28 +51,27 @@ else
 fi
 
 # --- $wgScriptPath und $wgArticlePath in LocalSettings.php setzen ---
-f=/var/www/html/LocalSettings.php
-[ -f "$f" ] || { echo "::error::LocalSettings.php missing"; exit 1; }
+# Datei
+f="/var/www/html/LocalSettings.php"
 
 # $wgScriptPath = "";
-if grep -q "^\$wgScriptPath" "$f"; then
-  sed -i 's#^\$wgScriptPath\s*=.*#\$wgScriptPath = "";#' "$f"
+if grep -q '^\$wgScriptPath' "$f"; then
+  sed -i "s#^\$wgScriptPath[[:space:]]*=.*#\$wgScriptPath = \"\";#" "$f"
 else
-  # vor dem PHP-Schluss einfügen, falls vorhanden – sonst ans Ende
-  if grep -q "^?>" "$f"; then
-    sed -i 's#^?>#\$wgScriptPath = "";\n?>#' "$f"
+  if grep -q '^?>' "$f"; then
+    sed -i "s#^?>#\$wgScriptPath = \"\";\\n?>#" "$f"
   else
-    printf "\n\$wgScriptPath = \"\";\n" >> "$f"
+    printf '\n$wgScriptPath = "";\n' >> "$f"
   fi
 fi
 
 # $wgArticlePath = "/wiki/$1";
-if grep -q "^\$wgArticlePath" "$f"; then
-  sed -i 's#^\$wgArticlePath\s*=.*#\$wgArticlePath = "/wiki/\$1";#' "$f"
+if grep -q '^\$wgArticlePath' "$f"; then
+  sed -i "s#^\$wgArticlePath[[:space:]]*=.*#\$wgArticlePath = \"/wiki/\\\$1\";#" "$f"
 else
-  if grep -q "^?>" "$f"; then
-    sed -i 's#^?>#\$wgArticlePath = "/wiki/\$1";\n?>#' "$f"
+  if grep -q '^?>' "$f"; then
+    sed -i "s#^?>#\$wgArticlePath = \"/wiki/\\\$1\";\\n?>#" "$f"
   else
-    printf "\n\$wgArticlePath = \"/wiki/\\\$1\";\n" >> "$f"
+    printf '\n$wgArticlePath = "/wiki/\$1";\n' >> "$f"
   fi
 fi
