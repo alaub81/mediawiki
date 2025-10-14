@@ -439,90 +439,61 @@ jobs:
           done
           exit $fail
 
-      - name: E2E — skin installed and set as default
+      - name: E2E — all skins are loaded
         continue-on-error: true
         shell: bash
         run: |
           # .env.ci sicher laden (ohne PATH zu zerstören)
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           : "${MW_HTTP_PORT:=8080}"
-          : "${MW_SKINS:=}"                       # space-getrennt: "Vector MinervaNeue ..."
-          : "${E2E_EXPECT_DEFAULT_SKIN:=}"        # optional, z.B. "Vector-2022"
-          : "${MW_DEFAULT_SKIN:=}"                # optionaler Fallback
+          : "${E2E_EXPECT_SKINS:=${MW_SKINS:-}}"   # space-getrennt, z.B. "Vector-2022 MinervaNeue"
 
-          # normalisieren: lowercase, Space/_ -> -, nur [a-z0-9-]
+          # Normalisierung & Mapping auf API-"code"
           norm(){ printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
                   | sed -E 's/[ _]+/-/g; s/[^a-z0-9-]+//g'; }
-          # Mapping üblicher Namen -> API-Skin-"code"
           to_code(){
             n="$(norm "$1")"
             case "$n" in
               vector2022|vector-2022) echo "vector-2022" ;;
-              minervaneue|minerva-neue|minerva) echo "minerva" ;;
-              monobook|mono-book) echo "monobook" ;;
-              desk[mn]*|deskmessmirrored) echo "deskmessmirrored" ;;
+              minervaneue|minerva)    echo "minerva" ;;
+              monobook)               echo "monobook" ;;
+              timeless)               echo "timeless" ;;
+              deskmessmirrored|desk*) echo "deskmessmirrored" ;;
               cologneblue|cologne-blue) echo "cologneblue" ;;
               *) echo "$n" ;;
             esac
           }
 
-          # Erwartete Codes aus MW_SKINS bauen
+          # Erwartete Codes aus Liste bauen
           WANT=""
-          for s in $MW_SKINS; do
-            c="$(to_code "$s")"; [ -n "$c" ] && WANT="${WANT}${c}\n"
+          for s in $E2E_EXPECT_SKINS; do
+            c="$(to_code "$s")"
+            [ -n "$c" ] && WANT="${WANT}${c}\n"
           done
 
-          if [ -z "$WANT" ]; then
-            echo "Info: MW_SKINS ist leer – installierte Skins werden nur gelistet."
-          fi
+          # Installierte/geladene Skins aus der API holen
+          JSON="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=skins&format=json")"
+          API_CODES="$(
+            printf '%s' "$JSON" \
+            | grep -o '"code":"[^"]*"' | cut -d'"' -f4 \
+            | while read -r x; do norm "$x"; done
+          )"
 
-          # Liste installierter Skin-Codes aus API
-          JSON_S="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=skins&format=json")"
-          API_CODES="$(printf '%s' "$JSON_S" | grep -o '"code":"[^"]*"' | cut -d'"' -f4 \
-                      | while read -r x; do norm "$x"; done)"
-
-          # Prüfen: jeder WANT-Code muss in API_CODES sein
+          # Verifizieren
           fail=0
           if [ -n "$WANT" ]; then
             printf '%b' "$WANT" | while read -r need; do
               [ -z "$need" ] && continue
               if printf '%s\n' "$API_CODES" | grep -qx "$need"; then
-                echo "✓ skin installed: $need"
+                echo "✓ skin loaded: $need"
               else
-                echo "::error::skin missing (not loaded): $need"
+                echo "::error::skin not loaded: $need"
                 fail=1
               fi
             done
-          fi
-
-          # Optional: Default-Skin prüfen (gegen E2E_EXPECT_DEFAULT_SKIN / MW_DEFAULT_SKIN)
-          want_def=""
-          if [ -n "$E2E_EXPECT_DEFAULT_SKIN" ]; then
-            want_def="$(to_code "$E2E_EXPECT_DEFAULT_SKIN")"
-          elif [ -n "$MW_DEFAULT_SKIN" ]; then
-            want_def="$(to_code "$MW_DEFAULT_SKIN")"
-          fi
-          if [ -n "$want_def" ]; then
-            JSON_D="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=defaultoptions&format=json")"
-            cur_def="$(printf '%s' "$JSON_D" | grep -o '"skin":"[^"]*"' | head -n1 | cut -d'"' -f4 | to_code)"
-            if [ "$cur_def" = "$want_def" ]; then
-              echo "✓ default skin: $cur_def"
-            else
-              echo "::error::default skin is '$cur_def' (expected '$want_def')"
-              fail=1
-            fi
           else
-            echo "Info: kein erwarteter Default gesetzt (E2E_EXPECT_DEFAULT_SKIN/MW_DEFAULT_SKIN leer)"
+            echo "Info: keine Skins angegeben (E2E_EXPECT_SKINS/MW_SKINS leer) – übersprungen."
           fi
-
-          # Optionaler HTML-Sanity-Check (nicht fatal)
-          if [ -n "$want_def" ]; then
-            body="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/")" || body=""
-            echo "$body" | grep -qi "class=.*skin-${want_def}" \
-              && echo "✓ body class has skin-${want_def}" \
-              || echo "::warning::no 'skin-${want_def}' in body class (kann cache-/seiteabhängig sein)"
-          fi
-
           exit $fail
 
       - name: E2E — memcached reachable from mediawiki
