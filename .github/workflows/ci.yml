@@ -442,6 +442,12 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
+          # .env.ci sicher laden ohne PATH zu zerstören
+          if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
+          : "${MW_HTTP_PORT:=8080}"
+          : "${E2E_EXPECT_SKINS:=${MW_SKINS:-}}"
+          [ -n "$E2E_EXPECT_SKINS" ] || { echo "No E2E_EXPECT_SKINS defined, skipping"; exit 0; }
+
           # 1) Helfer zuerst definieren
           norm(){ printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
                   | sed -E 's/[ _]+/-/g; s/[^a-z0-9-]+//g'; }
