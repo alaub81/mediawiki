@@ -163,8 +163,31 @@ jobs:
             --env-file .env.ci \
             up -d --build
 
-      - name: Wait for healthy database
-        run: docker compose wait --timeout 120 database
+      - name: Wait for database (TCP-ready from mediawiki)
+        shell: bash
+        run: |
+          # Warte aus dem MediaWiki-Container auf TCP-Port der DB (ohne externe Tools)
+          docker compose exec -T -u www-data mediawiki sh -lc '
+            end=$((SECONDS+120))
+            until php -r "exit(@fsockopen(getenv(\"MW_DB_HOST\")?: \"database\", (int)(getenv(\"MW_DB_PORT\")?:3306))?0:1);"; do
+              [ $SECONDS -ge $end ] && { echo "DB TCP not reachable"; exit 1; }
+              sleep 2
+            done
+            echo "DB TCP reachable"
+          '
+
+      - name: (Optional) Verify DB auth if client exists
+        shell: bash
+        run: |
+          docker compose exec -T database sh -lc '
+            if command -v mysqladmin >/dev/null 2>&1; then
+              mysqladmin ping -h 127.0.0.1 -u "${MARIADB_ROOT_USER:-root}" -p"${MARIADB_ROOT_PASSWORD}" --silent
+            elif command -v mariadb-admin >/dev/null 2>&1; then
+              mariadb-admin ping -h 127.0.0.1 -u "${MARIADB_ROOT_USER:-root}" -p"${MARIADB_ROOT_PASSWORD}" --silent
+            else
+              echo "No mysqladmin/mariadb-admin in image – skipping auth ping"
+            fi
+          '
 
       - name: Ensure MediaWiki is installed (install or update)
         run: |
