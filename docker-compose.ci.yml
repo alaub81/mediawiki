@@ -1,0 +1,17 @@
+services:
+  mediawiki:
+    build:
+      context: .
+      dockerfile: Dockerfile-mediawiki
+      args:
+        MW_EXTENSIONS: ${MW_EXTENSIONS:-}
+        MW_SKINS: ${MW_SKINS:-}
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/mediawiki:ci-${GITHUB_SHA}
+    pull_policy: never
+
+  memcachephp:
+    build:
+      context: .
+      dockerfile: Dockerfile-memcachephp
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/memcachephp:ci-${GITHUB_SHA}
+    pull_policy: never

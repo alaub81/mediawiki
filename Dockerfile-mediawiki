@@ -1,8 +1,6 @@
-ARG MW_VERSION=1.43
-FROM mediawiki:${MW_VERSION}
+FROM mediawiki:1.43
 ENV DEBIAN_FRONTEND=noninteractive
 
-ARG MW_VERSION=1.43
 ENV MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud"
 ENV MW_SKINS="DeskMessMirrored"
 
@@ -20,7 +18,7 @@ RUN apt-get update \
   && a2enconf mediawiki-rewrites
 
 RUN set -eux; \
-  BR="${MW_BRANCH:-REL${MW_VERSION%%.*}_${MW_VERSION#*.}}"; \
+  BR="${MW_BRANCH:-REL${MEDIAWIKI_MAJOR_VERSION%%.*}_${MEDIAWIKI_MAJOR_VERSION#*.}}"; \
   echo "Using MW_BRANCH=$BR"; \
   clone_or_replace() { \
     url="$1"; target="$2"; branch="$3"; \

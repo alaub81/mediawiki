@@ -85,6 +85,8 @@ jobs:
           platforms: linux/amd64
           load: true
           push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
@@ -152,7 +154,12 @@ jobs:
           set +a
 
       - name: Compose up
-        run: docker compose -f docker-compose.dev.yml --env-file .env.ci up -d --build
+        run: |
+          docker compose \
+            -f docker-compose.yml \
+            -f docker-compose.ci.yml \
+            --env-file .env.ci \
+            up -d --build
 
       - name: Wait for database
         run: |
