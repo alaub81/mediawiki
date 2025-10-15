@@ -352,6 +352,7 @@ jobs:
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           : "${MW_HTTP_PORT:=8080}"
           : "${E2E_EXPECT_EXTENSIONS:=$(docker compose exec -T mediawiki printenv MW_EXTRA_EXTENSIONS | tr -d '\r')}"
+          echo "E2E_EXPECT_EXTENSIONS: $E2E_EXPECT_EXTENSIONS"
 
           # Normalisierer: lower + nur [a-z0-9]
           norm() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]'; }
