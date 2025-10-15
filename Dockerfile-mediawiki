@@ -3,19 +3,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud"
 ENV MW_INSTALL_SKINS="DeskMessMirrored"
+ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks"
+ENV MW_EXTRA_SKINS="${MW_INSTALL_SKINS}"
 
 COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
-
-# RUN apt-get update \
-#   && apt-get install -y --no-install-recommends \
-#       git \
-#       ca-certificates \
-#       curl \
-#       tzdata \
-#   && apt-get clean \
-#   && rm -rf /var/lib/apt/lists/* \
-#   && a2enmod headers \
-#   && a2enconf mediawiki-rewrites
 
 RUN a2enmod headers \
   && a2enconf mediawiki-rewrites
@@ -49,16 +40,6 @@ RUN set -eux; \
   find /var/www/html/skins -name .git -type d -prune -exec rm -rf {} +; \
   chown -R www-data:www-data /var/www/html/extensions; \
   chown -R www-data:www-data /var/www/html/skins
-
-# # im entrypoint
-# add_to_list(){ printf '%s %s\n' "$1" "$2" | tr ' ' '\n' | awk 'NF && !seen[$0]++' | xargs; }
-# : "${MW_EXTENSIONS:=}"
-# : "${MW_SKINS:=}"
-# # Beispiel: RottenLinks anfügen, wenn vorhanden
-# # MW_EXTENSIONS="$(add_to_list "$MW_EXTENSIONS" 'RottenLinks')"
-# export MW_EXTENSIONS MW_SKINS
-ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks"
-ENV MW_EXTRA_SKINS="${MW_INSTALL_SKINS}"
 
 # Supercronic (arch-agnostisch)
 ARG TARGETARCH
