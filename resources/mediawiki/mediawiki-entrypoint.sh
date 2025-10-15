@@ -57,23 +57,23 @@ else
 fi
 
 # --- RottenLinks-Job (existiert Skript? Extension vorhanden?) ---
-if [ "${ROTTENLINKS_GENERATION:-}" != "true" ]; then
-  echo "[entrypoint] INFO: ROTTENLINKS_GENERATION not set to 'true' – RottenLinks cron skipped"
+if [ "${MW_ROTTENLINKS_GENERATION:-}" != "true" ]; then
+  echo "[entrypoint] INFO: MW_ROTTENLINKS_GENERATION not set to 'true' – RottenLinks cron skipped"
 else
   # 1) Skript vorhanden?
   if [ -x /usr/local/bin/generate-rottenlinks.sh ]; then
     # 2) Extension vorhanden? (mindestens eines der Kriterien)
     if [ -d /var/www/html/extensions/RottenLinks ] || \
       grep -q "wfLoadExtension( 'RottenLinks' );" /var/www/html/LocalSettings.php 2>/dev/null; then
-      if [ "${ROTTENLINKS_RUN_ON_START:-false}" == "true" ]; then
+      if [ "${MW_ROTTENLINKS_RUN_ON_START:-false}" == "true" ]; then
         echo "[entrypoint] Running RottenLinks generation once on start..."
         /usr/local/bin/generate-rottenlinks.sh || echo "[entrypoint] Initial RottenLinks run failed (continuing)"
       fi
       add_cron_if_missing \
-        "${ROTTENLINKS_CRON:-30 */12 * * *}" \
+        "${MW_ROTTENLINKS_CRON:-30 */12 * * *}" \
         "/usr/local/bin/generate-rottenlinks.sh >> /proc/1/fd/1 2>&1"
     else
-      echo "[entrypoint] WARN: RottenLinks not loaded – Cron skipped (set ENABLE_ROTTENLINKS_CRON=1 to force)"
+      echo "[entrypoint] WARN: RottenLinks not loaded – Cron skipped (set ENABLE_MW_ROTTENLINKS_CRON=1 to force)"
     fi
   else
     echo "[entrypoint] WARN: /usr/local/bin/generate-rottenlinks.sh not found – RottenLinks cron skipped"

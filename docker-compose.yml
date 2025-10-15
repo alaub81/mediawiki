@@ -1,7 +1,6 @@
 services:
   mediawiki:
-    # image: ghcr.io/alaub81/mediawiki-custom:${MW_VERSION:-latest}.1
-    image: ghcr.io/alaub81/mediawiki-custom:latest
+    image: ghcr.io/alaub81/mediawiki-custom:${MW_VERSION:-latest}.1
     depends_on:
       database:
         condition: service_healthy
@@ -19,9 +18,9 @@ services:
       MW_SITEMAP_SKIP_REDIRECTS: "${MW_SITEMAP_SKIP_REDIRECTS:-true}"
       MW_SITEMAP_RUN_ON_START: "${MW_SITEMAP_RUN_ON_START:-false}"
       MW_SITEMAP_IDENTIFIER: "${MW_SITEMAP_IDENTIFIER:-wiki}"
-      ROTTENLINKS_GENERATION: ${ROTTENLINKS_GENERATION:-false}
-      ROTTENLINKS_CRON: "${ROTTENLINKS_CRON:-30 */12 * * *}"
-      ROTTENLINKS_RUN_ON_START: "${ROTTENLINKS_RUN_ON_START:-false}"
+      MW_ROTTENLINKS_GENERATION: ${MW_ROTTENLINKS_GENERATION:-false}
+      MW_ROTTENLINKS_CRON: "${MW_ROTTENLINKS_CRON:-30 */12 * * *}"
+      MW_ROTTENLINKS_RUN_ON_START: "${MW_ROTTENLINKS_RUN_ON_START:-false}"
       TZ: ${TZ:-UTC}
     ports:
       - ${MW_HTTP_PORT:-8181}:80
@@ -33,6 +32,8 @@ services:
       # and uncomment the following line and use compose to restart
       # the mediawiki service
       - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
+      # or custom config file don't forget to set MW_CONFIG_FILE env var in .env
+      # - ./data/mediawiki/conf/mw_local_settings:/var/www/html/conf/:rw
       # --- Custom files and volumes: ---
       - ./data/mediawiki/conf/robots.txt:/var/www/html/robots.txt:ro
       - ./data/mediawiki/conf/.htaccess:/var/www/html/.htaccess:ro

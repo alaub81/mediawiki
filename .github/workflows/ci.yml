@@ -134,13 +134,11 @@ jobs:
           MW_LANG=de
           MW_ADMIN_USER=Admin
           MW_ADMIN_PASS=AdminPass123
-          # MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud RottenLinks"
-          # MW_SKINS="DeskMessMirrored"
           MW_SITEMAP_GENERATION=true
           MW_SITEMAP_RUN_ON_START=true
           MW_SITEMAP_IDENTIFIER=wiki
-          ROTTENLINKS_GENERATION=true
-          ROTTENLINKS_RUN_ON_START=true
+          MW_ROTTENLINKS_GENERATION=true
+          MW_ROTTENLINKS_RUN_ON_START=true
 
           # MemcachePHP
           MEMCACHEPHP_HTTP_PORT=8097
@@ -345,7 +343,6 @@ jobs:
           exit $fail
 
       - name: E2E — all extensions are loaded
-        continue-on-error: true
         shell: bash
         run: |
           # .env.ci sicher laden ohne PATH zu zerstören
@@ -379,7 +376,6 @@ jobs:
           exit $fail
 
       - name: E2E — all skins are loaded
-        continue-on-error: true
         shell: bash
         run: |
           # .env.ci sicher laden ohne PATH zu zerstören
