@@ -27,13 +27,6 @@ Redirect 301 /sitemap.xml /sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml
 EOF
 a2enconf -q zz-sitemap-redirect || true
 
-# # Sitemap Cronfile für supercronic erzeugen (wichtig: 5-Feld-Cronsyntax, kein "root")
-# CRON_FILE="/etc/cron.d/mediawiki"
-# mkdir -p /etc/cron.d
-# # Log direkt auf Container-STDOUT/STDERR leiten
-# printf "%s %s\n" "${MW_SITEMAP_CRON:-20 */12 * * *}" "/usr/local/bin/generate-sitemap.sh >> /proc/1/fd/1 2>&1" > "$CRON_FILE"
-# printf "%s %s\n" "${ROTTENLINKS_CRON:-20 */12 * * *}" "/usr/local/bin/generate-rottenlinks.sh >> /proc/1/fd/1 2>&1" >> "$CRON_FILE"
-
 # --- Cronfile vorbereiten ---
 CRON_FILE="/etc/cron.d/mediawiki"
 mkdir -p "$(dirname "$CRON_FILE")"
