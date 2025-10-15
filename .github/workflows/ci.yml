@@ -129,7 +129,7 @@ jobs:
           MW_DB_ADMIN_USER=root
 
           # MediaWiki
-          MW_CONFIG_FILE="/var/www/html/LocalSettings.ci.php"
+          MW_CONFIG_FILE="/var/www/html/conf/LocalSettings.ci.php"
           MW_SITENAME="Wiki CI"
           MW_LANG=de
           MW_ADMIN_USER=Admin
