@@ -134,8 +134,8 @@ jobs:
           MW_LANG=de
           MW_ADMIN_USER=Admin
           MW_ADMIN_PASS=AdminPass123
-          MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud RottenLinks"
-          MW_SKINS="DeskMessMirrored"
+          # MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud RottenLinks"
+          # MW_SKINS="DeskMessMirrored"
           MW_SITEMAP_GENERATION=true
           MW_SITEMAP_RUN_ON_START=true
           MW_SITEMAP_IDENTIFIER=wiki
@@ -193,55 +193,6 @@ jobs:
         run: |
           docker compose exec -T -u www-data mediawiki sh -lc '
             /usr/local/bin/mw-default-setup.sh
-            # set -e
-            # cd /var/www/html
-            # run="php maintenance/run.php"
-
-            # # Space → CSV (komma-getrennt), robust & POSIX
-            # EXT_CSV=""
-            # if [ -n "${MW_EXTENSIONS:-}" ]; then
-            #   for e in $MW_EXTENSIONS; do
-            #     [ -z "$EXT_CSV" ] && EXT_CSV="$e" || EXT_CSV="$EXT_CSV,$e"
-            #   done
-            # fi
-
-            # # --extensions nur nutzen, wenn unterstützt
-            # EXT_FLAG=""
-            # if $run install --help 2>&1 | grep -q -- '--extensions'; then
-            #   [ -n "$EXT_CSV" ] && EXT_FLAG="--extensions $EXT_CSV"
-            # fi
-
-            # if [ -f LocalSettings.php ]; then
-            #   echo "[e2e] LocalSettings.php exists → running update.php"
-            #   $run update --quick --no-interactive
-            # else
-            #   echo "[e2e] No LocalSettings.php → running install.php"
-
-            #   # DB-Port erreichbar? (failsafe zusätzlich zum vorherigen DB-Wait)
-            #   end=$((SECONDS+120))
-            #   until php -r "exit(@fsockopen(getenv(\"MW_DB_HOST\")?: \"database\", (int)(getenv(\"MW_DB_PORT\")?:3306))?0:1);"; do
-            #     [ $SECONDS -ge $end ] && { echo "DB not reachable"; exit 1; }
-            #     sleep 2
-            #   done
-
-            #   # Installation
-            #   $run install \
-            #     --confpath /var/www/html \
-            #     --dbtype mysql \
-            #     --dbserver  "${MW_DB_HOST:-database}:${MW_DB_PORT:-3306}" \
-            #     --dbname    "${MW_DB_NAME:-wikidb}" \
-            #     --dbuser    "${MW_DB_USER:-wikiuser}" \
-            #     --dbpass    "${MW_DB_PASS:-w1k1pass}" \
-            #     --installdbuser "${MW_DB_ADMIN_USER:-root}" \
-            #     --installdbpass "${MARIADB_ROOT_PASSWORD:-ciRootPassw0rd}" \
-            #     --lang      "${MW_LANG:-de}" \
-            #     --server    http://localhost:${MW_HTTP_PORT:-8080} \
-            #     --scriptpath "" \
-            #     --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
-            #     ${EXT_FLAG:+$EXT_FLAG} \
-            #     "${MW_SITENAME:-Wiki CI}" \
-            #     "${MW_ADMIN_USER:-Admin}"
-            # fi
           '
 
       - name: Ensure Short URLs in LocalSettings.php
@@ -400,7 +351,7 @@ jobs:
           # .env.ci sicher laden ohne PATH zu zerstören
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           : "${MW_HTTP_PORT:=8080}"
-          : "${E2E_EXPECT_EXTENSIONS:=${MW_EXTENSIONS:-}}"
+          : "${E2E_EXPECT_EXTENSIONS:=$(docker compose exec -T mediawiki printenv MW_EXTRA_EXTENSIONS | tr -d '\r')}"
 
           # Normalisierer: lower + nur [a-z0-9]
           norm() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]'; }
@@ -433,7 +384,7 @@ jobs:
           # .env.ci sicher laden ohne PATH zu zerstören
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           : "${MW_HTTP_PORT:=8080}"
-          : "${E2E_EXPECT_SKINS:=${MW_SKINS:-}}"
+          : "${E2E_EXPECT_SKINS:=$(docker compose exec -T mediawiki printenv MW_EXTRA_SKINS | tr -d '\r')}"
           [ -n "$E2E_EXPECT_SKINS" ] || { echo "No E2E_EXPECT_SKINS defined, skipping"; exit 0; }
 
           # 1) Helfer zuerst definieren

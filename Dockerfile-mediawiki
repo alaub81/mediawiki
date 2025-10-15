@@ -1,8 +1,8 @@
 FROM mediawiki:1.43
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV MW_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud"
-ENV MW_SKINS="DeskMessMirrored"
+ARG MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud"
+ARG MW_INSTALL_SKINS="DeskMessMirrored"
 
 COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
 
@@ -36,10 +36,10 @@ RUN set -eux; \
       echo "No suitable branch in $url"; exit 128; \
     fi; \
   }; \
-  for ext in $MW_EXTENSIONS; do \
+  for ext in $MW_INSTALL_EXTENSIONS; do \
     clone_or_replace "https://gerrit.wikimedia.org/r/mediawiki/extensions/$ext" "/var/www/html/extensions/$ext" "$BR"; \
   done; \
-  for skin in $MW_SKINS; do \
+  for skin in $MW_INSTALL_SKINS; do \
     clone_or_replace "https://gerrit.wikimedia.org/r/mediawiki/skins/$skin" "/var/www/html/skins/$skin" "$BR"; \
   done; \
   # Sonderfälle
@@ -50,7 +50,16 @@ RUN set -eux; \
   chown -R www-data:www-data /var/www/html/extensions; \
   chown -R www-data:www-data /var/www/html/skins
 
-ENV MW_EXTENSIONS="${MW_EXTENSIONS} RottenLinks"
+# # im entrypoint
+# add_to_list(){ printf '%s %s\n' "$1" "$2" | tr ' ' '\n' | awk 'NF && !seen[$0]++' | xargs; }
+# : "${MW_EXTENSIONS:=}"
+# : "${MW_SKINS:=}"
+# # Beispiel: RottenLinks anfügen, wenn vorhanden
+# # MW_EXTENSIONS="$(add_to_list "$MW_EXTENSIONS" 'RottenLinks')"
+# export MW_EXTENSIONS MW_SKINS
+ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks"
+ENV MW_EXTRA_SKINS="${MW_INSTALL_SKINS}"
+
 # Supercronic (arch-agnostisch)
 ARG TARGETARCH
 RUN curl -fsSLo /usr/local/bin/supercronic \

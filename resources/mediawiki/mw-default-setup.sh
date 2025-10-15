@@ -13,18 +13,18 @@ cd /var/www/html
 run="php maintenance/run.php"
 
 # Space → CSV (komma-getrennt), robust & POSIX
-EXT_CSV=""
-if [ -n "${MW_EXTENSIONS:-}" ]; then
-  for e in $MW_EXTENSIONS; do
-    [ -z "$EXT_CSV" ] && EXT_CSV="$e" || EXT_CSV="$EXT_CSV,$e"
-  done
-fi
+# EXT_CSV=""
+# if [ -n "${MW_EXTENSIONS:-}" ]; then
+#   for e in $MW_EXTENSIONS; do
+#     [ -z "$EXT_CSV" ] && EXT_CSV="$e" || EXT_CSV="$EXT_CSV,$e"
+#   done
+# fi
 
-# --extensions nur nutzen, wenn unterstützt
-EXT_FLAG=""
-if $run install --help 2>&1 | grep -q -- '--extensions'; then
-  [ -n "$EXT_CSV" ] && EXT_FLAG="--extensions $EXT_CSV"
-fi
+# # --extensions nur nutzen, wenn unterstützt
+# EXT_FLAG=""
+# if $run install --help 2>&1 | grep -q -- '--extensions'; then
+#   [ -n "$EXT_CSV" ] && EXT_FLAG="--extensions $EXT_CSV"
+# fi
 
 if [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
   echo "${MW_CONFIG_FILE} exists → running update.php"
@@ -41,6 +41,7 @@ else
 
   # Installation
   $run install \
+    --with-extensions \
     --confpath "${MW_CONFIG_FILE_PATH}" \
     --dbtype mysql \
     --dbserver  "${MW_DB_HOST:-database}:${MW_DB_PORT:-3306}" \
@@ -53,10 +54,11 @@ else
     --server    "http://localhost:${MW_HTTP_PORT:-8080}" \
     --scriptpath "" \
     --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
-    ${EXT_FLAG:+$EXT_FLAG} \
     "${MW_SITENAME:-Wiki CI}" \
     "${MW_ADMIN_USER:-Admin}"
 fi
+
+    # ${EXT_FLAG:+$EXT_FLAG} \
 
 # --- $wgScriptPath und $wgArticlePath in LocalSettings.php setzen ---
 # Datei

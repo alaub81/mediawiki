@@ -4,13 +4,12 @@ services:
       context: .
       dockerfile: Dockerfile-mediawiki
       args:
-        MW_EXTENSIONS: ${MW_EXTENSIONS:-}
-        MW_SKINS: ${MW_SKINS:-}
+        MW_INSTALL_EXTENSIONS: ${MW_INSTALL_EXTENSIONS:-}
+        MW_INSTALL_SKINS: ${MW_INSTALL_SKINS:-}
     image: mmediawiki-custom
     pull_policy: never
     env_file:
       - .env.ci
-
 
   memcachephp:
     build:
