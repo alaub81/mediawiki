@@ -12,19 +12,42 @@ fi
 cd /var/www/html
 run="php maintenance/run.php"
 
-# Space → CSV (komma-getrennt), robust & POSIX
-# EXT_CSV=""
-# if [ -n "${MW_EXTENSIONS:-}" ]; then
-#   for e in $MW_EXTENSIONS; do
-#     [ -z "$EXT_CSV" ] && EXT_CSV="$e" || EXT_CSV="$EXT_CSV,$e"
-#   done
-# fi
+# Hilfetext einmal ermitteln
+INSTALL_HELP="$($run install --help 2>&1 || true)"
 
-# # --extensions nur nutzen, wenn unterstützt
-# EXT_FLAG=""
-# if $run install --help 2>&1 | grep -q -- '--extensions'; then
-#   [ -n "$EXT_CSV" ] && EXT_FLAG="--extensions $EXT_CSV"
-# fi
+# Welche Flags unterstützt der Installer?
+HAS_EXT=0; HAS_WITH=0
+printf '%s' "$INSTALL_HELP" | grep -q -- '--extensions'       && HAS_EXT=1
+printf '%s' "$INSTALL_HELP" | grep -q -- '--with-extensions'  && HAS_WITH=1
+
+# Space → CSV aus MW_ACTIVE_EXTENSIONS
+EXT_CSV=""
+if [ -n "${MW_ACTIVE_EXTENSIONS:-}" ]; then
+  set -f  # kein Globbing
+  for e in $MW_ACTIVE_EXTENSIONS; do
+    if [ -z "$EXT_CSV" ]; then EXT_CSV="$e"; else EXT_CSV="$EXT_CSV,$e"; fi
+  done
+  set +f
+fi
+
+# Welches Flag nutzen?
+EXT_FLAG=""
+if [ -z "$EXT_CSV" ]; then
+  if [ $HAS_WITH -eq 1 ]; then
+    EXT_FLAG="--with-extensions"
+  else
+    echo "[install] Hinweis: --with-extensions nicht verfügbar; keine Extensions per Installer geladen." >&2
+  fi
+else
+  if [ $HAS_EXT -eq 1 ]; then
+    EXT_FLAG="--extensions $EXT_CSV"
+  elif [ $HAS_WITH -eq 1 ]; then
+    echo "[install] Hinweis: --extensions fehlt; benutze --with-extensions und ignoriere Liste." >&2
+    EXT_FLAG="--with-extensions"
+  else
+    echo "[install] Hinweis: Weder --extensions noch --with-extensions verfügbar; lade Extensions nachträglich." >&2
+  fi
+fi
 
 if [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
   echo "${MW_CONFIG_FILE} exists → running update.php"
@@ -38,10 +61,9 @@ else
     [ $SECONDS -ge $end ] && { echo "DB not reachable"; exit 1; }
     sleep 2
   done
-
+  echo ${EXT_FLAG:+$EXT_FLAG}
   # Installation
   $run install \
-    --with-extensions \
     --confpath "${MW_CONFIG_FILE_PATH}" \
     --dbtype mysql \
     --dbserver  "${MW_DB_HOST:-database}:${MW_DB_PORT:-3306}" \
@@ -54,6 +76,7 @@ else
     --server    "http://localhost:${MW_HTTP_PORT:-8080}" \
     --scriptpath "" \
     --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
+    ${EXT_FLAG:+$EXT_FLAG} \
     "${MW_SITENAME:-Wiki CI}" \
     "${MW_ADMIN_USER:-Admin}"
 fi
