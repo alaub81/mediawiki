@@ -507,7 +507,6 @@ jobs:
           echo "::error::Cirrus content-index nicht gefunden"; exit 1
 
       - name: E2E — CirrusSearch wired
-        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -517,7 +516,8 @@ jobs:
           BASE="http://localhost:${MW_HTTP_PORT}"
 
           # 1) Backend ist CirrusSearch?
-          BACKEND="$(docker compose exec -T mediawiki sh -lc 'printf "%s\n" "echo \$wgSearchType, PHP_EOL;" | php maintenance/run.php eval')"
+          BACKEND="$(docker compose exec -T mediawiki sh -lc 'printf "%s\n" "echo \$wgSearchType, PHP_EOL;" \
+            | php maintenance/run.php eval')"
           if [ "$BACKEND" != "CirrusSearch" ]; then
             echo "::error::wgSearchType ist '$BACKEND', erwartet 'CirrusSearch'"
             exit 1
