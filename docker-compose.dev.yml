@@ -53,7 +53,6 @@ services:
       # - ./data/mediawiki/conf/ads.txt:/var/www/html/ads.txt:ro
       # - ./data/mediawiki/favicon/browserconfig.xml:/var/www/html/browserconfig.xml:ro
       # - ./data/mediawiki/conf/loaderio-6e9f1d0addd92099f02be40c8be3a4db.txt:/var/www/html/loaderio-6e9f1d0addd92099f02be40c8be3>
-      # - ./data/mediawiki/CirrusSearch:/var/www/html/extensions/CirrusSearch/:rw
     healthcheck:
       test:
         - CMD-SHELL
@@ -104,7 +103,7 @@ services:
   memcached:
     image: memcached:alpine
     restart: unless-stopped
-    command: ["-m", "${MEMCACHE_CACHE:-16M}"]
+    command: ["-m", "${MEMCACHE_CACHE_MB:-16}"]
     environment:
       - TZ=${TZ:-UTC}
     labels:

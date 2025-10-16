@@ -124,42 +124,69 @@ $wgDiff3 = "/usr/bin/diff3";
 
 ## Default skin: you can change the default skin. Use the internal symbolic
 ## names, e.g. 'vector' or 'monobook':
-$wgDefaultSkin = "vector";
+$wgDefaultSkin = "vector-2022";
 
 # Enabled skins.
 # The following skins were automatically enabled:
+wfLoadSkin( 'DeskMessMirrored' );
 wfLoadSkin( 'MinervaNeue' );
 wfLoadSkin( 'MonoBook' );
 wfLoadSkin( 'Timeless' );
 wfLoadSkin( 'Vector' );
-wfLoadSkin( 'DeskMessMirrored' );
 
 
 # Enabled extensions. Most of the extensions are enabled by adding
 # wfLoadExtension( 'ExtensionName' );
 # to LocalSettings.php. Check specific extension documentation for more details.
 # The following extensions were automatically enabled:
+wfLoadExtension( 'AbuseFilter' );
+wfLoadExtension( 'CategoryTree' );
+wfLoadExtension( 'Cite' );
+wfLoadExtension( 'CiteThisPage' );
 wfLoadExtension( 'CodeEditor' );
+wfLoadExtension( 'ConfirmEdit' );
 wfLoadExtension( 'Description2' );
+wfLoadExtension( 'DiscussionTools' );
+wfLoadExtension( 'Echo' );
+wfLoadExtension( 'Gadgets' );
+wfLoadExtension( 'ImageMap' );
+wfLoadExtension( 'InputBox' );
+wfLoadExtension( 'Interwiki' );
 wfLoadExtension( 'Linter' );
 wfLoadExtension( 'Lockdown' );
+wfLoadExtension( 'LoginNotify' );
+wfLoadExtension( 'Math' );
+wfLoadExtension( 'MobileFrontend' );
+wfLoadExtension( 'MultimediaViewer' );
+wfLoadExtension( 'Nuke' );
+wfLoadExtension( 'OATHAuth' );
+wfLoadExtension( 'PageImages' );
+wfLoadExtension( 'ParserFunctions' );
+wfLoadExtension( 'PdfHandler' );
+wfLoadExtension( 'Poem' );
+wfLoadExtension( 'RelatedArticles' );
 wfLoadExtension( 'ReplaceText' );
 wfLoadExtension( 'RottenLinks' );
+wfLoadExtension( 'Scribunto' );
+wfLoadExtension( 'SecureLinkFixer' );
+wfLoadExtension( 'SpamBlacklist' );
 wfLoadExtension( 'SyntaxHighlight_GeSHi' );
+wfLoadExtension( 'TemplateData' );
+wfLoadExtension( 'TextExtracts' );
+wfLoadExtension( 'Thanks' );
+wfLoadExtension( 'TitleBlacklist' );
 wfLoadExtension( 'VisualEditor' );
 wfLoadExtension( 'WikiCategoryTagCloud' );
 wfLoadExtension( 'WikiEditor' );
+wfLoadExtension( 'Elastica' );
+wfLoadExtension( 'CirrusSearch' );
 
 
 # End of automatically generated settings.
 # Add more configuration options below.
-
-# Short URLs
 $wgScriptExtension  = ".php";
-$wgArticlePath = "/wiki/$1";
 $wgUsePathInfo = true;
 $actions = [
-//	'view',
 	'edit',
 	'watch',
 	'unwatch',
@@ -179,4 +206,16 @@ $actions = [
 foreach ( $actions as $action ) {
   $wgActionPaths[$action] = "/wiki/$action/$1";
 }
-//$wgArticlePath = $wgActionPaths['view'];
+$wgActionPaths['view'] = "/wiki/$1";
+$wgArticlePath = "/wiki/$1";
+
+# CirrusSearch settings
+$wgSearchType = 'CirrusSearch';
+$wgCirrusSearchServers = [ 'elasticsearch' ];
+# $wgCirrusSearchIndexBaseName = 'wikidbdev';
+$wgCirrusSearchUseCompletionSuggester = true;
+
+# $wgRelatedArticlesFooterWhitelistedSkins = ['minerva', 'vector'];
+$wgRelatedArticlesDescriptionSource = 'pagedescription';
+$wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
+$wgRelatedArticlesUseCirrusSearch = true;

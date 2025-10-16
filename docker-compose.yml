@@ -1,6 +1,6 @@
 services:
   mediawiki:
-    image: ghcr.io/alaub81/mediawiki-custom:${MW_VERSION:-latest}.1
+    image: ghcr.io/alaub81/mediawiki-custom:${MW_VERSION:-latest}
     depends_on:
       database:
         condition: service_healthy
@@ -10,6 +10,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
       MW_PHP_UPLOAD_MAX_FILESIZE: ${MW_PHP_UPLOAD_MAX_FILESIZE:-100M}
       MW_PHP_POST_MAX_SIZE: ${MW_PHP_POST_MAX_SIZE:-100M}
       MW_SITEMAP_GENERATION: ${MW_SITEMAP_GENERATION:-false}
@@ -24,8 +25,10 @@ services:
       MW_ROTTENLINKS_CRON: "${MW_ROTTENLINKS_CRON:-30 */12 * * *}"
       MW_ROTTENLINKS_RUN_ON_START: "${MW_ROTTENLINKS_RUN_ON_START:-false}"
       TZ: ${TZ:-UTC}
+    env_file:
+      - .env.mwsetup
     ports:
-      - ${MW_HTTP_PORT:-8181}:80
+      - ${MW_HTTP_PORT:-8080}:80
     labels:
       - "com.centurylinklabs.watchtower.enable: true"
     volumes:
@@ -104,7 +107,7 @@ services:
           - wikimemcached
 
   memcachephp:
-    image: ghcr.io/alaub81/memcachephp:latest
+    image: ghcr.io/alaub81/memcachephp:${MEMCACHEPHP_VERSION:-latest}
     restart: unless-stopped
     depends_on:
       - memcached
@@ -130,7 +133,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
     networks:
       app-nw:
       backend-nw:
