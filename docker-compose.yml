@@ -6,6 +6,8 @@ services:
         condition: service_healthy
       memcached:
         condition: service_started
+      elasticsearch:
+        condition: service_healthy
     restart: unless-stopped
     environment:
       MW_PHP_UPLOAD_MAX_FILESIZE: ${MW_PHP_UPLOAD_MAX_FILESIZE:-100M}
@@ -67,7 +69,7 @@ services:
   database:
     image: mariadb:11.8
     volumes:
-      - data_mw_db:/var/lib/mysql
+      - data_db:/var/lib/mysql
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
@@ -133,9 +135,37 @@ services:
       app-nw:
       backend-nw:
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION:-7.10.2}
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m   # ggf. erhöhen (1g/1g)
+    volumes:
+      - data_esdata:/usr/share/elasticsearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          set -e
+          # kurzer Timeout < compose timeout
+          curl -fsS --max-time 4 'http://localhost:9200/_cat/health?h=status' \
+            | grep -Eq 'yellow|green'
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+    networks:
+      backend-nw:
+
 volumes:
-  data_mw_db:
+  data_db:
   data_mw_images:
+  data_esdata:
 
 networks:
   app-nw:
