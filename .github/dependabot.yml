@@ -38,7 +38,3 @@ updates:
         patterns: ["alpine", "busybox"]
       mediawiki-base:
         patterns: ["mediawiki", "bitnami/mediawiki"]
-    # Optional konservativ: keine Major-Bumps automatisch
-    # ignore:
-    #   - dependency-name: "*"
-    #     update-types: ["version-update:semver-major"]
