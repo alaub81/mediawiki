@@ -464,7 +464,6 @@ jobs:
           '
 
       - name: E2E — Elasticsearch healthy (yellow/green)
-        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -485,7 +484,6 @@ jobs:
           exit 1
 
       - name: E2E — Bootstrap Cirrus index (script)
-        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -494,7 +492,6 @@ jobs:
           '
 
       - name: E2E — Cirrus index present
-        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -519,29 +516,22 @@ jobs:
           : "${MW_HTTP_PORT:=8080}"
           BASE="http://localhost:${MW_HTTP_PORT}"
 
-          # 1) Elastica-Klasse vorhanden?
-          if ! docker compose exec -T mediawiki php -r "require 'vendor/autoload.php'; exit(class_exists('Elastica\\Client')?0:1);" ; then
-            echo "::error::Elastica\\Client fehlt (Composer-Deps?)"
-            exit 1
-          fi
-          echo "✓ Elastica\\Client vorhanden"
-
-          # 2) Backend ist CirrusSearch?
-          BACKEND="$(docker compose exec -T mediawiki php maintenance/eval.php --quiet --script 'echo $wgSearchType;')"
+          # 1) Backend ist CirrusSearch?
+          BACKEND="$(docker compose exec -T mediawiki sh -lc 'printf "%s\n" "echo \$wgSearchType, PHP_EOL;" | php maintenance/run.php eval')"
           if [ "$BACKEND" != "CirrusSearch" ]; then
             echo "::error::wgSearchType ist '$BACKEND', erwartet 'CirrusSearch'"
             exit 1
           fi
           echo "✓ wgSearchType=CirrusSearch"
 
-          # 3) Cirrus-API erreichbar?
+          # 2) Cirrus-API erreichbar?
           if ! curl -fsS "${BASE}/api.php?action=cirrus-config-dump&format=json" >/dev/null; then
             echo "::error::cirrus-config-dump nicht erreichbar"
             exit 1
           fi
           echo "✓ cirrus-config-dump erreichbar"
 
-          # 4) Optionaler Smoke-Test (morelike) – nicht kritisch
+          # 3) Optionaler Smoke-Test (morelike) – nicht kritisch
           if curl -fsS "${BASE}/api.php?action=query&list=search&srsearch=morelike:Hauptseite&srlimit=3&format=json" \
               | grep -q '"search":\[' ; then
             echo "✓ morelike liefert JSON"
