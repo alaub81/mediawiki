@@ -463,6 +463,76 @@ jobs:
             [ "$age" -le 600 ] || { echo "::warning::sitemap older than 10 minutes"; }
           '
 
+      - name: E2E — Elasticsearch healthy (yellow/green)
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          # bis zu ~3 Minuten warten (40 * 5s)
+          for i in $(seq 1 40); do
+            if docker compose exec -T elasticsearch sh -lc \
+              "wget -qO- 'http://localhost:9200/_cat/health?h=status' | grep -Eq 'yellow|green'"; then
+              echo "✓ Elasticsearch healthy"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::Elasticsearch wurde nicht healthy (timeout)"
+          echo "[debug] /_cat/health:"
+          docker compose exec -T elasticsearch sh -lc "wget -qO- 'http://localhost:9200/_cat/health?v'"
+          echo "[debug] Plugins:"
+          docker compose exec -T elasticsearch sh -lc 'bin/elasticsearch-plugin list || true'
+          exit 1
+
+      - name: E2E — Bootstrap Cirrus index (script)
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose exec -T mediawiki sh -lc '
+            /usr/local/bin/generate-elasticindex.sh
+          '
+
+      - name: E2E — CirrusSearch wired
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          # .env.ci laden, ohne PATH kaputt zu machen
+          if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
+          : "${MW_HTTP_PORT:=8080}"
+          BASE="http://localhost:${MW_HTTP_PORT}"
+
+          # 1) Elastica-Klasse vorhanden?
+          if ! docker compose exec -T mediawiki php -r "require 'vendor/autoload.php'; exit(class_exists('Elastica\\Client')?0:1);" ; then
+            echo "::error::Elastica\\Client fehlt (Composer-Deps?)"
+            exit 1
+          fi
+          echo "✓ Elastica\\Client vorhanden"
+
+          # 2) Backend ist CirrusSearch?
+          BACKEND="$(docker compose exec -T mediawiki php maintenance/eval.php --quiet --script 'echo $wgSearchType;')"
+          if [ "$BACKEND" != "CirrusSearch" ]; then
+            echo "::error::wgSearchType ist '$BACKEND', erwartet 'CirrusSearch'"
+            exit 1
+          fi
+          echo "✓ wgSearchType=CirrusSearch"
+
+          # 3) Cirrus-API erreichbar?
+          if ! curl -fsS "${BASE}/api.php?action=cirrus-config-dump&format=json" >/dev/null; then
+            echo "::error::cirrus-config-dump nicht erreichbar"
+            exit 1
+          fi
+          echo "✓ cirrus-config-dump erreichbar"
+
+          # 4) Optionaler Smoke-Test (morelike) – nicht kritisch
+          if curl -fsS "${BASE}/api.php?action=query&list=search&srsearch=morelike:Hauptseite&srlimit=3&format=json" \
+              | grep -q '"search":\[' ; then
+            echo "✓ morelike liefert JSON"
+          else
+            echo "::warning::morelike ergab keine Treffer (Index evtl. noch im Aufbau) – kein harter Fehler"
+          fi
+
       - name: E2E — memcachephp UI
         shell: bash
         run: |
