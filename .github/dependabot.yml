@@ -29,7 +29,6 @@ updates:
     commit-message:
       prefix: "deps(docker)"
       include: "scope"
-    registries: ["dockerhub"]   # vermeidet Docker Hub Rate-Limits
     groups:
       php-base:
         patterns: ["php", "php:*", "php/*"]
@@ -40,6 +39,6 @@ updates:
       mediawiki-base:
         patterns: ["mediawiki", "bitnami/mediawiki"]
     # Optional konservativ: keine Major-Bumps automatisch
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
+    # ignore:
+    #   - dependency-name: "*"
+    #     update-types: ["version-update:semver-major"]
