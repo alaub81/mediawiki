@@ -109,17 +109,20 @@ else
   fi
 fi
 
-# (Optional) Extensions sicher laden, falls noch nicht vorhanden
+# --- Elastica/Cirrus sicher laden (nur falls noch nicht vorhanden) ---
 if ! grep -Fq "wfLoadExtension( 'Elastica' );" "$f"; then
-  printf '%s\n' "wfLoadExtension( 'Elastica' );" >> "$f"
+  printf "%s\n" "wfLoadExtension( 'Elastica' );" >> "$f"
 fi
 if ! grep -Fq "wfLoadExtension( 'CirrusSearch' );" "$f"; then
-  printf '%s\n' "wfLoadExtension( 'CirrusSearch' );" >> "$f"
+  printf "%s\n" "wfLoadExtension( 'CirrusSearch' );" >> "$f"
 fi
 
-# Konfig-Block mit Markern (idempotent)
-read -r -d '' CIRRUS_BLOCK <<'PHP'
+# --- Cirrus-Block idempotent schreiben ---
+cat >>"$f" <<'PHP'
 # --- CirrusSearch settings (auto) BEGIN ---
+wfLoadExtension( 'Elastica' );
+wfLoadExtension( 'CirrusSearch' );
+
 $wgSearchType = 'CirrusSearch';
 $wgCirrusSearchServers = [ 'elasticsearch' ];
 $wgCirrusSearchUseCompletionSuggester = true;
@@ -129,5 +132,5 @@ $wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
 $wgRelatedArticlesUseCirrusSearch = true;
 # --- CirrusSearch settings (auto) END ---
 PHP
-# Block ans Ende anhängen (mit führendem Newline)
-printf '\n%s\n' "$CIRRUS_BLOCK" >> "$f"
+
+echo "[cirrus] CirrusSearch-Konfiguration wurde in $f aktualisiert."
