@@ -139,8 +139,8 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION:-7.10.2}
     restart: unless-stopped
     environment:
-      - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m   # ggf. erhöhen (1g/1g)
+      "discovery.type": "single-node"
+      ES_JAVA_OPTS: "-Xms${ES_HEAP_MIN:-512m} -Xmx${ES_HEAP_MAX:-512m}"
     volumes:
       - data_esdata:/usr/share/elasticsearch/data
     ulimits:
