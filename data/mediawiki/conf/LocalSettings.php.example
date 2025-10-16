@@ -21,7 +21,8 @@ if ( !defined( 'MEDIAWIKI' ) ) {
 ## Uncomment this to disable output compression
 # $wgDisableOutputCompression = true;
 
-$wgSitename = "TEST";
+$wgSitename = "My Own Wiki";
+$wgMetaNamespace = "My_Own_Wiki";
 
 ## The URL base path to the directory containing the wiki;
 ## defaults for all runtime URL paths are based off of this.
@@ -31,7 +32,7 @@ $wgSitename = "TEST";
 $wgScriptPath = "";
 
 ## The protocol and server name to use in fully-qualified URLs
-$wgServer = "http://127.0.0.1:8181";
+$wgServer = "http://localhost:8080";
 
 ## The URL path to static resources (images, scripts, etc.)
 $wgResourceBasePath = $wgScriptPath;
@@ -40,12 +41,12 @@ $wgResourceBasePath = $wgScriptPath;
 ## or else you'll overwrite your logo when you upgrade!
 $wgLogos = [
 	'1x' => "$wgResourceBasePath/resources/assets/change-your-logo.svg",
-	'icon' => "$wgResourceBasePath/resources/assets/change-your-logo.svg",
+	'icon' => "$wgResourceBasePath/resources/assets/change-your-logo-icon.svg",
 ];
 
 ## UPO means: this is also a user preference option
 
-$wgEnableEmail = false;
+$wgEnableEmail = true;
 $wgEnableUserEmail = true; # UPO
 
 $wgEmergencyContact = "";
@@ -57,13 +58,13 @@ $wgEmailAuthentication = true;
 
 ## Database settings
 $wgDBtype = "mysql";
-$wgDBserver = "db";
-$wgDBname = "wiki";
-$wgDBuser = "wikiuser";
-$wgDBpassword = "WikiDBPaSSword";
+$wgDBserver = "database:3306";
+$wgDBname = "wikidb_dev";
+$wgDBuser = "wikiuser_dev";
+$wgDBpassword = "w1k1passdev";
 
 # MySQL specific settings
-$wgDBprefix = "mw";
+$wgDBprefix = "";
 $wgDBssl = false;
 
 # MySQL table options to use during installation or update
@@ -115,9 +116,9 @@ $wgUpgradeKey = "15758aeaff60d3fa";
 ## appropriate copyright notice / icon. GNU Free Documentation
 ## License and Creative Commons licenses are supported so far.
 $wgRightsPage = ""; # Set to the title of a wiki page that describes your license/copyright
-$wgRightsUrl = "https://www.gnu.org/copyleft/fdl.html";
-$wgRightsText = "GNU-Lizenz für freie Dokumentation 1.3 oder höher";
-$wgRightsIcon = "$wgResourceBasePath/resources/assets/licenses/gnu-fdl.png";
+$wgRightsUrl = "";
+$wgRightsText = "";
+$wgRightsIcon = "";
 
 # Path to the GNU diff3 utility. Used for conflict resolution.
 $wgDiff3 = "/usr/bin/diff3";
