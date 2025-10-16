@@ -25,8 +25,8 @@ services:
       MW_ROTTENLINKS_CRON: "${MW_ROTTENLINKS_CRON:-30 */12 * * *}"
       MW_ROTTENLINKS_RUN_ON_START: "${MW_ROTTENLINKS_RUN_ON_START:-false}"
       TZ: ${TZ:-UTC}
-    env_file:
-      - .env.mwsetup
+    # env_file:
+    #   - .env.mwsetup
     ports:
       - ${MW_HTTP_PORT:-8080}:80
     labels:
@@ -101,6 +101,18 @@ services:
       - TZ=${TZ:-UTC}
     labels:
       - "com.centurylinklabs.watchtower.enable: true"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          printf 'version\r\n' \
+            | nc -w 2 127.0.0.1 11211 2>/dev/null \
+            | tr -d '\r' \
+            | grep -qiE '^VERSION[[:space:]]+[0-9]'
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     networks:
       backend-nw:
         aliases:
