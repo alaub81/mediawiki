@@ -1,3 +1,4 @@
 .env
 .env.ci
 data/mediawiki/conf/mw_local_settings/LocalSettings.php
+data/mediawiki/conf/LocalSettings.php

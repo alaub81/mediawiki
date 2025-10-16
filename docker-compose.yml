@@ -51,7 +51,7 @@ services:
         - CMD-SHELL
         - |
           set -e
-          ident="$${MW_SITEMAP_IDENTIFIER:-wiki1}"
+          ident="$${MW_SITEMAP_IDENTIFIER:-wiki}"
           curl -fsS "http://localhost/api.php?action=query&meta=siteinfo&format=json" | grep -q '"query"'
           headers="$$(curl -fsSI http://localhost/sitemap.xml)"
           echo "$$headers" | grep -qiE '^HTTP/.* 301 '
@@ -70,7 +70,7 @@ services:
           - wiki
 
   database:
-    image: mariadb:{MARIADB_VERSION:-11.8}
+    image: mariadb:${MARIADB_VERSION:-11.8}
     volumes:
       - data_db:/var/lib/mysql
     restart: unless-stopped
