@@ -80,8 +80,7 @@ else
     "${MW_SITENAME:-Wiki CI}" \
     "${MW_ADMIN_USER:-Admin}"
 fi
-
-    # ${EXT_FLAG:+$EXT_FLAG} \
+echo "[install] Installation/Update done."
 
 # --- $wgScriptPath und $wgArticlePath in LocalSettings.php setzen ---
 # Datei
@@ -108,6 +107,14 @@ else
   else
     printf "\n\$wgArticlePath = \"/wiki/\$1\";\n" >> "$f"
   fi
+fi
+
+# (Optional) Extensions sicher laden, falls noch nicht vorhanden
+if ! grep -Fq "wfLoadExtension( 'Elastica' );" "$f"; then
+  printf '%s\n' "wfLoadExtension( 'Elastica' );" >> "$f"
+fi
+if ! grep -Fq "wfLoadExtension( 'CirrusSearch' );" "$f"; then
+  printf '%s\n' "wfLoadExtension( 'CirrusSearch' );" >> "$f"
 fi
 
 # Konfig-Block mit Markern (idempotent)
