@@ -10,6 +10,7 @@ fi
 : "${MW_PHP_UPLOAD_MAX_FILESIZE:=100M}"
 : "${MW_PHP_POST_MAX_SIZE:=100M}"
 : "${MW_SITEMAP_IDENTIFIER:-wiki}"
+MW_CONFIG_FILE="${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}"
 
 mkdir -p /usr/local/etc/php/conf.d
 cat >/usr/local/etc/php/conf.d/zz-uploads.ini <<EOF
@@ -64,7 +65,7 @@ else
   if [ -x /usr/local/bin/generate-rottenlinks.sh ]; then
     # 2) Extension vorhanden? (mindestens eines der Kriterien)
     if [ -d /var/www/html/extensions/RottenLinks ] || \
-      grep -q "wfLoadExtension( 'RottenLinks' );" /var/www/html/LocalSettings.php 2>/dev/null; then
+      grep -q "wfLoadExtension( 'RottenLinks' );" "${MW_CONFIG_FILE}" 2>/dev/null; then
       if [ "${MW_ROTTENLINKS_RUN_ON_START:-false}" == "true" ]; then
         echo "[entrypoint] Running RottenLinks generation once on start..."
         /usr/local/bin/generate-rottenlinks.sh || echo "[entrypoint] Initial RottenLinks run failed (continuing)"
@@ -73,10 +74,34 @@ else
         "${MW_ROTTENLINKS_CRON:-30 */12 * * *}" \
         "/usr/local/bin/generate-rottenlinks.sh >> /proc/1/fd/1 2>&1"
     else
-      echo "[entrypoint] WARN: RottenLinks not loaded – Cron skipped (set ENABLE_MW_ROTTENLINKS_CRON=1 to force)"
+      echo "[entrypoint] WARN: RottenLinks not loaded – Cron skipped"
     fi
   else
     echo "[entrypoint] WARN: /usr/local/bin/generate-rottenlinks.sh not found – RottenLinks cron skipped"
+  fi
+fi
+
+# --- CirrusSearchIndex-Job (existiert Skript? Extension vorhanden?) ---
+if [ "${MW_CS_INDEX_UPDATE:-}" != "true" ]; then
+  echo "[entrypoint] INFO: MW_CS_INDEX_UPDATE not set to 'true' – CirrusSearch index cron skipped"
+else
+  # 1) Skript vorhanden?
+  if [ -x /usr/local/bin/update-cirrussearch-index.sh ]; then
+    # 2) Extension vorhanden? (mindestens eines der Kriterien)
+    if [ -d /var/www/html/extensions/CirrusSearch ] || \
+      grep -q "wfLoadExtension( 'CirrusSearch' );" "${MW_CONFIG_FILE}" 2>/dev/null; then
+      if [ "${MW_CS_INDEX_RUN_ON_START:-false}" == "true" ]; then
+        echo "[entrypoint] Running CirrusSearch generation once on start..."
+        /usr/local/bin/update-cirrussearch-index.sh || echo "[entrypoint] Initial CirrusSearch index run failed (continuing)"
+      fi
+      add_cron_if_missing \
+        "${MW_CS_INDEX_CRON:-15 * * * *}" \
+        "/usr/local/bin/update-cirrussearch-index.sh >> /proc/1/fd/1 2>&1"
+    else
+      echo "[entrypoint] WARN: CirrusSearch not loaded – Cron skipped"
+    fi
+  else
+    echo "[entrypoint] WARN: /usr/local/bin/update-cirrussearch-index.sh not found – CirrusSearch index cron skipped"
   fi
 fi
 
