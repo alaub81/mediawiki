@@ -109,3 +109,18 @@ else
     printf "\n\$wgArticlePath = \"/wiki/\$1\";\n" >> "$f"
   fi
 fi
+
+# Konfig-Block mit Markern (idempotent)
+read -r -d '' CIRRUS_BLOCK <<'PHP'
+# --- CirrusSearch settings (auto) BEGIN ---
+$wgSearchType = 'CirrusSearch';
+$wgCirrusSearchServers = [ 'elasticsearch' ];
+$wgCirrusSearchUseCompletionSuggester = true;
+
+$wgRelatedArticlesDescriptionSource = 'pagedescription';
+$wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
+$wgRelatedArticlesUseCirrusSearch = true;
+# --- CirrusSearch settings (auto) END ---
+PHP
+# Block ans Ende anhängen (mit führendem Newline)
+printf '\n%s\n' "$CIRRUS_BLOCK" >> "$f"
