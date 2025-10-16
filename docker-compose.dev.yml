@@ -77,7 +77,7 @@ services:
           - wiki
 
   database:
-    image: mariadb:11.8
+    image: mariadb:{MARIADB_VERSION:-11.8}
     volumes:
       - data_db:/var/lib/mysql
     restart: unless-stopped
@@ -101,9 +101,9 @@ services:
           - db
 
   memcached:
-    image: memcached:alpine
+    image: memcached:${MEMCACHED_VERSION:-alpine}
     restart: unless-stopped
-    command: ["-m", "${MEMCACHE_CACHE_MB:-16}"]
+    command: ["-m", "${MEMCACHED_CACHE_MB:-16}"]
     environment:
       - TZ=${TZ:-UTC}
     labels:
