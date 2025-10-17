@@ -19,28 +19,52 @@ RUN apt-get update \
 RUN set -eux; \
   BR="${MW_BRANCH:-REL${MEDIAWIKI_MAJOR_VERSION%%.*}_${MEDIAWIKI_MAJOR_VERSION#*.}}"; \
   echo "Using MW_BRANCH=$BR"; \
-  clone_or_replace() { \
-    url="$1"; target="$2"; branch="$3"; \
-    rm -rf "$target"; \
-    if git ls-remote --heads "$url" "$branch" >/dev/null 2>&1; then \
-      git clone --depth=1 --single-branch -b "$branch" "$url" "$target"; \
-    elif git ls-remote --heads "$url" master >/dev/null 2>&1; then \
-      git clone --depth=1 --single-branch -b master "$url" "$target"; \
-    elif git ls-remote --heads "$url" main >/dev/null 2>&1; then \
-      git clone --depth=1 --single-branch -b main "$url" "$target"; \
+  FALLBACK_BRANCH="main"; \
+  # clone_or_replace() { \
+  #   url="$1"; target="$2"; branch="$3"; \
+  #   rm -rf "$target"; \
+  #   if git ls-remote --heads "$url" "$branch" >/dev/null 2>&1; then \
+  #     git clone --depth=1 --single-branch -b "$branch" "$url" "$target"; \
+  #   elif git ls-remote --heads "$url" master >/dev/null 2>&1; then \
+  #     git clone --depth=1 --single-branch -b master "$url" "$target"; \
+  #   elif git ls-remote --heads "$url" main >/dev/null 2>&1; then \
+  #     git clone --depth=1 --single-branch -b main "$url" "$target"; \
+  #   else \
+  #     echo "No suitable branch in $url"; exit 128; \
+  #   fi; \
+  # }; \
+  clone_with_fallback() { \
+    url="$1"; dest="$2"; pref="${3:-$BR}"; fb="${4:-$FALLBACK_BRANCH}"; \
+    branch="$pref"; \
+    if git ls-remote --exit-code --heads "$url" "$branch" >/dev/null 2>&1; then \
+      echo "✅ $url: using branch $branch"; \
+    elif git ls-remote --exit-code --heads "$url" "$fb" >/dev/null 2>&1; then \
+      echo "⚠️  $url: branch $branch missing, falling back to $fb"; \
+      branch="$fb"; \
     else \
-      echo "No suitable branch in $url"; exit 128; \
+      echo "⚠️  $url: neither $branch nor $fb found, cloning default HEAD"; \
+      branch=""; \
+    fi; \
+    rm -rf "$dest"; \
+    if [ -n "$branch" ]; then \
+      git clone --depth=1 --single-branch -b "$branch" "$url" "$dest"; \
+    else \
+      git clone --depth=1 "$url" "$dest"; \
     fi; \
   }; \
+  # Extensions
   for ext in $MW_INSTALL_EXTENSIONS; do \
-    clone_or_replace "https://gerrit.wikimedia.org/r/mediawiki/extensions/$ext" "/var/www/html/extensions/$ext" "$BR"; \
+    url="https://gerrit.wikimedia.org/r/mediawiki/extensions/$ext"; \
+    clone_with_fallback "$url" "/var/www/html/extensions/$ext"; \
   done; \
+  # Skins
   for skin in $MW_INSTALL_SKINS; do \
-    clone_or_replace "https://gerrit.wikimedia.org/r/mediawiki/skins/$skin" "/var/www/html/skins/$skin" "$BR"; \
+    url="https://gerrit.wikimedia.org/r/mediawiki/skins/$skin"; \
+    clone_with_fallback "$url" "/var/www/html/skins/$skin"; \
   done; \
   # Sonderfälle
   rm -rf /var/www/html/extensions/RottenLinks; \
-  clone_or_replace "https://github.com/miraheze/RottenLinks.git" "/var/www/html/extensions/RottenLinks" "$BR"; \
+  clone_with_fallback "https://github.com/miraheze/RottenLinks.git" "/var/www/html/extensions/RottenLinks"; \
   find /var/www/html/extensions -name .git -type d -prune -exec rm -rf {} +; \
   find /var/www/html/skins -name .git -type d -prune -exec rm -rf {} +; \
   chown -R www-data:www-data /var/www/html/extensions; \
