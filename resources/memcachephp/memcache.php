@@ -531,6 +531,10 @@ EOB;
 
 $_GET['op'] = !isset($_GET['op'])? '1':$_GET['op'];
 $PHP_SELF= isset($_SERVER['PHP_SELF']) ? htmlentities(strip_tags($_SERVER['PHP_SELF'],'')) : '';
+$prefix = isset($_SERVER['HTTP_X_FORWARDED_PREFIX']) ? rtrim($_SERVER['HTTP_X_FORWARDED_PREFIX'], '/') : '';
+if ($prefix !== '' && strpos($PHP_SELF, $prefix . '/') !== 0) {
+    $PHP_SELF = $prefix . $PHP_SELF;
+}
 
 $PHP_SELF=$PHP_SELF.'?';
 $time = time();
