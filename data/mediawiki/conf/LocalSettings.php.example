@@ -129,7 +129,6 @@ $wgDefaultSkin = "vector-2022";
 
 # Enabled skins.
 # The following skins were automatically enabled:
-wfLoadSkin( 'DeskMessMirrored' );
 wfLoadSkin( 'MinervaNeue' );
 wfLoadSkin( 'MonoBook' );
 wfLoadSkin( 'Timeless' );
