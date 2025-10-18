@@ -49,7 +49,6 @@ services:
       # - ./data/mediawiki/conf/.htaccess:/var/www/html/.htaccess:ro
       # - ./data/mediawiki/favicon/:/var/www/html/favicon:ro
       # - ./data/mediawiki/conf/ads.txt:/var/www/html/ads.txt:ro
-      # - ./data/mediawiki/favicon/browserconfig.xml:/var/www/html/browserconfig.xml:ro
       # - ./data/mediawiki/conf/loaderio-6e9f1d0addd92099f02be40c8be3a4db.txt:/var/www/html/loaderio-6e9f1d0addd92099f02be40c8be3>
     healthcheck:
       test:
