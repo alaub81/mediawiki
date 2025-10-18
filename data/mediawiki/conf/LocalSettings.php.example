@@ -180,7 +180,7 @@ wfLoadExtension( 'WikiCategoryTagCloud' );
 wfLoadExtension( 'WikiEditor' );
 wfLoadExtension( 'Elastica' );
 wfLoadExtension( 'CirrusSearch' );
-
+wfLoadExtension( 'CookieConsent' );
 
 # End of automatically generated settings.
 # Add more configuration options below.

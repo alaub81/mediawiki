@@ -19,12 +19,31 @@ post_max_size=${MW_PHP_POST_MAX_SIZE}
 EOF
 
 # Sitemap-Ziel vorbereiten
-mkdir -p "${MW_SITEMAP_FSPATH:-/var/www/html/sitemap}"
-chown -R www-data:www-data "${MW_SITEMAP_FSPATH:-/var/www/html/sitemap}" || true
+# mkdir -p "${MW_SITEMAP_FSPATH:-/var/www/html/sitemap}"
+# chown -R www-data:www-data "${MW_SITEMAP_FSPATH:-/var/www/html/sitemap}" || true
 
 # Sitemap-Redirect in Apache konfigurieren (Identifier aus .env)
+# cat >/etc/apache2/conf-available/zz-sitemap-redirect.conf <<EOF
+# Redirect 301 /sitemap.xml /sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml
+# EOF
+# a2enconf -q zz-sitemap-redirect || true
+# --- Sitemap-Redirect in Apache aus ENV bauen ---
+ident="${MW_SITEMAP_IDENTIFIER:-wiki}"
+
+# Prefix nur verwenden, wenn gesetzt; auf "/foo/" normalisieren
+p="${MW_SITEMAP_URLPATH:-}"
+if [ -n "$p" ]; then
+  case "$p" in /*) ;; *) p="/$p";; esac
+  case "$p" in */) ;; *) p="$p/";; esac
+  prefix="$p"
+else
+  prefix="/"   # <— wenn leer: führenden Slash sicherstellen
+fi
+
+target="${prefix}sitemap-index-${ident}.xml"
+
 cat >/etc/apache2/conf-available/zz-sitemap-redirect.conf <<EOF
-Redirect 301 /sitemap.xml /sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml
+Redirect 301 /sitemap.xml $target
 EOF
 a2enconf -q zz-sitemap-redirect || true
 
