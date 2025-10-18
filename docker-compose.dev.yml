@@ -18,6 +18,8 @@ services:
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
+      MW_AUTO_UPDATE: ${MW_AUTO_UPDATE:-false}
+      MW_JOBS_CRON: ${MW_JOBS_CRON:-false}
       MW_PHP_UPLOAD_MAX_FILESIZE: ${MW_PHP_UPLOAD_MAX_FILESIZE:-100M}
       MW_PHP_POST_MAX_SIZE: ${MW_PHP_POST_MAX_SIZE:-100M}
       MW_SITEMAP_GENERATION: ${MW_SITEMAP_GENERATION:-false}

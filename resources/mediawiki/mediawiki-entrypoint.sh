@@ -40,6 +40,19 @@ add_cron_if_missing() {
   grep -Fq -- "$cmd" "$CRON_FILE" 2>/dev/null || printf "%s %s\n" "$spec" "$cmd" >> "$CRON_FILE"
 }
 
+# MediaWiki Update
+if [ "${MW_AUTO_UPDATE:-false}" = "true" ] && [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
+  echo "[entrypoint] running database update (idempotent)…"
+  # Gegen parallele Starts absichern:
+  mkdir -p /run; exec 9>/run/mw-update.lock
+  if flock -n 9; then
+    php maintenance/run.php update --quick --skip-config-validation || {
+      echo "::error::update.php failed"; exit 1; }
+  else
+    echo "[entrypoint] another update is in progress; skipping"
+  fi
+fi
+
 # --- Sitemap-Job (nur wenn Skript existiert) ---
 if [ "${MW_SITEMAP_GENERATION:-}" != "true" ]; then
   echo "[entrypoint] INFO: MW_SITEMAP_GENERATION not set to 'true' – sitemap cron skipped"
@@ -103,6 +116,12 @@ else
   else
     echo "[entrypoint] WARN: /usr/local/bin/update-cirrussearch-index.sh not found – CirrusSearch index cron skipped"
   fi
+fi
+
+if [ "${MW_JOBS_CRON:-false}" = "true" ]; then
+  add_cron_if_missing \
+    "* * * * *" \
+    "php /var/www/html/maintenance/run.php runJobs --wait --maxjobs=200"
 fi
 
 # supercronic im Hintergrund starten (loggt im JSON-Format)

@@ -11,6 +11,8 @@ services:
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
+      MW_AUTO_UPDATE: ${MW_AUTO_UPDATE:-false}
+      MW_JOBS_CRON: ${MW_JOBS_CRON:-false}
       MW_PHP_UPLOAD_MAX_FILESIZE: ${MW_PHP_UPLOAD_MAX_FILESIZE:-100M}
       MW_PHP_POST_MAX_SIZE: ${MW_PHP_POST_MAX_SIZE:-100M}
       MW_SITEMAP_GENERATION: ${MW_SITEMAP_GENERATION:-false}
@@ -43,8 +45,8 @@ services:
       # or custom config file don't forget to set MW_CONFIG_FILE env var in .env
       # - ./data/mediawiki/conf/mw_local_settings:/var/www/html/conf/:rw
       # --- Custom files and volumes: ---
-      - ./data/mediawiki/conf/robots.txt:/var/www/html/robots.txt:ro
-      - ./data/mediawiki/conf/.htaccess:/var/www/html/.htaccess:ro
+      # - ./data/mediawiki/conf/robots.txt:/var/www/html/robots.txt:ro
+      # - ./data/mediawiki/conf/.htaccess:/var/www/html/.htaccess:ro
       # - ./data/mediawiki/favicon/:/var/www/html/favicon:ro
       # - ./data/mediawiki/conf/ads.txt:/var/www/html/ads.txt:ro
       # - ./data/mediawiki/favicon/browserconfig.xml:/var/www/html/browserconfig.xml:ro
