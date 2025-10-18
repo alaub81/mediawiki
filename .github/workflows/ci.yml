@@ -113,6 +113,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Copy docker-compose.yml
+        run: |
+          cp docker-compose.example.yml docker-compose.yml
+
       - name: Write CI .env (override)
         run: |
           cat > .env.ci <<'EOF'
@@ -156,7 +160,7 @@ jobs:
       - name: Compose up
         run: |
           docker compose \
-            -f docker-compose.example.yml \
+            -f docker-compose.yml \
             -f docker-compose.ci.yml \
             --env-file .env.ci \
             up -d --build
