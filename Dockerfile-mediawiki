@@ -1,7 +1,7 @@
 FROM mediawiki:1.43
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud CirrusSearch Elastica"
+ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud CirrusSearch Elastica CookieConsent"
 ENV MW_INSTALL_SKINS=""
 ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks"
 ENV MW_EXTRA_SKINS="${MW_INSTALL_SKINS}"
