@@ -1,4 +1,4 @@
-FROM mediawiki:1.43
+FROM mediawiki:1.44
 ENV DEBIAN_FRONTEND=noninteractive
 
 ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud CirrusSearch Elastica CookieConsent"
