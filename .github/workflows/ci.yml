@@ -156,7 +156,7 @@ jobs:
       - name: Compose up
         run: |
           docker compose \
-            -f docker-compose.yml \
+            -f docker-compose.example.yml \
             -f docker-compose.ci.yml \
             --env-file .env.ci \
             up -d --build
