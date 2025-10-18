@@ -73,7 +73,7 @@ else
     --installdbuser "${MW_DB_ADMIN_USER:-root}" \
     --installdbpass "${MARIADB_ROOT_PASSWORD:-ciRootPassw0rd}" \
     --lang      "${MW_LANG:-de}" \
-    --server    "http://localhost:${MW_HTTP_PORT:-8080}" \
+    --server    "${MW_SERVER_URL:-http://localhost:8080}" \
     --scriptpath "" \
     --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
     ${EXT_FLAG:+$EXT_FLAG} \
@@ -82,10 +82,27 @@ else
 fi
 echo "[install] Installation/Update done."
 
-# --- $wgScriptPath und $wgArticlePath in LocalSettings.php setzen ---
-# Datei
+# --- $wgServer, $wgScriptPath und $wgArticlePath in LocalSettings.php er/setzen ---
+# read LocalSettings.php
 f="${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}"
   [ -f "$f" ] || { echo "Config file $f not found"; exit 1; }
+
+# Zielzeile (genau so, ohne Quotes um den Ausdruck)
+want="\$wgServer = getenv('MW_SERVER_URL') ?: 'http://localhost:8080';"
+
+if [ -f "$f" ]; then
+  tmp="$(mktemp)"
+  awk -v repl="$want" '
+    BEGIN{done=0}
+    # vorhandene $wgServer-Zeile ersetzen
+    /^\$wgServer[[:space:]]*=/ { print repl; done=1; next }
+    { print }
+    END{
+      # falls keine Zuweisung gefunden wurde: am Ende anhängen
+      if(!done) print "\n" repl
+    }
+  ' "$f" > "$tmp" && mv "$tmp" "$f"
+fi
 
 # $wgScriptPath = "";
 if grep -q "^\$wgScriptPath" "$f"; then
@@ -98,17 +115,6 @@ else
   fi
 fi
 
-# $wgArticlePath = "/wiki/$1";
-if grep -q "^\$wgArticlePath" "$f"; then
-  sed -i "s#^\$wgArticlePath[[:space:]]*=.*#\$wgArticlePath = \"/wiki/\\\$1\";#" "$f"
-else
-  if grep -q '^?>' "$f"; then
-    sed -i "s#^?>#\$wgArticlePath = \"/wiki/\\\$1\";\\n?>#" "$f"
-  else
-    printf "\n\$wgArticlePath = \"/wiki/\$1\";\n" >> "$f"
-  fi
-fi
-
 # --- Elastica/Cirrus sicher laden (nur falls noch nicht vorhanden) ---
 if ! grep -Fq "wfLoadExtension( 'Elastica' );" "$f"; then
   printf "%s\n" "wfLoadExtension( 'Elastica' );" >> "$f"
@@ -117,12 +123,34 @@ if ! grep -Fq "wfLoadExtension( 'CirrusSearch' );" "$f"; then
   printf "%s\n" "wfLoadExtension( 'CirrusSearch' );" >> "$f"
 fi
 
-# --- Cirrus-Block idempotent schreiben ---
+# --- Own-LocalSettings-Block idempotent schreiben ---
 cat >>"$f" <<'PHP'
-# --- CirrusSearch settings (auto) BEGIN ---
-wfLoadExtension( 'Elastica' );
-wfLoadExtension( 'CirrusSearch' );
+# --- ShortUrls settings (auto) BEGIN ---
+$actions = [
+	'edit',
+	'watch',
+	'unwatch',
+	'delete',
+	'revert',
+	'rollback',
+	'protect',
+	'unprotect',
+	'markpatrolled',
+	'render',
+	'submit',
+	'history',
+	'purge',
+	'info',
+];
 
+foreach ( $actions as $action ) {
+  $wgActionPaths[$action] = "/wiki/$action/$1";
+}
+$wgActionPaths['view'] = "/wiki/$1";
+$wgArticlePath = "/wiki/$1";
+# --- ShortUrls settings (auto) END ---
+
+# --- CirrusSearch settings (auto) BEGIN ---
 $wgSearchType = 'CirrusSearch';
 $wgCirrusSearchServers = [ 'elasticsearch' ];
 $wgCirrusSearchUseCompletionSuggester = true;
@@ -133,4 +161,4 @@ $wgRelatedArticlesUseCirrusSearch = true;
 # --- CirrusSearch settings (auto) END ---
 PHP
 
-echo "[cirrus] CirrusSearch-Konfiguration wurde in $f aktualisiert."
+echo "[LocalSettings] LocalSettings-Konfiguration wurde in $f aktualisiert."

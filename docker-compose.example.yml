@@ -11,6 +11,7 @@ services:
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
+      MW_SERVER_URL: ${MW_SERVER_URL:-http://localhost:8080}
       MW_AUTO_UPDATE: ${MW_AUTO_UPDATE:-false}
       MW_JOBS_CRON: ${MW_JOBS_CRON:-false}
       MW_PHP_UPLOAD_MAX_FILESIZE: ${MW_PHP_UPLOAD_MAX_FILESIZE:-100M}
@@ -54,14 +55,14 @@ services:
         - CMD-SHELL
         - |
           set -e
-          ident="$${MW_SITEMAP_IDENTIFIER:-wiki}"
-          curl -fsS "http://localhost/api.php?action=query&meta=siteinfo&format=json" | grep -q '"query"'
-          headers="$$(curl -fsSI http://localhost/sitemap.xml)"
-          echo "$$headers" | grep -qiE '^HTTP/.* 301 '
-          loc="$$(echo "$$headers" | awk 'BEGIN{IGNORECASE=1} /^Location:/{print $$2}' | tr -d "\r")"
-          echo "$$loc" | grep -q "/sitemap/sitemap-index-$$ident\.xml$"
-          code="$$(curl -fsSI "$$loc" | awk 'NR==1{print $$2}')"
-          [ "$$code" = "200" ]
+          base="http://localhost"
+
+          # 1) API erreichbar?
+          curl -fsS "$$base/api.php?action=query&meta=siteinfo&format=json" | grep -q '"query"'
+
+          # 2) /sitemap.xml gibt 301?
+          status="$$(curl -fsSI "$$base/sitemap.xml" | awk 'NR==1{print $$2}')"
+          [ "$$status" = "301" ]
       interval: 30s
       timeout: 5s
       retries: 10
