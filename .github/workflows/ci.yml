@@ -254,31 +254,56 @@ jobs:
       - name: E2E - check sitemap redirect and target
         shell: bash
         run: |
-          # Werte aus .env (falls vorhanden) einlesen, sonst Defaults
-          if [ -f .env ]; then set -a; . ./.env; set +a; fi
+          # Basis-URL
           : "${MW_HTTP_PORT:=8080}"
-          : "${MW_SITEMAP_IDENTIFIER:=wiki}"
-          BASE="http://localhost:${MW_HTTP_PORT}"
+          BASE="${MW_SERVER_URL:-http://localhost:${MW_HTTP_PORT}}"
 
-          echo "[e2e] Expect: ${BASE}/sitemap.xml -> /sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml and target 200"
+          # Identifier & optionaler URL-Prefix
+          : "${MW_SITEMAP_IDENTIFIER:=wiki}"
+          p="${MW_SITEMAP_URLPATH:-}"
+
+          # Prefix normalisieren: "" => kein Prefix; "sitemap/" => "/sitemap"
+          norm_p="$( [ -n "$p" ] && printf '%s' "$p" | sed -E 's#^/+##; s#/+$##' || true )"
+          if [ -n "$norm_p" ]; then
+            SUFFIX="/${norm_p}/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml"
+            FS_DIR="/var/www/html/${norm_p}"
+          else
+            SUFFIX="/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml"
+            FS_DIR="/var/www/html"
+          fi
+
+          echo "[e2e] Expect: ${BASE}/sitemap.xml -> ${SUFFIX} (target 200)"
 
           ok=0
           for i in $(seq 1 40); do
-            # 1) Header von /sitemap.xml holen
-            headers="$(curl -fsSI "${BASE}/sitemap.xml" || true)"
+            # 1) MW-API erreichbar?
+            if ! curl -fsS "${BASE%/}/api.php?action=query&meta=siteinfo&format=json" | grep -q '"query"'; then
+              sleep 3; continue
+            fi
 
-            # a) 301?
-            echo "$headers" | grep -qiE '^HTTP/.* 301 ' || { sleep 3; continue; }
+            # 2) Header von /sitemap.xml holen & 301 prüfen
+            headers="$(curl -fsSI "${BASE%/}/sitemap.xml" || true)"
+            echo "$headers" | head -n1 | grep -qE ' HTTP/.* 301 ' || { sleep 3; continue; }
 
-            # b) Location extrahieren
-            loc="$(echo "$headers" | awk 'BEGIN{IGNORECASE=1} /^Location:/{print $2}' | tr -d '\r')"
+            # 3) Location extrahieren (absolut ODER relativ)
+            loc="$(printf '%s\n' "$headers" | awk 'BEGIN{IGNORECASE=1} /^Location:/{print $2; exit}' | tr -d '\r')"
             [ -n "$loc" ] || { sleep 3; continue; }
 
-            # c) Pfad im Location korrekt?
-            echo "$loc" | grep -q "/sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}\.xml$" || { sleep 3; continue; }
+            # Pfadanteil bestimmen (Schema+Host abschneiden, falls absolut)
+            path="$(printf '%s' "$loc" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*##')"
+            case "$path" in /*) ;; *) path="/$path";; esac
 
-            # 2) Ziel-Status prüfen
-            code="$(curl -fsSI "$loc" | awk 'NR==1{print $2}')"
+            # Erwarteten Suffix prüfen
+            printf '%s' "$path" | grep -q -- "$SUFFIX\$" || { sleep 3; continue; }
+
+            # 4) Ziel absolut machen und 200 prüfen
+            case "$loc" in
+              http://*|https://*) target="$loc" ;;
+              /*)                 target="${BASE%/}$loc" ;;
+              *)                  target="${BASE%/}/$loc" ;;
+            esac
+
+            code="$(curl -fsSI "$target" | awk 'NR==1{print $2}')"
             if [ "$code" = "200" ]; then
               echo "[e2e] OK: redirect to ${loc} and target 200"
               ok=1
@@ -289,13 +314,13 @@ jobs:
 
           if [ "$ok" != "1" ]; then
             echo "::error::Sitemap redirect/target check failed"
-            echo "[debug] HEAD /sitemap.xml"
-            curl -v -sI "${BASE}/sitemap.xml" || true
-            echo "[debug] Expected suffix: /sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml"
-            echo "[debug] Apache enabled conf (first 60 lines):"
-            docker compose exec -T mediawiki sh -lc 'sed -n "1,60p" /etc/apache2/conf-enabled/*.conf 2>/dev/null || true'
-            echo "[debug] List sitemap dir:"
-            docker compose exec -T mediawiki sh -lc 'ls -l /var/www/html/sitemap || true'
+            echo "[debug] HEAD /sitemap.xml:"
+            curl -v -sI "${BASE%/}/sitemap.xml" || true
+            echo "[debug] Expected suffix: ${SUFFIX}"
+            echo "[debug] Apache enabled conf (first 80 lines):"
+            docker compose exec -T mediawiki sh -lc 'sed -n "1,80p" /etc/apache2/conf-enabled/*.conf 2>/dev/null || true'
+            echo "[debug] List sitemap dir (${FS_DIR}):"
+            docker compose exec -T mediawiki sh -lc 'ls -l '"$FS_DIR"' 2>/dev/null | sed -n "1,80p" || true'
             exit 1
           fi
 
