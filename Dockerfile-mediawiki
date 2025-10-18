@@ -7,6 +7,7 @@ ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks"
 ENV MW_EXTRA_SKINS="${MW_INSTALL_SKINS}"
 
 COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
+COPY resources/mediawiki/memcachephp-proxy.conf /etc/apache2/conf-available/memcachephp-proxy.conf
 COPY --chown=www-data:www-data resources/favicon /var/www/html/favicon/
 
 RUN apt-get update \
@@ -14,8 +15,8 @@ RUN apt-get update \
   unzip \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* \
-  && a2enmod headers \
-  && a2enconf mediawiki-rewrites
+  && a2enmod headers proxy proxy_http \
+  && a2enconf mediawiki-rewrites memcachephp-proxy
 
 RUN set -eux; \
   BR="${MW_BRANCH:-REL${MEDIAWIKI_MAJOR_VERSION%%.*}_${MEDIAWIKI_MAJOR_VERSION#*.}}"; \

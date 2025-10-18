@@ -594,6 +594,83 @@ jobs:
             sleep 3
           done
 
+      - name: E2E — MemcachePHP hinter /memcache Reverse Proxy
+        shell: bash
+        run: |
+          [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
+
+          : "${MW_HTTP_PORT:=8080}"
+          : "${MEMCACHEPHP_ADMIN_USER:=admin}"
+          : "${MEMCACHEPHP_ADMIN_PASS:=supersecret}"
+          BASE="${MW_SERVER_URL:-http://localhost:${MW_HTTP_PORT}}"
+          base="${BASE%/}"
+
+          echo "[e2e] expect: /memcache, /mcui, /memcacheui redirect -> /memcacheui/ (301) and proxied /memcacheui/ final 200"
+
+          fail() { echo "::error::$*"; exit 1; }
+
+          # kleine Helfer: holt Location-Pfad (ohne Schema/Host), robust absolut/relativ
+          get_path_from_location() {
+            # $1 = URL
+            curl -sSI "$1" \
+              | awk 'BEGIN{IGNORECASE=1} /^Location:/{print $2; exit}' \
+              | tr -d '\r' \
+              | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*##'
+          }
+
+          # Retry-Wrapper
+          tries=40
+
+          # 1) /memcache (ohne Slash) -> 301 + Location endet auf /memcacheui/
+          ok=0
+          for i in $(seq 1 $tries); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' -I "$base/memcache")" || true
+            [ "$code" = "301" ] || { sleep 3; continue; }
+            path="$(get_path_from_location "$base/memcache")"
+            case "$path" in */memcacheui/) ok=1;; *) sleep 3;; esac
+            [ "$ok" = 1 ] && break
+          done
+          [ "$ok" = 1 ] || fail "/memcache did not redirect to /memcacheui/"
+
+          # 2) /mcui (Alias) -> 301 + Location endet auf /memcacheui/
+          ok=0
+          for i in $(seq 1 $tries); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' -I "$base/mcui")" || true
+            [ "$code" = "301" ] || { sleep 3; continue; }
+            path="$(get_path_from_location "$base/mcui")"
+            case "$path" in */memcacheui/) ok=1;; *) sleep 3;; esac
+            [ "$ok" = 1 ] && break
+          done
+          [ "$ok" = 1 ] || fail "/mcui did not redirect to /memcacheui/"
+
+          # 3) /memcacheui (ohne Slash) -> 301 + Location endet auf /memcacheui/
+          ok=0
+          for i in $(seq 1 $tries); do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' -I "$base/memcacheui")" || true
+            [ "$code" = "301" ] || { sleep 3; continue; }
+            path="$(get_path_from_location "$base/memcacheui")"
+            case "$path" in */memcacheui/) ok=1;; *) sleep 3;; esac
+            [ "$ok" = 1 ] && break
+          done
+          [ "$ok" = 1 ] || fail "/memcacheui did not redirect to /memcacheui/"
+
+          # 4) Proxied Ziel /memcacheui/ (mit Basic Auth) -> final 200
+          ok=0
+          for i in $(seq 1 $tries); do
+            final="$(curl -sS -o /dev/null -w '%{http_code}' -IL -u "$MEMCACHEPHP_ADMIN_USER:$MEMCACHEPHP_ADMIN_PASS" "$base/memcacheui/")" || true
+            [ "$final" = "200" ] && { ok=1; break; }
+            sleep 3
+          done
+          [ "$ok" = 1 ] || fail "proxied /memcacheui/ not returning 200 (got $final)"
+
+          # 5) Inhalt sanity-check (ein paar typische Strings)
+          curl -fsS -u "$MEMCACHEPHP_ADMIN_USER:$MEMCACHEPHP_ADMIN_PASS" "$base/memcacheui/" \
+            | tr -d '\r' \
+            | grep -Eiq 'memcache|server stats|slabs' \
+            || fail "unexpected content at /memcacheui/"
+
+          echo "[e2e] OK"
+
       - name: Show logs on failure
         if: failure()
         run: |
