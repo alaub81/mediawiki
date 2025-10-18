@@ -657,7 +657,8 @@ jobs:
           # 4) Proxied Ziel /memcacheui/ (mit Basic Auth) -> final 200
           ok=0
           for i in $(seq 1 $tries); do
-            final="$(curl -sS -o /dev/null -w '%{http_code}' -IL -u "$MEMCACHEPHP_ADMIN_USER:$MEMCACHEPHP_ADMIN_PASS" "$base/memcacheui/")" || true
+            final="$(curl -sS -o /dev/null -w '%{http_code}' -IL -u "$MEMCACHEPHP_ADMIN_USER:$MEMCACHEPHP_ADMIN_PASS" \
+              "$base/memcacheui/")" || true
             [ "$final" = "200" ] && { ok=1; break; }
             sleep 3
           done
