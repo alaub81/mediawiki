@@ -479,7 +479,8 @@ jobs:
           ok=0
           for i in $(seq 1 20); do
             if docker compose exec -T mediawiki sh -lc '[ -s "'"$IDX"'" ]'; then
-              age="$(docker compose exec -T mediawiki sh -lc 'now=$(date +%s); mt=$(stat -c %Y "'"$IDX"'" 2>/dev/null || stat -f %m "'"$IDX"'"); echo $((now-mt))')"
+              age="$(docker compose exec -T mediawiki sh -lc 'now=$(date +%s); \
+                mt=$(stat -c %Y "'"$IDX"'" 2>/dev/null || stat -f %m "'"$IDX"'"); echo $((now-mt))')"
               echo "sitemap age: ${age}s"
               if [ "${age:-999999}" -le 900 ]; then  # <= 15 min
                 ok=1; break
