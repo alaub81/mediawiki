@@ -271,7 +271,8 @@ jobs:
 
             # 2) Nur den ersten Status von /sitemap.xml prüfen (ohne -L)
             first_code="$(curl -sS -o /dev/null -w '%{http_code}' -I "${BASE%/}/sitemap.xml" || echo)"
-            # Standard: 301. Wenn du 302 auch akzeptieren willst, ersetze die nächste Zeile durch:  [ "$first_code" = "301" ] || [ "$first_code" = "302" ]
+            # Standard: 301. Wenn du 302 auch akzeptieren willst, ersetze die nächste Zeile durch:
+            # [ "$first_code" = "301" ] || [ "$first_code" = "302" ]
             [ "$first_code" = "301" ] || { sleep 3; continue; }
 
             # 3) Finalen Code nach Follow-Redirect prüfen (mit -L)
