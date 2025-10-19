@@ -155,9 +155,11 @@ $wgSearchType = 'CirrusSearch';
 $wgCirrusSearchServers = [ 'elasticsearch' ];
 $wgCirrusSearchUseCompletionSuggester = true;
 
+# Related Articles using CirrusSearch
 $wgRelatedArticlesDescriptionSource = 'pagedescription';
 $wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
 $wgRelatedArticlesUseCirrusSearch = true;
+$wgRelatedArticlesCardLimit = 6;
 # --- CirrusSearch settings (auto) END ---
 PHP
 
