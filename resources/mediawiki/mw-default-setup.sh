@@ -12,25 +12,25 @@ fi
 cd /var/www/html
 run="php maintenance/run.php"
 
-# Hilfetext einmal ermitteln
+# Determine help text once
 INSTALL_HELP="$($run install --help 2>&1 || true)"
 
-# Welche Flags unterstützt der Installer?
+# Which flags does the installer support?
 HAS_EXT=0; HAS_WITH=0
 printf '%s' "$INSTALL_HELP" | grep -q -- '--extensions'       && HAS_EXT=1
 printf '%s' "$INSTALL_HELP" | grep -q -- '--with-extensions'  && HAS_WITH=1
 
-# Space → CSV aus MW_ACTIVE_EXTENSIONS
+# Space → CSV from MW_ACTIVE_EXTENSIONS
 EXT_CSV=""
 if [ -n "${MW_ACTIVE_EXTENSIONS:-}" ]; then
-  set -f  # kein Globbing
+  set -f
   for e in $MW_ACTIVE_EXTENSIONS; do
     if [ -z "$EXT_CSV" ]; then EXT_CSV="$e"; else EXT_CSV="$EXT_CSV,$e"; fi
   done
   set +f
 fi
 
-# Welches Flag nutzen?
+# Which flag to use?
 EXT_FLAG=""
 if [ -z "$EXT_CSV" ]; then
   if [ $HAS_WITH -eq 1 ]; then
@@ -55,7 +55,7 @@ if [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
 else
   echo "No ${MW_CONFIG_FILE} → running install.php"
 
-  # DB-Port erreichbar? (failsafe zusätzlich zum vorherigen DB-Wait)
+  # DB port accessible? (failsafe in addition to previous DB wait)
   end=$((SECONDS+120))
   until php -r "exit(@fsockopen(getenv(\"MW_DB_HOST\")?: \"database\", (int)(getenv(\"MW_DB_PORT\")?:3306))?0:1);"; do
     [ $SECONDS -ge $end ] && { echo "DB not reachable"; exit 1; }
@@ -82,12 +82,12 @@ else
 fi
 echo "[install] Installation/Update done."
 
-# --- $wgServer, $wgScriptPath und $wgArticlePath in LocalSettings.php er/setzen ---
+# $wgServer, $wgScriptPath and $wgArticlePath in LocalSettings.php set/place
 # read LocalSettings.php
 f="${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}"
   [ -f "$f" ] || { echo "Config file $f not found"; exit 1; }
 
-# Zielzeile (genau so, ohne Quotes um den Ausdruck)
+# Target line (exactly as shown, without quotes around the expression)
 want="\$wgServer = getenv('MW_SERVER_URL') ?: 'http://localhost:8080';"
 
 if [ -f "$f" ]; then
@@ -115,7 +115,7 @@ else
   fi
 fi
 
-# --- Elastica/Cirrus sicher laden (nur falls noch nicht vorhanden) ---
+# Load Elastica/Cirrus securely (only if not already present)
 if ! grep -Fq "wfLoadExtension( 'Elastica' );" "$f"; then
   printf "%s\n" "wfLoadExtension( 'Elastica' );" >> "$f"
 fi
@@ -123,7 +123,7 @@ if ! grep -Fq "wfLoadExtension( 'CirrusSearch' );" "$f"; then
   printf "%s\n" "wfLoadExtension( 'CirrusSearch' );" >> "$f"
 fi
 
-# --- Own-LocalSettings-Block idempotent schreiben ---
+# Write Own-LocalSettings block idempotently
 cat >>"$f" <<'PHP'
 # --- ShortUrls settings (auto) BEGIN ---
 $actions = [

@@ -11,7 +11,7 @@ SCRIPT="generateSitemap"
 
 is_true() { case "${1:-}" in 1|true|TRUE|yes|YES|on|ON) return 0;; *) return 1;; esac; }
 
-# Args dynamisch aufbauen (nur setzen, wenn ENV nicht leer)
+# Build args dynamically (only set if ENV is not empty)
 set --
 
 [ -n "${MW_CONFIG_FILE:-}" ]       && set -- "$@" --conf "$MW_CONFIG_FILE"
@@ -20,7 +20,7 @@ set --
 [ -n "${MW_SITEMAP_IDENTIFIER:-}" ]&& set -- "$@" --identifier "$MW_SITEMAP_IDENTIFIER"
 is_true "${MW_SITEMAP_SKIP_REDIRECTS:-}" && set -- "$@" --skip-redirects
 
-# --fspath NUR wenn MW_SITEMAP_URLPATH ≠ leer → Unterordner von MW_ROOT
+# --fspath ONLY if MW_SITEMAP_URLPATH ≠ empty → Subfolders of MW_ROOT
 _clean_seg() { printf '%s' "$1" | sed -E 's#^/+##; s#/+$##'; }
 if [ -n "${MW_SITEMAP_URLPATH:-}" ]; then
   seg="$(_clean_seg "$MW_SITEMAP_URLPATH")"
@@ -32,11 +32,11 @@ if [ -n "${MW_SITEMAP_URLPATH:-}" ]; then
   fi
 fi
 
-# als www-data ausführen
+# Run as www-data
 if command -v runuser >/dev/null 2>&1; then
   exec runuser -u www-data -- php "$RUN_PHP" "$SCRIPT" "$@"
 else
-  # Fallback su (sicher quoten)
+  # Fallback su (secure quote)
   shell_quote() { printf "%s" "$1" | sed "s/'/'\"'\"'/g; s/.*/'&'/"; }
   cmd="php $(shell_quote "$RUN_PHP") $(shell_quote "$SCRIPT")"
   for a in "$@"; do cmd="$cmd $(shell_quote "$a")"; done

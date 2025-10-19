@@ -5,3 +5,4 @@ data/mediawiki/conf/mw_local_settings/LocalSettings.php
 data/mediawiki/conf/LocalSettings.php
 data/mediawiki/favicon
 .DS_Store
+LocalSettings_lh.php

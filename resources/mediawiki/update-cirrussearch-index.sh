@@ -2,16 +2,16 @@
 set -euo pipefail
 cd /var/www/html
 
-# Elasticsuche-URL; in deinem Compose ist das normalerweise "elasticsearch:9200"
+# Elasticsearch URL; in your Compose, this is usually "elasticsearch:9200"
 ES_URL="${ES_URL:-http://elasticsearch:9200}"
 
-# DB-Name holen: ENV oder aus MediaWiki selbst
+# Get DB name: ENV or from MediaWiki itself
 DBNAME="${MW_DB_NAME:-}"
 if [ -z "$DBNAME" ]; then
   DBNAME="$(printf "%s\n" "echo \$wgDBname, PHP_EOL;" | php maintenance/run.php eval)" || DBNAME="wikidb"
 fi
 
-# Cirrus-Basisname (falls du ihn überschreibst), sonst DB-Name
+# Cirrus base name (if you overwrite it), otherwise DB name
 INDEX_BASE="${MW_CIRRUS_INDEX_BASENAME:-$DBNAME}"
 
 has_alias() { curl -fsS --max-time 4 "$ES_URL/_alias/$1" >/dev/null; }
@@ -28,5 +28,5 @@ else
   php maintenance/run.php ./extensions/CirrusSearch/maintenance/UpdateSearchIndexConfig.php || true
 fi
 
-# Jetzt ist der Meta-Store da → Suggester aktualisieren
+# The Meta Store is now available → Update Suggester
 php maintenance/run.php ./extensions/CirrusSearch/maintenance/UpdateSuggesterIndex.php

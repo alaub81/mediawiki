@@ -184,8 +184,7 @@ wfLoadExtension( 'CookieConsent' );
 
 # End of automatically generated settings.
 # Add more configuration options below.
-$wgScriptExtension  = ".php";
-$wgUsePathInfo = true;
+# $wgUsePathInfo = true;
 $actions = [
 	'edit',
 	'watch',

@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
+# MediaWiki entrypoint script
 set -euo pipefail
 
-# Falls nur Optionen übergeben wurden, Apache-Command ergänzen
+# If only options were passed, add Apache command
 if [[ "${1:-}" == -* ]]; then
   set -- apache2-foreground "$@"
 fi
 
-# PHP-Uploadgrößen setzen (per .env änderbar)
+# Set PHP upload sizes (changeable via .env)
 : "${MW_PHP_UPLOAD_MAX_FILESIZE:=100M}"
 : "${MW_PHP_POST_MAX_SIZE:=100M}"
 : "${MW_SITEMAP_IDENTIFIER:-wiki}"
@@ -18,26 +19,17 @@ upload_max_filesize=${MW_PHP_UPLOAD_MAX_FILESIZE}
 post_max_size=${MW_PHP_POST_MAX_SIZE}
 EOF
 
-# Sitemap-Ziel vorbereiten
-# mkdir -p "${MW_SITEMAP_FSPATH:-/var/www/html/sitemap}"
-# chown -R www-data:www-data "${MW_SITEMAP_FSPATH:-/var/www/html/sitemap}" || true
-
-# Sitemap-Redirect in Apache konfigurieren (Identifier aus .env)
-# cat >/etc/apache2/conf-available/zz-sitemap-redirect.conf <<EOF
-# Redirect 301 /sitemap.xml /sitemap/sitemap-index-${MW_SITEMAP_IDENTIFIER}.xml
-# EOF
-# a2enconf -q zz-sitemap-redirect || true
-# --- Sitemap-Redirect in Apache aus ENV bauen ---
+# Sitemap-Redirect in Apache build from ENV
 ident="${MW_SITEMAP_IDENTIFIER:-wiki}"
 
-# Prefix nur verwenden, wenn gesetzt; auf "/foo/" normalisieren
+# Only use prefix if set; normalize to "/foo/"
 p="${MW_SITEMAP_URLPATH:-}"
 if [ -n "$p" ]; then
   case "$p" in /*) ;; *) p="/$p";; esac
   case "$p" in */) ;; *) p="$p/";; esac
   prefix="$p"
 else
-  prefix="/"   # <— wenn leer: führenden Slash sicherstellen
+  prefix="/"   # <— if empty: ensure leading slash
 fi
 
 target="${prefix}sitemap-index-${ident}.xml"
@@ -47,13 +39,13 @@ Redirect 301 /sitemap.xml $target
 EOF
 a2enconf -q zz-sitemap-redirect || true
 
-# --- Cronfile vorbereiten ---
+# Prepare cronfile
 CRON_FILE="/etc/cron.d/mediawiki"
 mkdir -p "$(dirname "$CRON_FILE")"
-# Bei jedem Start neu schreiben (klarer als anhängen)
+# Rewrite on every startup (clearer than appending)
 : > "$CRON_FILE"
 
-# Helper: Zeile nur einfügen, wenn noch nicht vorhanden
+# Helper: Only insert line if it does not already exist
 add_cron_if_missing() {
   local spec="$1" cmd="$2"
   grep -Fq -- "$cmd" "$CRON_FILE" 2>/dev/null || printf "%s %s\n" "$spec" "$cmd" >> "$CRON_FILE"
@@ -62,7 +54,7 @@ add_cron_if_missing() {
 # MediaWiki Update
 if [ "${MW_AUTO_UPDATE:-false}" = "true" ] && [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
   echo "[entrypoint] running database update (idempotent)…"
-  # Gegen parallele Starts absichern:
+  # Prevent parallel starts:
   mkdir -p /run; exec 9>/run/mw-update.lock
   if flock -n 9; then
     php maintenance/run.php update --quick --skip-config-validation || {
@@ -72,7 +64,7 @@ if [ "${MW_AUTO_UPDATE:-false}" = "true" ] && [ -f "${MW_CONFIG_FILE:-/var/www/h
   fi
 fi
 
-# --- Sitemap-Job (nur wenn Skript existiert) ---
+# Sitemap job (only if script exists)
 if [ "${MW_SITEMAP_GENERATION:-}" != "true" ]; then
   echo "[entrypoint] INFO: MW_SITEMAP_GENERATION not set to 'true' – sitemap cron skipped"
 else
@@ -89,13 +81,13 @@ else
   fi
 fi
 
-# --- RottenLinks-Job (existiert Skript? Extension vorhanden?) ---
+# RottenLinks job (does the script exist? Is the extension available?)
 if [ "${MW_ROTTENLINKS_GENERATION:-}" != "true" ]; then
   echo "[entrypoint] INFO: MW_ROTTENLINKS_GENERATION not set to 'true' – RottenLinks cron skipped"
 else
-  # 1) Skript vorhanden?
+  # 1) Script available?
   if [ -x /usr/local/bin/generate-rottenlinks.sh ]; then
-    # 2) Extension vorhanden? (mindestens eines der Kriterien)
+    # 2) Extension available? (at least one of the criteria)
     if [ -d /var/www/html/extensions/RottenLinks ] || \
       grep -q "wfLoadExtension( 'RottenLinks' );" "${MW_CONFIG_FILE}" 2>/dev/null; then
       if [ "${MW_ROTTENLINKS_RUN_ON_START:-false}" == "true" ]; then
@@ -113,13 +105,13 @@ else
   fi
 fi
 
-# --- CirrusSearchIndex-Job (existiert Skript? Extension vorhanden?) ---
+# CirrusSearchIndex job (does the script exist? Is the extension available?)
 if [ "${MW_CS_INDEX_UPDATE:-}" != "true" ]; then
   echo "[entrypoint] INFO: MW_CS_INDEX_UPDATE not set to 'true' – CirrusSearch index cron skipped"
 else
-  # 1) Skript vorhanden?
+  # 1) Is there a script available?
   if [ -x /usr/local/bin/update-cirrussearch-index.sh ]; then
-    # 2) Extension vorhanden? (mindestens eines der Kriterien)
+    # 2) Extension available? (at least one of the criteria)
     if [ -d /var/www/html/extensions/CirrusSearch ] || \
       grep -q "wfLoadExtension( 'CirrusSearch' );" "${MW_CONFIG_FILE}" 2>/dev/null; then
       if [ "${MW_CS_INDEX_RUN_ON_START:-false}" == "true" ]; then
@@ -143,10 +135,10 @@ if [ "${MW_JOBS_CRON:-false}" = "true" ]; then
     "php /var/www/html/maintenance/run.php runJobs --wait --maxjobs=200"
 fi
 
-# supercronic im Hintergrund starten (loggt im JSON-Format)
-# Alternative ohne JSON: /usr/local/bin/supercronic "$CRON_FILE" &
+# Start supercronic in the background (logs in JSON format)
+# Alternative without JSON: /usr/local/bin/supercronic "$CRON_FILE" &
 /usr/local/bin/supercronic -json "$CRON_FILE" &
 echo "[entrypoint] INFO: Supercronic started with cron file $CRON_FILE"
 
-# Apache im Vordergrund (PID 1) starten
+# Start Apache in the foreground (PID 1)
 exec "$@"
