@@ -460,7 +460,7 @@ jobs:
           == E2E ==
           Marker: '"$E2E_MARK"'
 
-          <tagcloud min_size=32 exclude=browse />
+          <tagcloud></tagcloud>
 
           Broken link: ['"$E2E_BAD_URL"' E2E-Broken-Link]
           EOF
