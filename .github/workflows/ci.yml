@@ -458,15 +458,15 @@ jobs:
           docker compose exec -T -u www-data mediawiki bash -lc '
             set -e
             cat >/tmp/e2e-page.txt <<EOF
-            == E2E ==
-            Marker: '"$E2E_MARK"'
+          == E2E ==
+          Marker: '"$E2E_MARK"'
 
-            <tagcloud min_size=32 exclude=browse />
+          <tagcloud min_size=32 exclude=browse />
 
-            Broken link: ['"$E2E_BAD_URL"' E2E-Broken-Link]
-            EOF
-            # Seite anlegen/überschreiben (ohne Login, via Maintenance)
-            php maintenance/run.php edit --summary "e2e create" --no-rc "'"$E2E_PAGE_TITLE"'" < /tmp/e2e-page.txt
+          Broken link: ['"$E2E_BAD_URL"' E2E-Broken-Link]
+          EOF
+          # Seite anlegen/überschreiben (ohne Login, via Maintenance)
+          php maintenance/run.php edit --summary "e2e create" --no-rc "'"$E2E_PAGE_TITLE"'" < /tmp/e2e-page.txt
           '
 
       - name: E2E — memcached reachable from mediawiki
