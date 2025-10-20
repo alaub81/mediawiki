@@ -195,6 +195,12 @@ jobs:
         run: |
           docker compose exec -T -u www-data mediawiki sh -lc '
             /usr/local/bin/mw-default-setup.sh
+            f=${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}
+            if grep -qE '^\s*#\s*\$wgShowExceptionDetails\s*=\s*true;' "$f"; then
+              sed -i -E 's|^\s*#\s*(\$wgShowExceptionDetails\s*=\s*true;)|\1|' "$f"
+            elif ! grep -qE '^\s*\$wgShowExceptionDetails\s*=' "$f"; then
+              printf '\n$wgShowExceptionDetails = true;' >> "$f"
+            fi
           '
 
       - name: Ensure Short URLs in LocalSettings.php
