@@ -582,6 +582,61 @@ jobs:
             echo "::warning::morelike ergab keine Treffer (Index evtl. noch im Aufbau) – kein harter Fehler"
           fi
 
+      - name: E2E — homepage renders (no exceptions)
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          # ENV laden (optional)
+          [ -f .env.ci ] && { P="$PATH"; set -a; . ./.env.ci; set +a; PATH="$P"; }
+
+          : "${MW_HTTP_PORT:=8080}"
+          : "${MW_SERVER_URL:=http://localhost:${MW_HTTP_PORT}}"
+          : "${E2E_HOMEPAGE_PATH:=/wiki/Hauptseite}"   # bei Bedarf überschreiben (z.B. /)
+          : "${E2E_EXPECT_TEXT:=Hauptseite}"          # z.B. "MediaWiki wurde installiert"
+
+          url="${MW_SERVER_URL%/}${E2E_HOMEPAGE_PATH}"
+          echo "[e2e] GET $url"
+
+          tmpdir="$(mktemp -d)"
+          code="$(curl -fsS -L -D "$tmpdir/headers" -o "$tmpdir/body" -w '%{http_code}' "$url" || true)"
+          echo "[e2e] HTTP $code"
+
+          # 1) HTTP-Fehlercodes abfangen
+          if [ -z "${code:-}" ] || [ "$code" -ge 500 ]; then
+            echo "::error::Server error (HTTP $code)"
+            sed -n '1,80p' "$tmpdir/headers" || true
+            tail -n 120 "$tmpdir/body" || true
+            docker compose logs --no-color --tail 200 mediawiki || true
+            exit 1
+          fi
+
+          # 2) Exception-Marker im Body erkennen (auch wenn HTTP 200)
+          if grep -qiE 'MediaWiki internal error|Original exception|Fatal error|Backtrace' "$tmpdir/body"; then
+            echo "::error::Exception markers found in response body"
+            sed -n '1,80p' "$tmpdir/headers" || true
+            # Zeige einen Body-Ausschnitt um die erste Fundstelle
+            line="$(grep -niE 'MediaWiki internal error|Original exception|Fatal error|Backtrace' "$tmpdir/body" | head -n1 | cut -d: -f1 || true)"
+            if [ -n "$line" ]; then
+              start=$(( line>40 ? line-40 : 1 )); end=$(( line+120 ))
+              sed -n "${start},${end}p" "$tmpdir/body" || true
+            else
+              tail -n 120 "$tmpdir/body" || true
+            fi
+            docker compose logs --no-color --tail 200 mediawiki || true
+            exit 1
+          fi
+
+          # 3) Erwartungstext prüfen (einfacher Smoke-Test)
+          if ! grep -qi -- "$E2E_EXPECT_TEXT" "$tmpdir/body"; then
+            echo "::error::Expected text not found: $E2E_EXPECT_TEXT"
+            sed -n '1,60p' "$tmpdir/headers" || true
+            head -n 120 "$tmpdir/body" || true
+            exit 1
+          fi
+
+          echo "[e2e] OK — homepage renders and contains: $E2E_EXPECT_TEXT"
+
       - name: E2E — memcachephp UI
         shell: bash
         run: |
