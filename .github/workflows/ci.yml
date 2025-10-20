@@ -616,7 +616,8 @@ jobs:
             echo "::error::Exception markers found in response body"
             sed -n '1,80p' "$tmpdir/headers" || true
             # Zeige einen Body-Ausschnitt um die erste Fundstelle
-            line="$(grep -niE 'MediaWiki internal error|Original exception|Fatal error|Backtrace' "$tmpdir/body" | head -n1 | cut -d: -f1 || true)"
+            line="$(grep -niE 'MediaWiki internal error|Original exception|Fatal error|Backtrace' "$tmpdir/body" | \
+              head -n1 | cut -d: -f1 || true)"
             if [ -n "$line" ]; then
               start=$(( line>40 ? line-40 : 1 )); end=$(( line+120 ))
               sed -n "${start},${end}p" "$tmpdir/body" || true
