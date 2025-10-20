@@ -85,6 +85,7 @@ jobs:
           platforms: linux/amd64
           load: true
           push: false
+          pull: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: ${{ steps.meta.outputs.tags }}
@@ -599,7 +600,7 @@ jobs:
           echo "[e2e] GET $url"
 
           tmpdir="$(mktemp -d)"
-          code="$(curl -fsS -L -D "$tmpdir/headers" -o "$tmpdir/body" -w '%{http_code}' "$url" || true)"
+          code="$(curl -sS --fail-with-body -L -D "$tmpdir/headers" -o "$tmpdir/body" -w '%{http_code}' "$url" || true)"
           echo "[e2e] HTTP $code"
 
           # 1) HTTP-Fehlercodes abfangen
