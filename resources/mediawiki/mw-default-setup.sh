@@ -161,6 +161,16 @@ $wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
 $wgRelatedArticlesUseCirrusSearch = true;
 $wgRelatedArticlesCardLimit = 6;
 # --- CirrusSearch settings (auto) END ---
+
+## Debuging Settings
+# $wgShowExceptionDetails = true;
+# $wgShowDBErrorBacktrace = true;
+# $wgShowSQLErrors = true;
+## Deprecated Messages
+# $wgShowDebug = true;
+# $wgDevelopmentWarnings = true;
+# $wgDeprecationReleaseLimit = '1.x';
+# error_reporting(0);
 PHP
 
 echo "[LocalSettings] LocalSettings-Konfiguration wurde in $f aktualisiert."

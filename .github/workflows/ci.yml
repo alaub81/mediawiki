@@ -195,11 +195,22 @@ jobs:
         run: |
           docker compose exec -T -u www-data mediawiki sh -lc '
             /usr/local/bin/mw-default-setup.sh
-            f=${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}
-            if grep -qE '^\s*#\s*\$wgShowExceptionDetails\s*=\s*true;' "$f"; then
-              sed -i -E 's|^\s*#\s*(\$wgShowExceptionDetails\s*=\s*true;)|\1|' "$f"
-            elif ! grep -qE '^\s*\$wgShowExceptionDetails\s*=' "$f"; then
-              printf '\n$wgShowExceptionDetails = true;' >> "$f"
+          '
+
+      - name: Enable MW debug (wgShowExceptionDetails) when MW_DEBUG=true
+        shell: bash
+        run: |
+          docker compose exec -T -u www-data mediawiki bash -lc '
+            set -e
+            f="${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}"
+            [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
+
+            # 1) auskommentierte Zeile wie "# $wgShowExceptionDetails = true;" entkommentieren
+            if grep -qE "^[[:space:]]*#[[:space:]]*\\$wgShowExceptionDetails[[:space:]]*=[[:space:]]*true;" "$f"; then
+              sed -i -E "s|^[[:space:]]*#[[:space:]]*(\\$wgShowExceptionDetails[[:space:]]*=[[:space:]]*true;)|\\1|" "$f"
+            # 2) falls nirgends gesetzt → anhängen
+            elif ! grep -qE "^[[:space:]]*\\$wgShowExceptionDetails[[:space:]]*=" "$f"; then
+              printf "\n# Debug (CI)\n\$wgShowExceptionDetails = true;\n" >> "$f"
             fi
           '
 
