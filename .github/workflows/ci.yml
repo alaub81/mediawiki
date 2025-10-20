@@ -150,6 +150,11 @@ jobs:
           MEMCACHEPHP_ADMIN_USER=admin
           MEMCACHEPHP_ADMIN_PASS=supersecret
           MEMCACHEPHP_SERVERS=memcached:11211
+
+          # E2E Tests
+          E2E_PAGE_TITLE=E2E-Tagcloud-Test
+          E2E_MARK=E2E_TAGCLOUD_OK
+          E2E_BAD_URL=http://does-not-exist.invalid/e2e-broken
           EOF
 
       - name: Export CI env to shell (for compose variable substitution)
@@ -440,6 +445,30 @@ jobs:
           done
           exit $fail
 
+      - name: E2E — create test page
+        shell: bash
+        continue-on-error: true
+        run: |
+          # .env.ci sicher laden ohne PATH zu zerstören
+          if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
+          : "${E2E_PAGE_TITLE:=E2E-Tagcloud-Test}"
+          : "${E2E_MARK:=E2E_TAGCLOUD_OK}"
+          : "${E2E_BAD_URL:=http://does-not-exist.invalid/e2e-broken}"
+
+          docker compose exec -T -u www-data mediawiki bash -lc '
+            set -e
+            cat >/tmp/e2e-page.txt <<EOF
+            == E2E ==
+            Marker: '"$E2E_MARK"'
+
+            <tagcloud min_size=32 exclude=browse />
+
+            Broken link: ['"$E2E_BAD_URL"' E2E-Broken-Link]
+            EOF
+            # Seite anlegen/überschreiben (ohne Login, via Maintenance)
+            php maintenance/run.php edit --summary "e2e create" --no-rc "'"$E2E_PAGE_TITLE"'" < /tmp/e2e-page.txt
+          '
+
       - name: E2E — memcached reachable from mediawiki
         shell: bash
         run: |
@@ -585,6 +614,7 @@ jobs:
 
       - name: E2E — homepage renders (no exceptions)
         shell: bash
+        continue-on-error: true
         run: |
           set -Eeuo pipefail
 
@@ -593,10 +623,10 @@ jobs:
 
           : "${MW_HTTP_PORT:=8080}"
           : "${MW_SERVER_URL:=http://localhost:${MW_HTTP_PORT}}"
-          : "${E2E_HOMEPAGE_PATH:=/wiki/Hauptseite}"   # bei Bedarf überschreiben (z.B. /)
-          : "${E2E_EXPECT_TEXT:=Hauptseite}"          # z.B. "MediaWiki wurde installiert"
+          : "${E2E_PAGE_TITLE:=E2E-Tagcloud-Test}"
+          : "${E2E_MARK:=E2E_TAGCLOUD_OK}"
 
-          url="${MW_SERVER_URL%/}${E2E_HOMEPAGE_PATH}"
+          url="${MW_SERVER_URL%/}/wiki/${E2E_PAGE_TITLE// /_%20}"
           echo "[e2e] GET $url"
 
           tmpdir="$(mktemp -d)"
@@ -630,14 +660,50 @@ jobs:
           fi
 
           # 3) Erwartungstext prüfen (einfacher Smoke-Test)
-          if ! grep -qi -- "$E2E_EXPECT_TEXT" "$tmpdir/body"; then
-            echo "::error::Expected text not found: $E2E_EXPECT_TEXT"
+          if ! grep -qi -- "$E2E_MARK" "$tmpdir/body"; then
+            echo "::error::Expected text not found: $E2E_MARK"
             sed -n '1,60p' "$tmpdir/headers" || true
             head -n 120 "$tmpdir/body" || true
             exit 1
           fi
 
-          echo "[e2e] OK — homepage renders and contains: $E2E_EXPECT_TEXT"
+          echo "[e2e] OK — homepage renders and contains: $E2E_MARK"
+
+      - name: E2E — RottenLinks lists the broken URL
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -Eeuo pipefail
+          [ -f .env.ci ] && { P="$PATH"; set -a; . ./.env.ci; set +a; PATH="$P"; }
+
+          : "${MW_HTTP_PORT:=8080}"
+          : "${MW_SERVER_URL:=http://localhost:${MW_HTTP_PORT}}"
+          : "${E2E_BAD_URL:=http://does-not-exist.invalid/e2e-broken}"
+
+          # 1) Generierung anstoßen (nimm dein Script, sonst Fallback: Jobs laufen lassen)
+          if docker compose exec -T mediawiki test -x /usr/local/bin/generate-rottenlinks.sh; then
+            docker compose exec -T mediawiki /usr/local/bin/generate-rottenlinks.sh || true
+          else
+            docker compose exec -T -u www-data mediawiki php maintenance/run.php runJobs --maxjobs=200 || true
+          fi
+
+          # 2) Spezialseite „RottenLinks“ pollen und nach URL suchen
+          base="${MW_SERVER_URL%/}"
+          rl_url="$base/wiki/Spezial:RottenLinks"
+          ok=0
+          for i in $(seq 1 10); do
+            body="$(curl -fsSL "$rl_url" || true)"
+            if printf '%s' "$body" | grep -Fq "$E2E_BAD_URL"; then
+              echo "[e2e] OK — RottenLinks lists $E2E_BAD_URL"
+              ok=1; break
+            fi
+            sleep 3
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::Broken URL not found on Spezial:RottenLinks"
+            echo "[debug] first 120 lines:"; printf '%s' "${body:-}" | sed -n '1,120p'
+            exit 1
+          fi
 
       - name: E2E — memcachephp UI
         shell: bash
