@@ -1,9 +1,11 @@
 FROM mediawiki:1.44
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud CirrusSearch Elastica CookieConsent"
+# ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend WikiCategoryTagCloud CirrusSearch Elastica CookieConsent"
+ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica"
 ENV MW_INSTALL_SKINS=""
-ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks"
+# ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks"
+ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks WikiCategoryTagCloud CookieConsent"
 ENV MW_EXTRA_SKINS="${MW_INSTALL_SKINS}"
 
 COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
@@ -22,19 +24,6 @@ RUN set -eux; \
   BR="${MW_BRANCH:-REL${MEDIAWIKI_MAJOR_VERSION%%.*}_${MEDIAWIKI_MAJOR_VERSION#*.}}"; \
   echo "Using MW_BRANCH=$BR"; \
   FALLBACK_BRANCH="main"; \
-  # clone_or_replace() { \
-  #   url="$1"; target="$2"; branch="$3"; \
-  #   rm -rf "$target"; \
-  #   if git ls-remote --heads "$url" "$branch" >/dev/null 2>&1; then \
-  #     git clone --depth=1 --single-branch -b "$branch" "$url" "$target"; \
-  #   elif git ls-remote --heads "$url" master >/dev/null 2>&1; then \
-  #     git clone --depth=1 --single-branch -b master "$url" "$target"; \
-  #   elif git ls-remote --heads "$url" main >/dev/null 2>&1; then \
-  #     git clone --depth=1 --single-branch -b main "$url" "$target"; \
-  #   else \
-  #     echo "No suitable branch in $url"; exit 128; \
-  #   fi; \
-  # }; \
   clone_with_fallback() { \
     url="$1"; dest="$2"; pref="${3:-$BR}"; fb="${4:-$FALLBACK_BRANCH}"; \
     branch="$pref"; \
@@ -54,6 +43,42 @@ RUN set -eux; \
       git clone --depth=1 "$url" "$dest"; \
     fi; \
   }; \
+  # fixed commit when cloning from master
+  clone_fixed_commit() { \
+    url="$1"; dest="$2"; commit="$3"; branch="${4:-}"; \
+    echo "→ target: $url @ $commit  (branch hint: ${branch:-<none>})"; \
+    rm -rf "$dest"; \
+    git init "$dest"; cd "$dest"; \
+    git remote add origin "$url"; \
+    # 1) Attempts: fetch direct commit shallow (works if server allows it)
+    if git fetch --depth=1 origin "$commit" >/dev/null 2>&1; then \
+      echo "✓ fetched exact commit (shallow)"; \
+    else \
+      echo "… direct by-commit fetch blocked; fetching branch history"; \
+      [ -n "$branch" ] || { echo "ERROR: need a branch name as 4th arg"; exit 1; }; \
+      # First shallow; if commit is older → unshallow
+      git fetch --depth=200 origin "$branch" || { echo "ERROR: cannot fetch branch $branch"; exit 1; }; \
+      if ! git cat-file -e "$commit^{commit}" >/dev/null 2>&1; then \
+        echo "… commit not in shallow history; unshallowing $branch"; \
+        git fetch --unshallow origin "$branch" || git fetch --depth=2147483647 origin "$branch"; \
+      fi; \
+      # Commit now available?
+      git cat-file -e "$commit^{commit}" >/dev/null 2>&1 || { \
+        echo "ERROR: commit $commit not found in branch $branch"; exit 1; \
+      }; \
+      # Optional: check whether commit is really an ancestor of the branch HEAD
+      if git rev-parse -q --verify "origin/$branch" >/dev/null 2>&1; then \
+        if ! git merge-base --is-ancestor "$commit" "origin/$branch"; then \
+          echo "⚠️  commit is not an ancestor of origin/$branch (continuing anyway)"; \
+        fi; \
+      fi; \
+    fi; \
+    # 2) Checkout exakt dieses Commits (detached HEAD)
+    git checkout --detach -q "$commit"; \
+    # Clean up (Source only, no .git required)
+    git reset --hard -q; git clean -fdx -q; \
+    echo "✓ checked out $commit into $dest"; \
+  }; \
   # Extensions
   for ext in $MW_INSTALL_EXTENSIONS; do \
     url="https://gerrit.wikimedia.org/r/mediawiki/extensions/$ext"; \
@@ -64,9 +89,23 @@ RUN set -eux; \
     url="https://gerrit.wikimedia.org/r/mediawiki/skins/$skin"; \
     clone_with_fallback "$url" "/var/www/html/skins/$skin"; \
   done; \
-  # Sonderfälle
-  rm -rf /var/www/html/extensions/RottenLinks; \
-  clone_with_fallback "https://github.com/miraheze/RottenLinks.git" "/var/www/html/extensions/RottenLinks"; \
+  # Special Stuff
+  BRANCH="master"; \
+  COMMIT="335edadddb7a438e0e4698e9103d5efd4c46f9d8" ; \
+  clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/WikiCategoryTagCloud" \
+                     "/var/www/html/extensions/WikiCategoryTagCloud" \
+                     "$COMMIT" "$BRANCH"; \
+  BRANCH="master"; \
+  COMMIT="e02209dddb79a5f8fc0e7cdb1438ff8ee928a2ee"; \
+  clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/CookieConsent" \
+                     "/var/www/html/extensions/CookieConsent" \
+                     "$COMMIT" "$BRANCH"; \
+  BRANCH="main"; \
+  COMMIT="30c4dd5da467f9ae9dd52fb3df0dad9712ef5445"; \
+  clone_fixed_commit "https://github.com/miraheze/RottenLinks.git" \
+                     "/var/www/html/extensions/RottenLinks" \
+                     "$COMMIT" "$BRANCH"; \
+  # cleanup and rights
   find /var/www/html/extensions -name .git -type d -prune -exec rm -rf {} +; \
   find /var/www/html/skins -name .git -type d -prune -exec rm -rf {} +; \
   chown -R www-data:www-data /var/www/html/extensions; \
