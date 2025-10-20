@@ -447,7 +447,6 @@ jobs:
 
       - name: E2E — create test page
         shell: bash
-        continue-on-error: true
         run: |
           # .env.ci sicher laden ohne PATH zu zerstören
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
@@ -614,7 +613,6 @@ jobs:
 
       - name: E2E — homepage renders (no exceptions)
         shell: bash
-        continue-on-error: true
         run: |
           set -Eeuo pipefail
 
@@ -671,7 +669,6 @@ jobs:
 
       - name: E2E — RottenLinks lists the broken URL
         shell: bash
-        continue-on-error: true
         run: |
           set -Eeuo pipefail
           [ -f .env.ci ] && { P="$PATH"; set -a; . ./.env.ci; set +a; PATH="$P"; }
