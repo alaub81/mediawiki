@@ -213,16 +213,6 @@ jobs:
             printf "\n# Debug (CI)\n\$wgShowExceptionDetails = true;\n" >> "$f"
           '
 
-      - name: Enable intersection Extension
-        shell: bash
-        run: |
-          docker compose exec -T -u www-data mediawiki bash -lc '
-            set -e
-            f="${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}"
-            [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
-            printf "\n# Intersection Extension\nwfLoadExtension\( \'intersection\' \);\n" >> "$f"
-          '
-
       - name: Ensure Short URLs in LocalSettings.php
         shell: bash
         run: |
