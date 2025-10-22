@@ -220,7 +220,7 @@ jobs:
             set -e
             f="${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}"
             [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
-            printf "\n# Intersection Extension\nwfLoadExtension( 'intersection' );\n" >> "$f"
+            printf "\n# Intersection Extension\nwfLoadExtension\( \'intersection\' \);\n" >> "$f"
           '
 
       - name: Ensure Short URLs in LocalSettings.php
