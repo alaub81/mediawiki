@@ -117,9 +117,9 @@ $wgUpgradeKey = "15758aeaff60d3fa";
 ## appropriate copyright notice / icon. GNU Free Documentation
 ## License and Creative Commons licenses are supported so far.
 $wgRightsPage = ""; # Set to the title of a wiki page that describes your license/copyright
-$wgRightsUrl = "";
-$wgRightsText = "";
-$wgRightsIcon = "";
+$wgRightsUrl = "https://creativecommons.org/licenses/by/4.0/";
+$wgRightsText = "Creative Commons „Namensnennung“";
+$wgRightsIcon = "$wgResourceBasePath/resources/assets/licenses/cc-by.png";
 
 # Path to the GNU diff3 utility. Used for conflict resolution.
 $wgDiff3 = "/usr/bin/diff3";
@@ -153,8 +153,10 @@ wfLoadExtension( 'DiscussionTools' );
 wfLoadExtension( 'Echo' );
 wfLoadExtension( 'Elastica' );
 wfLoadExtension( 'Gadgets' );
+wfLoadExtension( 'HitCounters' );
 wfLoadExtension( 'ImageMap' );
 wfLoadExtension( 'InputBox' );
+wfLoadExtension( 'intersection' );
 wfLoadExtension( 'Interwiki' );
 wfLoadExtension( 'Linter' );
 wfLoadExtension( 'Lockdown' );
@@ -179,6 +181,7 @@ wfLoadExtension( 'TemplateData' );
 wfLoadExtension( 'TextExtracts' );
 wfLoadExtension( 'Thanks' );
 wfLoadExtension( 'TitleBlacklist' );
+wfLoadExtension( 'TopTenPages' );
 wfLoadExtension( 'VisualEditor' );
 wfLoadExtension( 'WikiCategoryTagCloud' );
 wfLoadExtension( 'WikiEditor' );
@@ -220,6 +223,10 @@ $wgCirrusSearchUseCompletionSuggester = true;
 $wgRelatedArticlesDescriptionSource = 'pagedescription';
 $wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
 $wgRelatedArticlesUseCirrusSearch = true;
+# $wgRelatedArticlesOnlyUseCirrusSearch = true;
+
+# TopTenPages Configuration
+$wgTopTenPagesStartAtOne = true;
 
 # Apple Touch Icon
 $wgAppleTouchIcon = "/favicon/apple-touch-icon.png";
@@ -250,6 +257,23 @@ function HeadScript( OutputPage &$out, Skin &$skin ) {
 
 }
 
+# IPV6 Ready Logo
+$wgFooterIcons['poweredby-ipv6'] = [
+  'myicon' => [
+	"src" => "https://ipv6-test.com/button-ipv6-small.png",
+    // you may also use a direct path to the source, e.g. "http://example.com/my/custom/path/to/MyCustomLogo.png"
+    "url" => "https://ipv6-test.com/validate.php?url=referer",
+    "alt" => "ipv6 ready",
+	// If you have a non-default sized icon you can specify the size yourself.
+	"height" => "31",
+	"width" => "88",
+  ]
+];
+
+# Allow to overwrite the article title
+$wgAllowDisplayTitle = true;
+$wgRestrictDisplayTitle = false;
+
 # Debugging on
 #$wgShowExceptionDetails = true;
 #$wgShowDBErrorBacktrace = true;
@@ -257,5 +281,5 @@ function HeadScript( OutputPage &$out, Skin &$skin ) {
 # Deprecated Messages
 #$wgShowDebug = true;
 #$wgDevelopmentWarnings = true;
-#$wgDeprecationReleaseLimit = '1.x';
+#$wgDeprecationReleaseLimit = '1.43';
 #error_reporting(0);
