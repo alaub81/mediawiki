@@ -35,7 +35,7 @@ services:
     ports:
       - ${MW_HTTP_PORT:-8080}:80
     labels:
-      - "com.centurylinklabs.watchtower.enable: true"
+      com.centurylinklabs.watchtower.enable: true
     volumes:
       - data_mw_images:/var/www/html/images
       # After initial setup, download LocalSettings.php to data/conf directory
@@ -82,7 +82,7 @@ services:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
       TZ: ${TZ:-UTC}
     labels:
-      - "com.centurylinklabs.watchtower.enable: true"
+      com.centurylinklabs.watchtower.enable: true
     healthcheck:
       test:
         [
@@ -104,7 +104,7 @@ services:
     environment:
       - TZ=${TZ:-UTC}
     labels:
-      - "com.centurylinklabs.watchtower.enable: true"
+      com.centurylinklabs.watchtower.enable: true
     healthcheck:
       test:
         - CMD-SHELL
@@ -136,7 +136,7 @@ services:
       MEMCACHEPHP_GRAPH_SIZE: ${MEMCACHEPHP_GRAPH_SIZE:-200}
       MEMCACHEPHP_MAX_ITEM_DUMP: ${MEMCACHEPHP_MAX_ITEM_DUMP:-50}
     labels:
-      - "com.centurylinklabs.watchtower.enable: true"
+      com.centurylinklabs.watchtower.enable: true
     ports:
       - ${MEMCACHEPHP_HTTP_PORT:-8097}:80
     healthcheck:
