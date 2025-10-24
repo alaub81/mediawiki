@@ -60,9 +60,9 @@ $wgEmailAuthentication = true;
 ## Database settings
 $wgDBtype = "mysql";
 $wgDBserver = "database:3306";
-$wgDBname = "wikidb_dev";
-$wgDBuser = "wikiuser_dev";
-$wgDBpassword = "w1k1passdev";
+$wgDBname = "wiki";
+$wgDBuser = "wikiuser";
+$wgDBpassword = "w1k1pass";
 
 # MySQL specific settings
 $wgDBprefix = "";
