@@ -7,3 +7,5 @@ data/mediawiki/favicon
 data/mediawiki/favicon.old
 .DS_Store
 LocalSettings_lh.php
+data/mediawiki/conf/robots.txt
+data/mediawiki/conf/.htaccess
