@@ -216,7 +216,7 @@ $wgArticlePath = "/wiki/$1";
 # CirrusSearch settings
 $wgSearchType = 'CirrusSearch';
 $wgCirrusSearchServers = [ 'elasticsearch' ];
-# $wgCirrusSearchIndexBaseName = 'wikidbdev';
+# $wgCirrusSearchIndexBaseName = 'wikidb';
 $wgCirrusSearchUseCompletionSuggester = true;
 
 # $wgRelatedArticlesFooterWhitelistedSkins = ['minerva', 'vector'];
