@@ -203,7 +203,7 @@ $wgRestrictDisplayTitle = false;
 ## Deprecated Messages
 # $wgShowDebug = true;
 # $wgDevelopmentWarnings = true;
-# $wgDeprecationReleaseLimit = '1.x';
+# $wgDeprecationReleaseLimit = '1.43';
 # error_reporting(0);
 PHP
 
