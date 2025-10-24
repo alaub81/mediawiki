@@ -78,8 +78,11 @@ services:
       - data_db:/var/lib/mysql
     restart: unless-stopped
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
-      TZ: ${TZ:-UTC}
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD:-R00tPassword}
+      - MARIADB_DATABASE
+      - MARIADB_USER
+      - MARIADB_PASSWORD
+      - TZ=${TZ:-UTC}
     labels:
       com.centurylinklabs.watchtower.enable: true
     healthcheck:
