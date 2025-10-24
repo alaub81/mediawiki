@@ -1,6 +1,5 @@
 # ToDos
 
-[] mariadb vs mysql --> Scripte erweitern: grep -E '^(MYSQL|MARIADB)_DATABASE='
 [] Doku zu CookieConsent Extension
 [] Wiki Artikel zum Setup
 [?] MARIADB_VARS doch setzen und wiki DB anlegen lassen? testen
@@ -8,6 +7,12 @@
 [?] ExternalContent Extension wenn für 1.44 verfügbar [ExternalContent](https://www.mediawiki.org/wiki/Extension:External_Content)
 [] Kann man Links von Amazon automatisch ersichtlich machen?
 [] Kategorien aufräumen --> Unterkategorien --> bei den Haupt Categorien Logos und Text
+[] copy bei SyntaxHighlight
+[x] .htaccess ist im Repo... sollte .example sein... und appletouch in .htaccess
+[!] !!nicht machen!! - Database Port kann weg beim mw-default installer!
+[x] MW_Default_Setup und LocalSettings.php.example angleichen
+[] Artikel kleinschreiben
+
 
 ```bash
 # Jpbs für Index

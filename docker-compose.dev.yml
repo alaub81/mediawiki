@@ -171,6 +171,8 @@ services:
       ES_JAVA_OPTS: "-Xms${ES_HEAP_MIN:-512m} -Xmx${ES_HEAP_MAX:-512m}"
     volumes:
       - data_esdata:/usr/share/elasticsearch/data
+    labels:
+      com.centurylinklabs.watchtower.enable: true
     ulimits:
       memlock:
         soft: -1

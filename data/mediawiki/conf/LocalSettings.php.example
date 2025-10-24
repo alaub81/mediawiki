@@ -189,7 +189,7 @@ wfLoadExtension( 'WikiEditor' );
 
 # End of automatically generated settings.
 # Add more configuration options below.
-# $wgUsePathInfo = true;
+# ShortUrls settings
 $actions = [
 	'edit',
 	'watch',

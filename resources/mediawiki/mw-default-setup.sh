@@ -125,7 +125,7 @@ fi
 
 # Write Own-LocalSettings block idempotently
 cat >>"$f" <<'PHP'
-# --- ShortUrls settings (auto) BEGIN ---
+# ShortUrls settings
 $actions = [
 	'edit',
 	'watch',
@@ -160,7 +160,37 @@ $wgRelatedArticlesDescriptionSource = 'pagedescription';
 $wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
 $wgRelatedArticlesUseCirrusSearch = true;
 $wgRelatedArticlesCardLimit = 6;
-# --- CirrusSearch settings (auto) END ---
+
+# TopTenPages Configuration
+$wgTopTenPagesStartAtOne = true;
+
+# Apple Touch Icon
+$wgAppleTouchIcon = "/favicon/apple-touch-icon.png";
+
+# Favicon
+$wgFavicon = "/favicon/favicon.ico";
+
+$wgHeadScriptCode = <<<'START_END_MARKER'
+<!-- Favicons -->
+<link rel="icon" type="image/png" href="/favicon/favicon-96x96.png" sizes="96x96" />
+<link rel="icon" type="image/png" href="/favicon/favicon-32x32.png" sizes="32x32" />
+<link rel="icon" type="image/png" href="/favicon/favicon-16x16.png" sizes="16x16" />
+<link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
+<link rel="shortcut icon" href="/favicon/favicon.ico" />
+<!-- Apple Touch -->
+<link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-title" content="Laub-Home" />
+<!-- PWA Manifest (kann auch im Root liegen; wichtig ist nur, dass es erreichbar ist) -->
+<link rel="manifest" href="/favicon/site.webmanifest" />
+START_END_MARKER;
+$wgHeadScriptName = 'Favicon Stuff';
+
+$wgHooks['BeforePageDisplay'][] = 'HeadScript';
+function HeadScript( OutputPage &$out, Skin &$skin ) {
+        global $wgHeadScriptCode, $wgHeadScriptName;
+        $out->addHeadItem($wgHeadScriptName, $wgHeadScriptCode );
+        return TRUE;
+}
 
 # Allow to overwrite the article title
 $wgAllowDisplayTitle = true;
