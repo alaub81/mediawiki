@@ -1,0 +1,2 @@
+Redirect 301 /favicon.ico /favicon/favicon.ico
+Redirect 301 /apple-touch-icon.png /favicon/apple-touch-icon.png

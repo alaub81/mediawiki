@@ -254,19 +254,19 @@ function HeadScript( OutputPage &$out, Skin &$skin ) {
         global $wgHeadScriptCode, $wgHeadScriptName;
         $out->addHeadItem($wgHeadScriptName, $wgHeadScriptCode );
         return TRUE;
-
 }
 
 # IPV6 Ready Logo
 $wgFooterIcons['poweredby-ipv6'] = [
-  'myicon' => [
-	"src" => "https://ipv6-test.com/button-ipv6-small.png",
-    // you may also use a direct path to the source, e.g. "http://example.com/my/custom/path/to/MyCustomLogo.png"
-    "url" => "https://ipv6-test.com/validate.php?url=referer",
-    "alt" => "ipv6 ready",
-	// If you have a non-default sized icon you can specify the size yourself.
-	"height" => "31",
-	"width" => "88",
+  'ipv6ready' => [
+  // Local Image
+  // "src" => "$wgResourceBasePath/images/button-ipv6-small.png",
+  // Remote Image
+  "src" => "https://ipv6-test.com/button-ipv6-small.png",
+  "url" => "https://ipv6-test.com/validate.php?url=referer",
+  "alt" => "ipv6 ready",
+  "height" => "31",
+  "width" => "88",
   ]
 ];
 

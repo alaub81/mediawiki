@@ -3,4 +3,4 @@ Disallow: /index.php
 Disallow: /Index.php
 Disallow: /*Spezial:
 Disallow: /*Diskussion:
-Sitemap: https://www.laub-home.de/sitemap/sitemap-index-wiki.xml
+Sitemap: https://www.example.com/sitemap/sitemap-index-wiki.xml

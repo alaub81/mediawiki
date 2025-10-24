@@ -162,6 +162,10 @@ $wgRelatedArticlesUseCirrusSearch = true;
 $wgRelatedArticlesCardLimit = 6;
 # --- CirrusSearch settings (auto) END ---
 
+# Allow to overwrite the article title
+$wgAllowDisplayTitle = true;
+$wgRestrictDisplayTitle = false;
+
 ## Debuging Settings
 # $wgShowExceptionDetails = true;
 # $wgShowDBErrorBacktrace = true;
