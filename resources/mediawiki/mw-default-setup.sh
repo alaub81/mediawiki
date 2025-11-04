@@ -150,6 +150,9 @@ $wgActionPaths['view'] = "/wiki/$1";
 $wgArticlePath = "/wiki/$1";
 # --- ShortUrls settings (auto) END ---
 
+# Output <link rel="canonical"> on every page
+$wgEnableCanonicalServerLink = true;
+
 # --- CirrusSearch settings (auto) BEGIN ---
 $wgSearchType = 'CirrusSearch';
 $wgCirrusSearchServers = [ 'elasticsearch' ];

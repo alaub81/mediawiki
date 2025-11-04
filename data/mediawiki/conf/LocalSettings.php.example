@@ -213,6 +213,9 @@ foreach ( $actions as $action ) {
 $wgActionPaths['view'] = "/wiki/$1";
 $wgArticlePath = "/wiki/$1";
 
+# Output <link rel="canonical"> on every page
+$wgEnableCanonicalServerLink = true;
+
 # CirrusSearch settings
 $wgSearchType = 'CirrusSearch';
 $wgCirrusSearchServers = [ 'elasticsearch' ];
