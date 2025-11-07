@@ -185,6 +185,7 @@ wfLoadExtension( 'TopTenPages' );
 wfLoadExtension( 'VisualEditor' );
 wfLoadExtension( 'WikiCategoryTagCloud' );
 wfLoadExtension( 'WikiEditor' );
+wfLoadExtension( 'WikiSEO' );
 
 
 # End of automatically generated settings.
