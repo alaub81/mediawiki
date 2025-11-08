@@ -218,6 +218,7 @@ if ($clamavEnabled) {
 }
 # enable txt file uploads, to test eicar virus signature
 $wgFileExtensions[] = 'txt';
+$wgEnableUploads = true;
 
 ## Debuging Settings
 # $wgShowExceptionDetails = true;
