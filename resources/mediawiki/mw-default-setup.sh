@@ -123,6 +123,9 @@ if ! grep -Fq "wfLoadExtension( 'CirrusSearch' );" "$f"; then
   printf "%s\n" "wfLoadExtension( 'CirrusSearch' );" >> "$f"
 fi
 
+# Enable uploads
+sed -i "s#^\$wgEnableUploads[[:space:]]*=.*#\$wgEnableUploads = true;#" "$f"
+
 # Write Own-LocalSettings block idempotently
 cat >>"$f" <<'PHP'
 # ShortUrls settings
@@ -218,7 +221,6 @@ if ($clamavEnabled) {
 }
 # enable txt file uploads, to test eicar virus signature
 $wgFileExtensions[] = 'txt';
-$wgEnableUploads = true;
 
 ## Debuging Settings
 # $wgShowExceptionDetails = true;
