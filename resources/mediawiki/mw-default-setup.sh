@@ -199,6 +199,26 @@ function HeadScript( OutputPage &$out, Skin &$skin ) {
 $wgAllowDisplayTitle = true;
 $wgRestrictDisplayTitle = false;
 
+# Antivirus integration (ClamAV)
+$clamavEnabled = filter_var(getenv('CLAMAV_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN);
+if ($clamavEnabled) {
+    $wgAntivirus = 'clamav';
+    $wgAntivirusRequired = true;
+    $wgAntivirusSetup['clamav'] = [
+        'command' => '/usr/bin/clamdscan --no-summary --stdout --config-file=/etc/clamav/clamd.remote.conf %f',
+        'codemap' => [
+            0 => AV_NO_VIRUS,
+            1 => AV_VIRUS_FOUND,
+            2 => AV_SCAN_FAILED,
+            '*' => AV_SCAN_FAILED,
+        ],
+    ];
+} else {
+    $wgAntivirus = false;
+}
+# enable txt file uploads, to test eicar virus signature
+$wgFileExtensions[] = 'txt';
+
 ## Debuging Settings
 # $wgShowExceptionDetails = true;
 # $wgShowDBErrorBacktrace = true;

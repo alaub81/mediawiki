@@ -1,0 +1,9 @@
+## Example clamd.conf file for ClamAV daemon
+## TCP socket for clamd to listen on
+TCPSocket 3310
+## Uncomment and set the TCP address to bind to
+# TCPAddr 0.0.0.0
+## Maximum size of data streams to be scanned
+StreamMaxLength 200M
+## Log file location
+# LogFile /var/log/clamav/clamd.log

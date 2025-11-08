@@ -1,17 +1,19 @@
 # MediaWiki Docker Stack (with Elasticsearch + CirrusSearch)
 
-A reproducible MediaWiki stack powered by Docker. It includes a custom MediaWiki image, MariaDB, Memcached with a web UI, **Elasticsearch + CirrusSearch** for full‑text search, scheduled sitemap generation, rottenlinks updates and CirrusSearch indexing, short URLs, and an Apache reverse proxy for the MemcachePHP UI.
+A reproducible MediaWiki stack powered by Docker. It includes a custom MediaWiki image, MariaDB, Memcached with a web UI, **Elasticsearch + CirrusSearch** for full‑text search, ClamAV for virusscanning of uploads, scheduled sitemap generation, rottenlinks updates and CirrusSearch indexing, short URLs, and an Apache reverse proxy for the MemcachePHP UI.
 
 **What you get**
 
 > - Opinionated MediaWiki image (`mediawiki-custom`) with sensible defaults
 > - Short URLs (`/wiki/...`)
 > - Elasticsearch + CirrusSearch for search and RelatedArticles
+> - ClamAV is scanning uploads for viruses
 > - Automatic sitemap generation (cron via supercronic)
 > - Automatic rottenlinks generation (cron via supercronic)
 > - Memcached + MemcachePHP admin UI (proxied at `/memcacheui/`)
 > - Clear environment-driven configuration and volume persistence
 > - Cookie Banner with CookieConsent Extension
+> - SEO improvement with WikiSEO Extension
 > - and these included MediaWiki Extensions:
     - Lockdown
     - Description2
@@ -23,6 +25,7 @@ A reproducible MediaWiki stack powered by Docker. It includes a custom MediaWiki
     - WikiCategoryTagCloud
     - CookieConsent
     - DynamicPageList
+    - WikiSEO
 
 ---
 
@@ -32,6 +35,7 @@ This repo builds a **custom MediaWiki** image and composes a full stack:
 
 - **MediaWiki** (based on official MediaWiki Image) with configurable extensions/skins
 - **MariaDB** for the wiki database
+- **ClamAV** for virusscanning
 - **Memcached** plus a **MemcachePHP** admin UI (reverse-proxied via Apache)
 - **Elasticsearch** + **CirrusSearch/Elastica** for search and suggestions
 - **Supercronic** to run scheduled jobs (e.g., sitemap generation, optional link checks)
@@ -44,6 +48,7 @@ Target use-cases: local development and small/medium server deployments.
 
 - **MediaWiki**: custom image `mediawiki-custom` (Apache + PHP 8.x), short URLs, scripts in `resources/mediawiki`
 - **MariaDB**: official image (11.x), persistent volume for data
+- **ClamAV**: official multiarch stable Debian Image, scans uploads for viruses on the fly
 - **Memcached**: caching backend used by MediaWiki
 - **MemcachePHP**: tiny admin UI, reverse-proxied by Apache under `/memcacheui/`
 - **Elasticsearch (single node)**: for CirrusSearch integration
@@ -52,7 +57,7 @@ Target use-cases: local development and small/medium server deployments.
 **Port defaults:**
 
 > - Wiki: `http://localhost:${MW_HTTP_PORT:-8080}`
-> - MemcachePHP direct: `${MEMCACHEPHP_HTTP_PORT:-8097}` (also proxied as `/memcacheui/` on the wiki host)
+> - MemcachePHP: proxied as `/memcacheui/` or short alias `/mcui/` on the wiki host - `http://localhost:${MW_HTTP_PORT:-8080}/mcui`
 
 ---
 
@@ -72,7 +77,6 @@ TZ=Europe/Berlin
 # (optional) MemcachePHP UI
 MEMCACHEPHP_ADMIN_USER=admin
 MEMCACHEPHP_ADMIN_PASS=supersecret
-MEMCACHEPHP_HTTP_PORT=8097
 
 # (recommended) Server URL for installer / sitemap
 MW_SERVER_URL=http://localhost:8080
@@ -165,6 +169,11 @@ The stack is **environment-first**. Most knobs are set via `environment:` in Com
 - `MARIADB_ROOT_PASSWORD` — root password for MariaDB
 - Wiki database/user/pass are applied by the installer (`mw-default-setup.sh`) via flags.
 
+### ClamAV
+
+- `COMPOSE_PROFILES`- set to `clamav`to enable the clamav Container
+- `CLAMAV_ENABLED` enable the virusscan mediawiki config in `LocalSettings.php`
+
 ### Timezone
 
 - `TZ` — e.g., `UTC` or `Europe/Berlin`
@@ -177,6 +186,8 @@ The stack is **environment-first**. Most knobs are set via `environment:` in Com
 
 - `data_mw_db:/var/lib/mysql` — MariaDB data (persistent)
 - `data_mw_images:/var/www/html/images` — MediaWiki uploads (persistent)
+- `clamav_db:/var/lib/clamav` - clamav virussignatures and data (persistent)
+- `data_esdata:/usr/share/elasticsearch/data`- index data (persistent)
 
 **LocalSettings.php**
 
@@ -245,7 +256,79 @@ The stack is **environment-first**. Most knobs are set via `environment:` in Com
 
 ---
 
-## 10) Release & tagging
+## 10) ClamAV
+
+This enables on-upload antivirus scanning in MediaWiki using **ClamAV** (`clamd`) with the built‑in MediaWiki antivirus interface.
+
+### Enable / Disable (Docker Compose)
+
+Use a dedicated Compose profile and an environment flag:
+
+```bash
+# Without ClamAV
+docker compose up -d
+
+# With ClamAV enabled (profile + app flag)
+CLAMAV_ENABLED=true COMPOSE_PROFILES=clamav docker compose up -d
+```
+
+Recommended `.env` entries:
+
+```env
+CLAMAV_ENABLED=true
+COMPOSE_PROFILES=clamav
+# Optional host/port if you do not use the default service/port
+CLAMAV_HOST=clamav
+CLAMAV_PORT=3310
+```
+
+### MediaWiki Configuration (`LocalSettings.php`)
+
+Add a robust boolean toggle and the ClamAV command mapping.
+
+```php
+# Antivirus integration (ClamAV)
+$clamavEnabled = filter_var(getenv('CLAMAV_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN);
+
+if ($clamavEnabled) {
+    $wgAntivirus = 'clamav';
+    $wgAntivirusRequired = true;
+    $wgAntivirusSetup['clamav'] = [
+        'command' => '/usr/bin/clamdscan --no-summary --stdout --config-file=/etc/clamav/clamd.remote.conf %f',
+        'codemap' => [
+            0 => AV_NO_VIRUS,
+            1 => AV_VIRUS_FOUND,
+            2 => AV_SCAN_FAILED,
+            '*' => AV_SCAN_FAILED,
+        ],
+    ];
+} else {
+    $wgAntivirus = false;
+}
+```
+
+## Quick Tests
+
+```bash
+# From the MediaWiki container: clamd ready?
+echo PING | nc -w 3 clamav 3310  # expect: PONG
+
+# EICAR test (harmless signature): expect exit code 1 (infected)
+cat > /tmp/eicar.com.txt <<'EOF'
+X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*
+EOF
+/usr/bin/clamdscan --no-summary --stdout --config-file=/etc/clamav/clamd.remote.conf /tmp/eicar.com.txt; echo $?
+```
+
+### Notes
+
+- Ensure `clamdscan` is installed in the MediaWiki container (Debian/Ubuntu: `apt-get install clamdscan`).
+- If you upload large files, increase `StreamMaxLength` in `clamd.conf` (e.g., `StreamMaxLength 200M`) and restart the `clamav` service.
+- With `$wgAntivirusRequired = true`, uploads are blocked if the scanner is unreachable (safer default).
+
+---
+
+## 11) Release & tagging
 
 - Suggested policy (example): git tag `v1.43.1` → container images tagged as:
   - `1.43.1`
@@ -254,7 +337,7 @@ The stack is **environment-first**. Most knobs are set via `environment:` in Com
 
 ---
 
-## 11) Security & updates
+## 12) Security & updates
 
 - **Dependabot**: keep Docker base images and GitHub Actions up to date.
 - **Watchtower labels** (optional): permit automatic updates for selected services.
@@ -263,7 +346,7 @@ The stack is **environment-first**. Most knobs are set via `environment:` in Com
 
 ---
 
-## 12) Troubleshooting
+## 13) Troubleshooting
 
 - **VisualEditor & short URLs**: ensure Apache allows encoded slashes: `AllowEncodedSlashes NoDecode` in your site conf.
 - **Sitemap redirect is 301 but file 404**: confirm the sitemap script created `sitemap-index-<id>.xml` at the expected path (`/var/www/html` or `/var/www/html/<urlpath>`), and ownership is `www-data`.
@@ -274,7 +357,7 @@ The stack is **environment-first**. Most knobs are set via `environment:` in Com
 
 ---
 
-## 13) Directory layout
+## 14) Directory layout
 
 ```txt
 .
@@ -297,7 +380,7 @@ The stack is **environment-first**. Most knobs are set via `environment:` in Com
 
 ---
 
-## 14) Credits
+## 15) Credits
 
 This project builds on:
 
