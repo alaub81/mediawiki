@@ -125,7 +125,6 @@ COPY --chmod=0755 resources/mediawiki/generate-rottenlinks.sh /usr/local/bin/gen
 COPY --chmod=0755 resources/mediawiki/mw-default-setup.sh /usr/local/bin/mw-default-setup.sh
 COPY --chmod=0755 resources/mediawiki/generate-elasticindex.sh /usr/local/bin/generate-elasticindex.sh
 COPY --chmod=0755 resources/mediawiki/update-cirrussearch-index.sh /usr/local/bin/update-cirrussearch-index.sh
-COPY --chmod=0644 resources/mediawiki/clamd.remote.conf /etc/clamav/clamd.remote.conf
 
 # Get Composer Binary from official image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

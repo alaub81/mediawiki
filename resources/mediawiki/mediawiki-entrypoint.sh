@@ -129,6 +129,24 @@ else
   fi
 fi
 
+# Defaults if variables are not provided
+: "${CLAMAV_HOST:=clamav}"
+: "${CLAMAV_PORT:=3310}"
+
+# Generate clamd.remote.conf
+mkdir -p /etc/clamav
+tmp="/etc/clamav/.clamd.remote.conf.new"
+
+{
+  echo "# Auto-generated; do not edit"
+  echo "# Host: ${CLAMAV_HOST}  Port: ${CLAMAV_PORT} "
+  echo "TCPSocket ${CLAMAV_PORT}"
+  echo "TCPAddr ${CLAMAV_HOST}"
+} > "$tmp"
+
+chmod 0644 "$tmp"
+mv -f "$tmp" /etc/clamav/clamd.remote.conf
+
 if [ "${MW_JOBS_CRON:-false}" = "true" ]; then
   add_cron_if_missing \
     "* * * * *" \

@@ -3,7 +3,22 @@
 TCPSocket 3310
 ## Uncomment and set the TCP address to bind to
 # TCPAddr 0.0.0.0
-## Maximum size of data streams to be scanned
-StreamMaxLength 200M
+
 ## Log file location
 # LogFile /var/log/clamav/clamd.log
+
+## Lower concurrency → less per-thread memory
+MaxThreads 2             # default often 12; lower = smaller footprint
+
+## Avoid double RAM usage during DB reloads
+ConcurrentDatabaseReload no   # reduces peak RAM during freshclam reload
+
+## Reduce engine features (saves RAM, small detection tradeoffs)
+Bytecode no              # disable bytecode engine (saves memory)
+DisableCache yes         # drop internal caches (more CPU, less RAM)
+
+## Keep stream scanning, but cap worst-case memory per request
+StreamMaxLength 100M     # align with your MediaWiki uploads (e.g., 200M)
+MaxScanSize 100M         # hard cap for total scanned data per file
+MaxFileSize 100M         # cap single file size to inspect
+MaxRecursion 16          # avoid deep archive recursion blowups
