@@ -1,11 +1,12 @@
 FROM mediawiki:1.44
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages intersection WikiSEO"
+ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages \
+  intersection WikiSEO TemplateStyles"
 ENV MW_INSTALL_SKINS=""
 # ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks WikiCategoryTagCloud CookieConsent DynamicPageList"
 ENV MW_EXTRA_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages \
-  RottenLinks WikiCategoryTagCloud CookieConsent DynamicPageList WikiSEO"
+  RottenLinks WikiCategoryTagCloud CookieConsent DynamicPageList WikiSEO TemplateStyles"
 ENV MW_EXTRA_SKINS="${MW_INSTALL_SKINS}"
 
 COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
