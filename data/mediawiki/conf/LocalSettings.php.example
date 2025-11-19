@@ -158,6 +158,7 @@ wfLoadExtension( 'ImageMap' );
 wfLoadExtension( 'InputBox' );
 wfLoadExtension( 'intersection' );
 wfLoadExtension( 'Interwiki' );
+wfLoadExtension( 'Kartographer' );
 wfLoadExtension( 'Linter' );
 wfLoadExtension( 'Lockdown' );
 wfLoadExtension( 'LoginNotify' );
