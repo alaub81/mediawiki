@@ -1,12 +1,12 @@
+---
 name: Release (build & push)
 
-on:
+"on":
   push:
-    # branches: [main]
-    tags: ['v*.*.*']  # SemVer-Tags pushen ebenfalls
+    tags: ['v*.*.*']        # SemVer-Tags
   workflow_dispatch:
   schedule:
-    - cron: '17 01 * * 2'   # weekly rebuild (Mon 03:17 UTC)
+    - cron: '0 1 * * 2'     # Dienstag 01:00 UTC (anpassen wie du magst)
 
 permissions:
   contents: read
@@ -20,8 +20,7 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - {name: "mediawiki-custom", dockerfile: "Dockerfile-mediawiki", context: "."}
-          - {name: "memcachephp", dockerfile: "Dockerfile-memcachephp", context: "."}
+          - {name: "kiwione-jiraparser", dockerfile: "Dockerfile-jiraparser", context: "."}
 
     steps:
       - uses: actions/checkout@v5
@@ -38,13 +37,6 @@ jobs:
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Docker meta
         id: meta
@@ -68,6 +60,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      # Optional, wenn du auch für kiwione Security-Scan willst:
       - name: Trivy scan (post-push)
         id: trivy
         uses: aquasecurity/trivy-action@0.33.1
