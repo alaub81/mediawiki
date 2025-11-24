@@ -1,3 +1,3 @@
-FROM php:8.4-apache
+FROM php:8.5-apache
 
 COPY resources/memcachephp/memcache.php /var/www/html/index.php
