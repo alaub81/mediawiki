@@ -19,7 +19,7 @@ jobs:
           - Dockerfile-mediawiki
           - Dockerfile-memcachephp
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Hadolint
         uses: hadolint/hadolint-action@v3.3.0
@@ -51,7 +51,7 @@ jobs:
           - {name: "mediawiki-custom", dockerfile: "Dockerfile-mediawiki", context: "."}
           - {name: "memcachephp", dockerfile: "Dockerfile-memcachephp", context: "."}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build_and_scan
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Copy docker-compose.yml
         run: |
