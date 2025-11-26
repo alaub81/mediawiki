@@ -164,11 +164,11 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - name: 'kiwione-jiraparser'
-            dockerfile: 'Dockerfile-jiraparser'
+          - name: 'mediawiki-custom'
+            dockerfile: 'Dockerfile-mediawiki'
             context: '.'
-          - name: 'kiwione-mailexport'
-            dockerfile: 'Dockerfile-mailexport'
+          - name: 'memcachephp'
+            dockerfile: 'Dockerfile-memcachephp'
             context: '.'
 
     steps:
