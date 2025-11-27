@@ -9,3 +9,6 @@ data/mediawiki/favicon.old
 LocalSettings_lh.php
 data/mediawiki/conf/robots.txt
 data/mediawiki/conf/.htaccess
+data/clamav/conf/clamd.conf
+eicar.txt
+eicar test file.txt

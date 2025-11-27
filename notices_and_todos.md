@@ -1,18 +1,24 @@
 # ToDos
 
-[] Doku zu CookieConsent Extension
-[] Wiki Artikel zum Setup
 [?] MARIADB_VARS doch setzen und wiki DB anlegen lassen? testen
 [!] !!nicht machen!! - MW_SITEMAP_IDENTIFIER=wiki und $wgArticlePath = "/wiki/$1"; kann noch in die redirects und in die shortURLs?
 [?] ExternalContent Extension wenn für 1.44 verfügbar [ExternalContent](https://www.mediawiki.org/wiki/Extension:External_Content)
-[] Kann man Links von Amazon automatisch ersichtlich machen?
-[] Kategorien aufräumen --> Unterkategorien --> bei den Haupt Categorien Logos und Text
-[] copy bei SyntaxHighlight
-[x] .htaccess ist im Repo... sollte .example sein... und appletouch in .htaccess
 [!] !!nicht machen!! - Database Port kann weg beim mw-default installer!
-[x] MW_Default_Setup und LocalSettings.php.example angleichen
-[] Artikel kleinschreiben
+[!] !!geht nicht als default!! copy bei SyntaxHighlight
+[?] Artikel kleinschreiben
 
+  ```php
+  // Make first character of page titles case-sensitive globally
+  $wgCapitalLinks = false; // Changes canonical titles. Test on staging first!
+  // Override just the main namespace to allow lowercase first letters
+  $wgCapitalLinkOverrides[NS_MAIN] = false; // Only main namespace is affected
+  ```
+
+[] Kategorien aufräumen --> Unterkategorien --> bei den Haupt Categorien Logos und Text
+[] Page Speed Results umsetzen
+[] Wenn Google Adsense geht: CSP aktivieren und Header Prüfen, Pagespeed tests
+    <https://securityheaders.com/?q=https%3A%2F%2Flhlab.wiki&followRedirects=on>
+    <https://pagespeed.web.dev/analysis/https-lhlab-wiki-wiki-Dimplex_Wärmepumpe_Smart-Grid_mit_Shelly_Relais/57ygqq2725?form_factor=mobile>
 
 ```bash
 # Jpbs für Index
