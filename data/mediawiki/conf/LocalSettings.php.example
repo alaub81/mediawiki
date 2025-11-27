@@ -183,6 +183,8 @@ wfLoadExtension( 'Thanks' );
 wfLoadExtension( 'TitleBlacklist' );
 wfLoadExtension( 'TopTenPages' );
 wfLoadExtension( 'VisualEditor' );
+wfLoadExtension( 'Wanda' );
+wfLoadExtension( 'WandaScore' );
 wfLoadExtension( 'WikiCategoryTagCloud' );
 wfLoadExtension( 'WikiEditor' );
 wfLoadExtension( 'WikiSEO' );
