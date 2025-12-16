@@ -21,6 +21,8 @@
     <https://pagespeed.web.dev/analysis/https-lhlab-wiki-wiki-Dimplex_Wärmepumpe_Smart-Grid_mit_Shelly_Relais/57ygqq2725?form_factor=mobile>
 
 ```bash
+php maintenance/run.php /var/www/html/extensions/Wanda/maintenance/ReindexAllPages.php 
+
 # Jpbs für Index
 php maintenance/run.php ./extensions/CirrusSearch/maintenance/CirrusNeedsToBeBuilt.php
 php maintenance/run.php ./extensions/CirrusSearch/maintenance/ForceSearchIndex.php --skipLinks --indexOnSkip
