@@ -157,7 +157,6 @@ wfLoadExtension( 'HitCounters' );
 wfLoadExtension( 'ImageMap' );
 wfLoadExtension( 'InputBox' );
 wfLoadExtension( 'intersection' );
-wfLoadExtension( 'Interwiki' );
 wfLoadExtension( 'Linter' );
 wfLoadExtension( 'Lockdown' );
 wfLoadExtension( 'LoginNotify' );
