@@ -1,4 +1,4 @@
-FROM mediawiki:1.44
+FROM mediawiki:1.45
 ENV DEBIAN_FRONTEND=noninteractive
 
 ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages intersection WikiSEO Wanda WandaScore"
