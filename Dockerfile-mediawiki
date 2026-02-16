@@ -1,7 +1,7 @@
 FROM mediawiki:1.45
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages intersection WikiSEO Wanda WandaScore"
+ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages intersection WikiSEO Wanda WandaScore WikiCategoryTagCloud"
 ENV MW_INSTALL_SKINS=""
 # ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks WikiCategoryTagCloud CookieConsent DynamicPageList"
 ENV MW_EXTRA_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages \
@@ -92,11 +92,11 @@ RUN set -eux; \
     clone_with_fallback "$url" "/var/www/html/skins/$skin"; \
   done; \
   # Special Stuff
-  BRANCH="master"; \
-  COMMIT="335edadddb7a438e0e4698e9103d5efd4c46f9d8" ; \
-  clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/WikiCategoryTagCloud" \
-                     "/var/www/html/extensions/WikiCategoryTagCloud" \
-                     "$COMMIT" "$BRANCH"; \
+  # BRANCH="master"; \
+  # COMMIT="335edadddb7a438e0e4698e9103d5efd4c46f9d8" ; \
+  # clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/WikiCategoryTagCloud" \
+  #                    "/var/www/html/extensions/WikiCategoryTagCloud" \
+  #                    "$COMMIT" "$BRANCH"; \
   BRANCH="master"; \
   COMMIT="e02209dddb79a5f8fc0e7cdb1438ff8ee928a2ee"; \
   clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/CookieConsent" \
