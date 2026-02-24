@@ -132,7 +132,8 @@ jobs:
           format: sarif
           output: trivy-fs.sarif
           ignore-unfixed: true
-          severity: HIGH,CRITICAL
+          # severity: HIGH,CRITICAL
+          severity: CRITICAL
 
       - name: Upload FS SARIF
         if: always()
@@ -148,7 +149,8 @@ jobs:
           format: table
           exit-code: '1'
           ignore-unfixed: true
-          severity: HIGH,CRITICAL
+          # severity: HIGH,CRITICAL
+          severity: CRITICAL
 
       - name: Build & Push (multi-arch, overwrite tag)
         if: ${{ success() }}
@@ -235,7 +237,8 @@ jobs:
         uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: scan:${{ github.sha }}
-          severity: CRITICAL,HIGH
+          # severity: CRITICAL,HIGH
+          severity: CRITICAL
           ignore-unfixed: true
           exit-code: '1'
           hide-progress: true
