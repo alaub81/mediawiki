@@ -125,7 +125,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trivy FS (SARIF)
-        uses: aquasecurity/trivy-action@0.34.0
+        uses: aquasecurity/trivy-action@0.34.1
         continue-on-error: true
         with:
           scan-type: fs
@@ -143,7 +143,7 @@ jobs:
           category: trivy-fs-rebuild
 
       - name: Trivy Image (gate)
-        uses: aquasecurity/trivy-action@0.34.0
+        uses: aquasecurity/trivy-action@0.34.1
         with:
           image-ref: scan:${{ github.sha }}
           format: table
@@ -225,7 +225,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trivy Image (SARIF)
-        uses: aquasecurity/trivy-action@0.34.0
+        uses: aquasecurity/trivy-action@0.34.1
         with:
           image-ref: scan:${{ github.sha }}
           format: sarif
@@ -234,7 +234,7 @@ jobs:
           hide-progress: true
 
       - name: Trivy Image (enforce severity)
-        uses: aquasecurity/trivy-action@0.34.0
+        uses: aquasecurity/trivy-action@0.34.1
         with:
           image-ref: scan:${{ github.sha }}
           # severity: CRITICAL,HIGH
