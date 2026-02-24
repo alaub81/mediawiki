@@ -84,12 +84,23 @@ jobs:
           ref: ${{ matrix.tag }}
           fetch-depth: 0
 
-      - name: Compute clean tag (strip leading v)
-        id: cleantag
+      - name: Compute semver tags (strip v + major/minor)
+        id: semver
         shell: bash
         run: |
-          t="${{ matrix.tag }}"
-          echo "tag=${t#v}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          v="${{ matrix.tag }}"
+          v="${v#v}"                 # v1.45.1 -> 1.45.1
+
+          IFS='.' read -r major minor patch extra <<< "$v"
+          if [[ -z "${major:-}" || -z "${minor:-}" || -z "${patch:-}" ]]; then
+            echo "Tag is not x.y.z: '$v'" >&2
+            exit 1
+          fi
+
+          echo "full=$v"           >> "$GITHUB_OUTPUT"   # 1.45.1
+          echo "minor=$major.$minor" >> "$GITHUB_OUTPUT" # 1.45
+          echo "major=$major"      >> "$GITHUB_OUTPUT"   # 1
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -104,13 +115,15 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker meta (reuse exact tag without v)
+      - name: Docker meta (rebuild tag + aliases)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
           tags: |
-            type=raw,value=${{ steps.cleantag.outputs.tag }}
+            type=raw,value=${{ steps.semver.outputs.full }}
+            type=raw,value=${{ steps.semver.outputs.minor }}
+            type=raw,value=${{ steps.semver.outputs.major }}
             type=raw,value=latest,enable=${{ matrix.tag == needs.select-tags.outputs.latest_tag }}
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
