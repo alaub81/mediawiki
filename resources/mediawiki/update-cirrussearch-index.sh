@@ -3,7 +3,7 @@ set -euo pipefail
 cd /var/www/html
 
 # Elasticsearch URL; in your Compose, this is usually "elasticsearch:9200"
-ES_URL="${ES_URL:-http://elasticsearch:9200}"
+MW_ES_URL="${MW_ES_URL:-http://elasticsearch:9200}"
 
 # Get DB name: ENV or from MediaWiki itself
 DBNAME="${MW_DB_NAME:-}"
@@ -14,7 +14,7 @@ fi
 # Cirrus base name (if you overwrite it), otherwise DB name
 INDEX_BASE="${MW_CIRRUS_INDEX_BASENAME:-$DBNAME}"
 
-has_alias() { curl -fsS --max-time 4 "$ES_URL/_alias/$1" >/dev/null; }
+has_alias() { curl -fsS --max-time 4 "$MW_ES_URL/_alias/$1" >/dev/null; }
 
 CONTENT_ALIAS="${INDEX_BASE}_content"
 GENERAL_ALIAS="${INDEX_BASE}_general"

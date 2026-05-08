@@ -29,6 +29,7 @@ services:
       MW_CS_INDEX_UPDATE: ${MW_CS_INDEX_UPDATE:-false}
       MW_CS_INDEX_CRON: "${MW_CS_INDEX_CRON:-15 * * * *}"
       MW_CS_INDEX_RUN_ON_START: "${MW_CS_INDEX_RUN_ON_START:-false}"
+      MW_ES_URL: "${MW_ES_URL:-http://elasticsearch:9200}"
       CLAMAV_ENABLED: ${CLAMAV_ENABLED:-true}
       CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
