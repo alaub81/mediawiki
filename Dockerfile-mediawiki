@@ -17,6 +17,7 @@ RUN apt-get update \
   unzip \
   clamdscan \
   netcat-traditional \
+  poppler-utils \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/* \
   && a2enmod headers proxy proxy_http \
