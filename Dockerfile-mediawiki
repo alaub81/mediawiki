@@ -1,11 +1,12 @@
 FROM mediawiki:1.46
 ENV DEBIAN_FRONTEND=noninteractive
 
-ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages intersection WikiSEO Wanda WandaScore WikiCategoryTagCloud"
+ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages \
+ intersection WikiSEO Wanda WandaScore WikiCategoryTagCloud CookieConsent"
 ENV MW_INSTALL_SKINS=""
 # ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks WikiCategoryTagCloud CookieConsent DynamicPageList"
 ENV MW_EXTRA_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages \
-  RottenLinks WikiCategoryTagCloud CookieConsent DynamicPageList WikiSEO Wanda WandaScore"
+  DynamicPageList WikiSEO Wanda WandaScore WikiCategoryTagCloud CookieConsent RottenLinks"
 ENV MW_EXTRA_SKINS="${MW_INSTALL_SKINS}"
 
 COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
@@ -100,13 +101,14 @@ RUN set -eux; \
   # clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/WikiCategoryTagCloud" \
   #                    "/var/www/html/extensions/WikiCategoryTagCloud" \
   #                    "$COMMIT" "$BRANCH"; \
-  BRANCH="master"; \
-  COMMIT="e02209dddb79a5f8fc0e7cdb1438ff8ee928a2ee"; \
-  clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/CookieConsent" \
-                     "/var/www/html/extensions/CookieConsent" \
-                     "$COMMIT" "$BRANCH"; \
+  # BRANCH="master"; \
+  # COMMIT="e02209dddb79a5f8fc0e7cdb1438ff8ee928a2ee"; \
+  # clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/CookieConsent" \
+  #                    "/var/www/html/extensions/CookieConsent" \
+  #                    "$COMMIT" "$BRANCH"; \
   BRANCH="main"; \
-  COMMIT="30c4dd5da467f9ae9dd52fb3df0dad9712ef5445"; \
+  # COMMIT="30c4dd5da467f9ae9dd52fb3df0dad9712ef5445"; \
+  COMMIT="72279c6f452cf8e7e1318abaca6765b202e525c0"; \
   clone_fixed_commit "https://github.com/miraheze/RottenLinks.git" \
                      "/var/www/html/extensions/RottenLinks" \
                      "$COMMIT" "$BRANCH"; \
