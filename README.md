@@ -1,390 +1,511 @@
-# MediaWiki Docker Stack (with Elasticsearch + CirrusSearch)
+# LHlab wiki — MediaWiki Docker Stack
 
-A reproducible MediaWiki stack powered by Docker. It includes a custom MediaWiki image, MariaDB, Memcached with a web UI, **Elasticsearch + CirrusSearch** for full‑text search, ClamAV for virusscanning of uploads, scheduled sitemap generation, rottenlinks updates and CirrusSearch indexing, short URLs, and an Apache reverse proxy for the MemcachePHP UI.
+A reproducible Docker stack for **LHlab wiki**, based on MediaWiki 1.46 with MariaDB, OpenSearch, CirrusSearch, Elastica, Memcached, ClamAV, scheduled maintenance jobs, and a custom MediaWiki image.
 
-**What you get**
+## Included services
 
-> - Opinionated MediaWiki image (`mediawiki-custom`) with sensible defaults
-> - Short URLs (`/wiki/...`)
-> - Elasticsearch + CirrusSearch for search and RelatedArticles
-> - ClamAV is scanning uploads for viruses
-> - Automatic sitemap generation (cron via supercronic)
-> - Automatic rottenlinks generation (cron via supercronic)
-> - Memcached + MemcachePHP admin UI (proxied at `/memcacheui/`)
-> - Clear environment-driven configuration and volume persistence
-> - Cookie Banner with CookieConsent Extension
-> - SEO improvement with WikiSEO Extension
-> - and these included MediaWiki Extensions:
-    - Lockdown
-    - Description2
-    - RelatedArticles
-    - MobileFrontend
-    - CirrusSearch & Elastica
-    - HitCounters & TopTenPages
-    - RottenLinks
-    - WikiCategoryTagCloud
-    - CookieConsent
-    - DynamicPageList
-    - WikiSEO
+- **MediaWiki 1.46** with Apache and PHP
+- **MariaDB 11.x** as the database
+- **OpenSearch 1.3.20** as the CirrusSearch backend
+- **CirrusSearch** and **Elastica** from the MediaWiki `REL1_46` branches
+- **Memcached** and the MemcachePHP administration UI
+- **ClamAV** for upload scanning
+- **Supercronic** for MediaWiki jobs, sitemap generation, RottenLinks, and search-index maintenance
 
----
+OpenSearch runs only on the internal Docker network and is not exposed publicly.
 
-## 1) Project overview
+## Important compatibility information
 
-This repo builds a **custom MediaWiki** image and composes a full stack:
+MediaWiki 1.46 and its matching CirrusSearch branch expect OpenSearch 1.3. Do not replace the configured image with an arbitrary OpenSearch 2.x or 3.x image.
 
-- **MediaWiki** (based on official MediaWiki Image) with configurable extensions/skins
-- **MariaDB** for the wiki database
-- **ClamAV** for virusscanning
-- **Memcached** plus a **MemcachePHP** admin UI (reverse-proxied via Apache)
-- **Elasticsearch** + **CirrusSearch/Elastica** for search and suggestions
-- **Supercronic** to run scheduled jobs (e.g., sitemap generation, optional link checks)
+This stack uses the Wikimedia OpenSearch image containing the search plugins expected by CirrusSearch:
 
-Target use-cases: local development and small/medium server deployments.
+```text
+docker-registry.wikimedia.org/repos/search-platform/cirrussearch-opensearch-image:v1.3.20-12
+```
 
----
+The image is primarily intended for `linux/amd64`. On Apple Silicon, Docker may require amd64 emulation or a locally built Wikimedia OpenSearch image.
 
-## 2) Stack & services
+## Included MediaWiki extensions
 
-- **MediaWiki**: custom image `mediawiki-custom` (Apache + PHP 8.x), short URLs, scripts in `resources/mediawiki`
-- **MariaDB**: official image (11.x), persistent volume for data
-- **ClamAV**: official multiarch stable Debian Image, scans uploads for viruses on the fly
-- **Memcached**: caching backend used by MediaWiki
-- **MemcachePHP**: tiny admin UI, reverse-proxied by Apache under `/memcacheui/`
-- **Elasticsearch (single node)**: for CirrusSearch integration
-- **Networks**: `app-nw` (front), `backend-nw` (internal)
+The custom MediaWiki image includes, among others:
 
-**Port defaults:**
+- Lockdown
+- Description2
+- RelatedArticles
+- MobileFrontend
+- Elastica
+- CirrusSearch
+- HitCounters
+- TopTenPages
+- RottenLinks
+- WikiCategoryTagCloud
+- CookieConsent
+- DynamicPageList
+- WikiSEO
+- Wanda
+- WandaScore
 
-> - Wiki: `http://localhost:${MW_HTTP_PORT:-8080}`
-> - MemcachePHP: proxied as `/memcacheui/` or short alias `/mcui/` on the wiki host - `http://localhost:${MW_HTTP_PORT:-8080}/mcui`
+## Repository layout
 
----
+```text
+.
+├── Dockerfile-mediawiki
+├── Dockerfile-memcachephp
+├── docker-compose.dev.yml
+├── docker-compose.example.yml
+├── docker-compose.ci.yml
+├── .env.example
+├── resources/
+│   ├── favicon/
+│   ├── helper/
+│   ├── memcachephp/
+│   └── mediawiki/
+│       ├── mediawiki-entrypoint.sh
+│       ├── mw-default-setup.sh
+│       ├── generate-opensearch-index.sh
+│       ├── update-cirrussearch-index.sh
+│       ├── generate-sitemap.sh
+│       └── generate-rottenlinks.sh
+└── data/
+    ├── clamav/
+    └── mediawiki/
+        ├── conf/
+        └── logo/
+```
 
-## 3) Quick start
+## Requirements
 
-**Prerequisites:**
-Docker + Docker Compose
+- Docker Engine
+- Docker Compose v2
+- At least 2 GB of available memory for the complete stack
+- An amd64 host or amd64 container emulation for the Wikimedia OpenSearch image
 
-**1) Prepare environment**
-Create a local `.env` (or reuse your existing, or have a look at .env.example) with at least:
+## Quick start
 
-```env
+### 1. Create the environment file
+
+Copy the example configuration:
+
+```bash
+cp .env.example .env
+```
+
+At minimum, review the database passwords and public MediaWiki URL.
+
+Example:
+
+```dotenv
+PROJECT_NAME=lhwiki
+MW_VERSION=1.46
 MW_HTTP_PORT=8080
-MARIADB_ROOT_PASSWORD=R00tPassword
-TZ=Europe/Berlin
-
-# (optional) MemcachePHP UI
-MEMCACHEPHP_ADMIN_USER=admin
-MEMCACHEPHP_ADMIN_PASS=supersecret
-
-# (recommended) Server URL for installer / sitemap
 MW_SERVER_URL=http://localhost:8080
+MW_AUTO_UPDATE=false
+
+MARIADB_VERSION=11.8
+MARIADB_ROOT_PASSWORD=change-this-root-password
+MARIADB_DATABASE=wikidb
+MARIADB_USER=wikiuser
+MARIADB_PASSWORD=change-this-database-password
+
+OS_VERSION=v1.3.20-12
+MW_OS_URL=http://opensearch:9200
+OS_HEAP_MIN=512m
+OS_HEAP_MAX=512m
+
+MEMCACHED_VERSION=alpine
+MEMCACHED_CACHE_MB=32
+
+TZ=Europe/Berlin
 ```
 
-**2) Start the stack**
-use this command:
+### 2. Prepare `LocalSettings.php`
+
+For an existing wiki, copy the current `LocalSettings.php` to:
+
+```text
+data/mediawiki/conf/LocalSettings.php
+```
+
+Its CirrusSearch configuration must contain:
+
+```php
+wfLoadExtension( 'Elastica' );
+wfLoadExtension( 'CirrusSearch' );
+
+$wgCirrusSearchServers = [ 'opensearch' ];
+$wgSearchType = 'CirrusSearch';
+```
+
+Elastica must be loaded before CirrusSearch. The hostname `opensearch` is the Docker Compose service name.
+
+For a new installation, enable the setup configuration described in `.env.mwsetup` and make the configuration directory writable during initial setup. After setup, the generated `LocalSettings.php` can be mounted read-only.
+
+### 3. Start the development stack
 
 ```bash
-# if you like to build yourself
-docker compose -f docker-compose.dev.yml --env-file .env up -d --build
-# if you like to use prebuilt images
-docker compose -f docker-compose.yml --env-file .env up -d --build
+docker compose \
+  -f docker-compose.dev.yml \
+  --env-file .env \
+  up -d --build
 ```
 
-**3) First-run install**
-The entrypoint runs `resources/mediawiki/mw-default-setup.sh`
-which:
-
-- creates/extends `LocalSettings.php` at `${MW_CONFIG_FILE}`
-- enables short URLs (`/wiki/$1` and action paths)
-- applies PHP/upload size limits
-- wires Memcached, VisualEditor-friendly rewrites
-- configures basic CirrusSearch settings to talk to Elasticsearch
-- (if configured) sets up sitemap generation & Apache redirect for `/sitemap.xml`
-
-when:
-
-- you are mounting a conf folder for LocalSettings.php `- ./data/mediawiki/conf/mw_local_settings:/var/www/html/conf/:rw`
-- you are including the `.env.mwsetup` in your `docker-compose.yml`
-
-  ```yml
-  ...
-      env_file:
-        - .env.mwsetup
-  ...
-      volumes:
-        - ./data/mediawiki/conf/mw_local_settings:/var/www/html/conf/:rw
-  ```
-
-> You can later mount a host-side `LocalSettings.php` (see **Volumes & persistence**).
-
----
-
-## 4) Configuration (environment variables)
-
-The stack is **environment-first**. Most knobs are set via `environment:` in Compose, optionally complemented by an `env_file:`.
-
-### MediaWiki core
-
-- `MW_CONFIG_FILE` — path of the wiki config file inside the container (default `/var/www/html/LocalSettings.php`)
-- `MW_LANG` — default language (e.g., `de`)
-- `MW_SERVER_URL` — canonical base URL used by maintenance scripts and sitemap
-- `MW_DEFAULT_SKIN` — default skin code (e.g., `vector-2022`, `minerva`)
-
-### Extensions & skins
-
-- **Build-time fetch lists** (git-cloned during image build):
-  - `MW_INSTALL_EXTENSIONS` — space-separated extension names or Git URLs
-  - `MW_INSTALL_SKINS` — space-separated skin names or Git URLs
-- **Runtime activation** (appended to `LocalSettings.php` on container start):
-  - `MW_ACTIVE_EXTENSIONS` — space-separated canonical extension names
-  - `MW_ACTIVE_SKINS` — space-separated skin codes (e.g., `vector-2022 deskmessmirrored`)
-
-> The image contains helper logic to clone by branch with fallback or to pin to a specific commit (see `Dockerfile-mediawiki`).
-
-### Elasticsearch
-
-- `ES_JAVA_OPTS` — e.g., `-Xms512m -Xmx512m` (or `-Xms1g -Xmx1g`)
-- `discovery.type=single-node` — set in Compose by default
-- Ensure the container RAM matches your heap (heap ≈ 50% of container memory).
-
-### Sitemaps
-
-- `MW_SITEMAP_GENERATION` — `true|false`
-- `MW_SITEMAP_CRON` — default `"20 */12 * * *"`
-- `MW_SITEMAP_SERVER` — e.g., `https://www.example.com`
-- `MW_SITEMAP_URLPATH` — e.g., `sitemap/` (creates files under `/var/www/html/sitemap/…`)
-- `MW_SITEMAP_SKIP_REDIRECTS` — `true|false`
-- `MW_SITEMAP_RUN_ON_START` — `true|false`
-- `MW_SITEMAP_IDENTIFIER` — identifier inserted into file names, e.g., `wiki`
-
-### MemcachePHP
-
-- `MEMCACHEPHP_SERVERS` — e.g., `memcached:11211`
-- `MEMCACHEPHP_ADMIN_USER`, `MEMCACHEPHP_ADMIN_PASS`, `MEMCACHEPHP_HTTP_PORT`
-
-### Database
-
-- `MARIADB_ROOT_PASSWORD` — root password for MariaDB
-- Wiki database/user/pass are applied by the installer (`mw-default-setup.sh`) via flags.
-
-### ClamAV
-
-- `COMPOSE_PROFILES`- set to `clamav`to enable the clamav Container
-- `CLAMAV_ENABLED` enable the virusscan mediawiki config in `LocalSettings.php`
-
-### Timezone
-
-- `TZ` — e.g., `UTC` or `Europe/Berlin`
-
-> **Precedence:** values in the Compose `environment:` section override `env_file` entries of the same name. Consider using Compose `secrets:` for sensitive values like DB root password.
-
----
-
-## 5) Volumes & persistence
-
-- `data_mw_db:/var/lib/mysql` — MariaDB data (persistent)
-- `data_mw_images:/var/www/html/images` — MediaWiki uploads (persistent)
-- `clamav_db:/var/lib/clamav` - clamav virussignatures and data (persistent)
-- `data_esdata:/usr/share/elasticsearch/data`- index data (persistent)
-
-**LocalSettings.php**
-
-- Default path in container: `/var/www/html/LocalSettings.php`
-- You can mount your host file to this path or to `/var/www/html/conf/…` (then set `MW_CONFIG_FILE` accordingly).
-
-**Sitemaps**
-
-- Default files are emitted under `/var/www/html/` or inside `/var/www/html/<MW_SITEMAP_URLPATH>/` if you set `MW_SITEMAP_URLPATH` (e.g., `/var/www/html/sitemap/sitemap-index-<id>.xml`).
-
----
-
-## 6) Short URLs & Apache
-
-- Rewrites map `/wiki/<Title>` to the MediaWiki front controller, and actions like `/wiki/edit/<Title>` are supported.
-- VisualEditor friendly: consider `AllowEncodedSlashes NoDecode` in your Apache conf for REST-style endpoints.
-- MemcachePHP UI is reverse-proxied by Apache to the `memcachephp` container under convenient paths:
-  - `/memcacheui/` (canonical)
-  - plus optional helpers like `/memcache` or `/mcui` → redirect to `/memcacheui/`
-  - Proper `X-Forwarded-*` headers and `ProxyPassReverseCookiePath` are configured in the provided conf.
-
----
-
-## 7) Extensions & skins
-
-- **Fetching at build time:** The Dockerfile supports cloning Wikimedia-hosted extensions/skins by branch (with a fallback), or by **pinned commit**.
-- **Activation at runtime:** The entrypoint reads `MW_ACTIVE_EXTENSIONS` and `MW_ACTIVE_SKINS` and appends `wfLoadExtension()` / skin settings to `LocalSettings.php` if not present.
-- Typical set included/tested in this stack:
-  - Extensions: CookieConsent, MobileFrontend, CirrusSearch, Elastica, RelatedArticles, Lockdown, Description2, WikiCategoryTagCloud, RottenLinks (optional), etc.
-  - Skins: Vector 2022, Minerva, Timeless, MonoBook, DeskMessMirrored, …
-
-> Some extensions (e.g., **CirrusSearch/Elastica**) require `composer install` inside the MediaWiki directory to provide `vendor/autoload.php`. The image takes care of running Composer where necessary.
-
----
-
-## 8) Search with Elasticsearch + CirrusSearch
-
-- **Elasticsearch** runs as a **single node**, configured for MediaWiki.
-- The entrypoint/script applies the CirrusSearch settings to `LocalSettings.php` and points MediaWiki to the ES host (`elasticsearch`).
-- **Initial index:** use the helper script to bootstrap and build indices:
-
-  ```bash
-  docker compose exec -T mediawiki sh -lc '/usr/local/bin/generate-elasticindex.sh'
-  ```
-
-  This runs through `UpdateSearchIndexConfig`, `ForceSearchIndex`, and optionally `UpdateSuggesterIndex` once the metastore exists.
-- **Memory sizing:** start with `ES_JAVA_OPTS=-Xms512m -Xmx512m`; raise to `1g` if you see sustained heap pressure. Heap ~50% of container RAM.
-- **Verification:**
-  - MediaWiki API search using Cirrus backend (after index): queries should return results; RelatedArticles can use Cirrus as backend.
-  - Elasticsearch health: `GET /_cluster/health` should be `yellow` or `green` in single-node mode.
-
----
-
-## 9) Sitemaps & scheduled jobs
-
-- Script: `/usr/local/bin/generate-sitemap.sh`
-  - Adds flags **only** when corresponding env vars are set (e.g., `--server`, `--urlpath`, `--skip-redirects`).
-  - Runs as `www-data` and ensures the output directory exists/has proper ownership.
-- Apache 301 for `/sitemap.xml`:
-  - If `MW_SITEMAP_URLPATH` is set (e.g., `sitemap/`), redirect to `/<urlpath>/**sitemap-index-<id>.xml**`
-  - If not set, redirect to `/sitemap-index-<id>.xml` in the docroot.
-- Scheduling via **supercronic**:
-  - `MW_SITEMAP_GENERATION=true`
-  - `MW_SITEMAP_CRON="20 */12 * * *"` (example)
-  - Similar pattern can be used for optional link-check jobs (RottenLinks), guarded by a file existence check.
-
----
-
-## 10) ClamAV
-
-This enables on-upload antivirus scanning in MediaWiki using **ClamAV** (`clamd`) with the built‑in MediaWiki antivirus interface.
-
-### Enable / Disable (Docker Compose)
-
-Use a dedicated Compose profile and an environment flag:
+To use the prebuilt MediaWiki and MemcachePHP images, first copy the example Compose file:
 
 ```bash
-# Without ClamAV
-docker compose up -d
-
-# With ClamAV enabled (profile + app flag)
-CLAMAV_ENABLED=true COMPOSE_PROFILES=clamav docker compose up -d
+cp docker-compose.example.yml docker-compose.yml
+docker compose --env-file .env up -d
 ```
 
-Recommended `.env` entries:
+### 4. Inspect service health
 
-```env
-CLAMAV_ENABLED=true
+```bash
+docker compose ps
+docker compose logs --tail 100 mediawiki
+docker compose logs --tail 100 opensearch
+```
+
+The wiki is available by default at:
+
+```text
+http://localhost:8080
+```
+
+## OpenSearch configuration
+
+The Compose configuration should use the following service definition:
+
+```yaml
+services:
+  opensearch:
+    image: docker-registry.wikimedia.org/repos/search-platform/cirrussearch-opensearch-image:${OS_VERSION:-v1.3.20-12}
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-UTC}
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms${OS_HEAP_MIN:-512m} -Xmx${OS_HEAP_MAX:-512m}
+    volumes:
+      - data_osdata:/usr/share/opensearch/data
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow'
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+    networks:
+      backend-nw:
+
+volumes:
+  data_osdata:
+```
+
+The correct heap variable is `OPENSEARCH_JAVA_OPTS`. `OS_JAVA_OPTS` is not used by OpenSearch.
+
+The MediaWiki service must wait for OpenSearch and receive the internal URL:
+
+```yaml
+services:
+  mediawiki:
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    environment:
+      MW_OS_URL: "${MW_OS_URL:-http://opensearch:9200}"
+```
+
+## Building the CirrusSearch index
+
+OpenSearch data cannot be reused directly from an Elasticsearch data volume. After migrating, create a fresh OpenSearch volume and rebuild the search index from MediaWiki.
+
+### Verify OpenSearch
+
+```bash
+docker compose exec -T opensearch \
+  curl -fsS http://localhost:9200/
+```
+
+The response should report OpenSearch 1.3.20.
+
+List the installed plugins:
+
+```bash
+docker compose exec -T opensearch \
+  sh -lc 'bin/opensearch-plugin list'
+```
+
+### Rebuild the complete index
+
+```bash
+docker compose exec -T mediawiki \
+  php maintenance/run.php update --quick
+
+docker compose exec -T mediawiki \
+  php maintenance/run.php CirrusSearch:UpdateSearchIndexConfig --startOver
+
+docker compose exec -T mediawiki \
+  php maintenance/run.php CirrusSearch:ForceSearchIndex
+
+docker compose exec -T mediawiki \
+  php maintenance/run.php CirrusSearch:UpdateSuggesterIndex
+```
+
+Alternatively, use the bundled helper:
+
+```bash
+docker compose exec -T mediawiki \
+  /usr/local/bin/generate-opensearch-index.sh
+```
+
+The `--startOver` command deletes and recreates only the CirrusSearch indexes. It does not delete MediaWiki database content or uploaded files.
+
+### Verify the index
+
+```bash
+docker compose exec -T opensearch \
+  curl -fsS 'http://localhost:9200/_cat/indices?v'
+```
+
+For the default database name, indexes or aliases beginning with the following value should appear:
+
+```text
+wikidb_content
+```
+
+Verify the configured MediaWiki search backend:
+
+```bash
+docker compose exec -T mediawiki sh -lc \
+  'printf "%s\n" "echo \$wgSearchType, PHP_EOL;" | php maintenance/run.php eval'
+```
+
+The expected output is:
+
+```text
+CirrusSearch
+```
+
+## Migrating from Elasticsearch
+
+1. Stop the current stack.
+2. Replace the Elasticsearch service with the OpenSearch service.
+3. Rename `MW_ES_URL` to `MW_OS_URL`.
+4. Rename `ES_HEAP_MIN` and `ES_HEAP_MAX` to `OS_HEAP_MIN` and `OS_HEAP_MAX`.
+5. Change `$wgCirrusSearchServers` from `elasticsearch` to `opensearch`.
+6. Use a new `data_osdata` volume; do not mount the old Elasticsearch data volume into OpenSearch.
+7. Start OpenSearch and wait until its health status is yellow or green.
+8. Rebuild the CirrusSearch indexes with `--startOver`.
+9. Run the application and E2E tests.
+
+The old Elasticsearch volume can remain untouched until the migration has been verified. Remove it only when it is no longer needed.
+
+## Scheduled jobs
+
+### MediaWiki job queue
+
+Enable periodic MediaWiki jobs with:
+
+```dotenv
+MW_JOBS_CRON=true
+```
+
+### CirrusSearch index maintenance
+
+```dotenv
+MW_CS_INDEX_UPDATE=true
+MW_CS_INDEX_CRON=*/15 * * * *
+MW_CS_INDEX_RUN_ON_START=true
+MW_OS_URL=http://opensearch:9200
+```
+
+The index-maintenance script first checks whether the expected content and general aliases exist. Missing indexes are rebuilt before the suggester index is updated.
+
+### Sitemap generation
+
+```dotenv
+MW_SITEMAP_GENERATION=true
+MW_SITEMAP_CRON=20 */12 * * *
+MW_SITEMAP_RUN_ON_START=true
+MW_SITEMAP_IDENTIFIER=wiki
+MW_SITEMAP_URLPATH=sitemap
+MW_SITEMAP_SKIP_REDIRECTS=true
+```
+
+The generated sitemap index is available through `/sitemap.xml`.
+
+### RottenLinks
+
+```dotenv
+MW_ROTTENLINKS_GENERATION=true
+MW_ROTTENLINKS_CRON=30 */12 * * *
+MW_ROTTENLINKS_RUN_ON_START=false
+```
+
+## ClamAV
+
+Enable the Compose profile and MediaWiki integration:
+
+```dotenv
 COMPOSE_PROFILES=clamav
-# Optional host/port if you do not use the default service/port
+CLAMAV_ENABLED=true
 CLAMAV_HOST=clamav
 CLAMAV_PORT=3310
 ```
 
-### MediaWiki Configuration (`LocalSettings.php`)
+Disable both the profile and `CLAMAV_ENABLED` if ClamAV is not required.
 
-Add a robust boolean toggle and the ClamAV command mapping.
+## Memcached and MemcachePHP
 
-```php
-# Antivirus integration (ClamAV)
-$clamavEnabled = filter_var(getenv('CLAMAV_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN);
+Example configuration:
 
-if ($clamavEnabled) {
-    $wgAntivirus = 'clamav';
-    $wgAntivirusRequired = true;
-    $wgAntivirusSetup['clamav'] = [
-        'command' => '/usr/bin/clamdscan --no-summary --stdout --config-file=/etc/clamav/clamd.remote.conf %f',
-        'codemap' => [
-            0 => AV_NO_VIRUS,
-            1 => AV_VIRUS_FOUND,
-            2 => AV_SCAN_FAILED,
-            '*' => AV_SCAN_FAILED,
-        ],
-    ];
-} else {
-    $wgAntivirus = false;
-}
+```dotenv
+MEMCACHED_VERSION=alpine
+MEMCACHED_CACHE_MB=32
+MEMCACHEPHP_SERVERS=memcached:11211
+MEMCACHEPHP_ADMIN_USER=admin
+MEMCACHEPHP_ADMIN_PASS=change-this-password
+MEMCACHEPHP_DATE_FORMAT=Y-m-d H:i:s
+MEMCACHEPHP_GRAPH_SIZE=220
+MEMCACHEPHP_MAX_ITEM_DUMP=100
 ```
 
-## Quick Tests
+The MemcachePHP UI is reverse-proxied through MediaWiki at:
+
+```text
+/memcacheui/
+```
+
+## Persistent volumes
+
+- `data_db` stores the MariaDB database.
+- `data_mw_images` stores uploaded MediaWiki files.
+- `data_osdata` stores OpenSearch indexes.
+- `clamav_db` stores ClamAV signatures.
+
+The OpenSearch index is derived data and can be rebuilt from the MediaWiki database. Database and uploaded-file backups remain essential.
+
+## CI and E2E tests
+
+The CI workflow uses `docker-compose.example.yml` as its base configuration. Therefore, OpenSearch must be configured consistently in both:
+
+- `docker-compose.dev.yml`
+- `docker-compose.example.yml`
+
+The E2E workflow should address the service as `opensearch`:
 
 ```bash
-# From the MediaWiki container: clamd ready?
-echo PING | nc -w 3 clamav 3310  # expect: PONG
-
-# EICAR test (harmless signature): expect exit code 1 (infected)
-cat > /tmp/eicar.com.txt <<'EOF'
-X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*
-EOF
-/usr/bin/clamdscan --no-summary --stdout --config-file=/etc/clamav/clamd.remote.conf /tmp/eicar.com.txt; echo $?
+docker compose exec -T opensearch sh -lc \
+  "curl -fsS --max-time 4 'http://localhost:9200/_cat/health?h=status' \
+  | grep -Eq 'yellow|green'"
 ```
 
-### Notes
+Plugin diagnostics use:
 
-- Ensure `clamdscan` is installed in the MediaWiki container (Debian/Ubuntu: `apt-get install clamdscan`).
-- If you upload large files, increase `StreamMaxLength` in `clamd.conf` (e.g., `StreamMaxLength 200M`) and restart the `clamav` service.
-- With `$wgAntivirusRequired = true`, uploads are blocked if the scanner is unreachable (safer default).
-
----
-
-## 11) Release & tagging
-
-- Suggested policy (example): git tag `v1.43.1` → container images tagged as:
-  - `1.43.1`
-  - `1.43`
-  - `latest`
-
----
-
-## 12) Security & updates
-
-- **Dependabot**: keep Docker base images and GitHub Actions up to date.
-- **Watchtower labels** (optional): permit automatic updates for selected services.
-- **Extensions**: prefer pinned commits for stability; otherwise, branch fallback logic fetches latest for the chosen branch.
-- **Secrets**: consider Docker `secrets:` for DB root password and admin creds.
-
----
-
-## 13) Troubleshooting
-
-- **VisualEditor & short URLs**: ensure Apache allows encoded slashes: `AllowEncodedSlashes NoDecode` in your site conf.
-- **Sitemap redirect is 301 but file 404**: confirm the sitemap script created `sitemap-index-<id>.xml` at the expected path (`/var/www/html` or `/var/www/html/<urlpath>`), and ownership is `www-data`.
-- **CirrusSearch** says `Elastica\Client not found`: run Composer so `vendor/autoload.php` exists for Elastica; ensure both CirrusSearch and Elastica ran `composer install`.
-- **Elasticsearch heap pressure**: check `/_cat/nodes?h=heap.percent,heap.current,heap.max` and logs for `CircuitBreakingException`; increase `ES_JAVA_OPTS` if needed.
-- **LocalSettings mount blocks installer**: if you mount an existing `LocalSettings.php` in Compose, the automated installer is skipped; adjust `docker-compose.*.yml` for CI vs. dev.
-- **env_file vs environment precedence**: values in `environment:` override `env_file` for the same key.
-
----
-
-## 14) Directory layout
-
-```txt
-.
-├─ Dockerfile-mediawiki
-├─ Dockerfile-memcachephp
-├─ docker-compose.dev.yml              # main compose for dev/prod
-├─ docker-compose.ci.yml               # (optional) CI-oriented overrides
-├─ resources/
-│  └─ mediawiki/
-│     ├─ mw-default-setup.sh          # creates/amends LocalSettings, short URLs, Cirrus, etc.
-│     ├─ generate-sitemap.sh          # sitemap generator (runs as www-data)
-│     └─ generate-elasticindex.sh     # Cirrus/Elasticsearch bootstrap + index
-├─ conf/
-│  ├─ mediawiki-rewrites.conf         # short URLs, VE-friendly settings
-│  └─ memcachephp-proxy.conf          # reverse proxy for /memcacheui/
-└─ data/
-   └─ mediawiki/
-      └─ conf/                        # mounted configs (LocalSettings.php, robots.txt, .htaccess, …)
+```bash
+docker compose exec -T opensearch \
+  sh -lc 'bin/opensearch-plugin list || true'
 ```
 
----
+The CI environment should explicitly contain:
 
-## 15) Credits
+```dotenv
+MW_OS_URL=http://opensearch:9200
+OS_VERSION=v1.3.20-12
+OS_HEAP_MIN=512m
+OS_HEAP_MAX=512m
+```
 
-This project builds on:
+## Updating MediaWiki
 
-- **MediaWiki** (Wikimedia Foundation & contributors)
-- **Elasticsearch**, **CirrusSearch**, **Elastica**
-- **MariaDB**, **Memcached**, **MemcachePHP**
-- **supercronic**
+When upgrading to another MediaWiki branch:
+
+1. Update the MediaWiki base-image version.
+2. Ensure all Wikimedia extensions use the matching `RELx_xx` branch.
+3. Check the CirrusSearch compatibility requirements before changing the OpenSearch version.
+4. Enable `MW_AUTO_UPDATE=true` for the first controlled startup.
+5. After the database update succeeds, set `MW_AUTO_UPDATE=false` again.
+6. Rebuild the CirrusSearch index when required by the CirrusSearch upgrade notes.
+
+Do not combine MediaWiki 1.46 with CirrusSearch or Elastica from `master`.
+
+## Troubleshooting
+
+### MediaWiki still reports Elasticsearch 7.10.2
+
+Check whether the CI or deployment still uses `docker-compose.example.yml` with the old Elasticsearch service:
+
+```bash
+docker compose config | grep -iE 'elasticsearch|opensearch'
+```
+
+Also verify the running containers:
+
+```bash
+docker compose ps
+```
+
+### `Unknown filter type [truncate_norm]`
+
+This usually indicates that CirrusSearch is connected to Elasticsearch or to a plain OpenSearch image without the expected Wikimedia search plugins.
+
+Confirm that the configured image is:
+
+```text
+docker-registry.wikimedia.org/repos/search-platform/cirrussearch-opensearch-image:v1.3.20-12
+```
+
+Then recreate the OpenSearch container and rebuild the index.
+
+### MediaWiki cannot resolve `opensearch`
+
+Ensure both services use the same Docker network and that `LocalSettings.php` contains:
+
+```php
+$wgCirrusSearchServers = [ 'opensearch' ];
+```
+
+### OpenSearch ignores the configured heap size
+
+The environment variable must be named `OPENSEARCH_JAVA_OPTS`:
+
+```yaml
+- OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+```
+
+### CirrusSearch reports `Elastica\Client` as missing
+
+Ensure that Elastica and CirrusSearch were installed from the MediaWiki 1.46 release branches and that their Composer dependencies were installed during the image build.
+
+### Search results are empty after migration
+
+Rebuild the index:
+
+```bash
+docker compose exec -T mediawiki \
+  php maintenance/run.php CirrusSearch:UpdateSearchIndexConfig --startOver
+
+docker compose exec -T mediawiki \
+  php maintenance/run.php CirrusSearch:ForceSearchIndex
+```
+
+## Security notes
+
+- Never expose OpenSearch port 9200 directly to the internet.
+- Keep the OpenSearch service on the internal backend network.
+- Replace all example passwords before deployment.
+- Prefer Docker secrets or another secret-management mechanism for production credentials.
+- Back up the MariaDB database and MediaWiki uploads regularly.
+- Pin production image versions instead of using floating `latest` tags.
+
+## License
+
+See [LICENSE](LICENSE) for repository licensing information. The included applications and extensions retain their respective licenses.

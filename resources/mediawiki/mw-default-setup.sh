@@ -158,7 +158,7 @@ $wgEnableCanonicalServerLink = true;
 
 # --- CirrusSearch settings (auto) BEGIN ---
 $wgSearchType = 'CirrusSearch';
-$wgCirrusSearchServers = [ 'elasticsearch' ];
+$wgCirrusSearchServers = [ 'opensearch' ];
 $wgCirrusSearchUseCompletionSuggester = true;
 
 # Related Articles using CirrusSearch

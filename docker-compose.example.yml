@@ -6,7 +6,7 @@ services:
         condition: service_healthy
       memcached:
         condition: service_started
-      elasticsearch:
+      opensearch:
         condition: service_healthy
     restart: unless-stopped
     environment:
@@ -29,7 +29,7 @@ services:
       MW_CS_INDEX_UPDATE: ${MW_CS_INDEX_UPDATE:-false}
       MW_CS_INDEX_CRON: "${MW_CS_INDEX_CRON:-15 * * * *}"
       MW_CS_INDEX_RUN_ON_START: "${MW_CS_INDEX_RUN_ON_START:-false}"
-      MW_ES_URL: "${MW_ES_URL:-http://elasticsearch:9200}"
+      MW_OS_URL: "${MW_OS_URL:-http://opensearch:9200}"
       CLAMAV_ENABLED: ${CLAMAV_ENABLED:-true}
       CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
@@ -179,36 +179,29 @@ services:
     networks:
       backend-nw:
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:${ES_VERSION:-7.10.2}
+  opensearch:
+    image: docker-registry.wikimedia.org/repos/search-platform/cirrussearch-opensearch-image:${OS_VERSION:-v1.3.20-12}
     restart: unless-stopped
     environment:
       - TZ=${TZ:-UTC}
       - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms${ES_HEAP_MIN:-512m} -Xmx${ES_HEAP_MAX:-512m}     # Keep Xms and Xmx equal
-      ## Options to reduce memory consumption
-      # - xpack.ml.enabled=false         # Disable ML to save heap/native mem
-      # - bootstrap.memory_lock=true     # Prevent swapping
-      # - indices.memory.index_buffer_size=5%  # Lower indexing buffer (default ~10%)
-      # - node.roles=data,ingest,master
-      - xpack.watcher.enabled=false
-      - xpack.monitoring.collection.enabled=false
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms${OS_HEAP_MIN:-512m} -Xmx${OS_HEAP_MAX:-512m}     # Keep Xms and Xmx equal
     volumes:
-      - data_esdata:/usr/share/elasticsearch/data
+      - data_osdata:/usr/share/opensearch/data
     labels:
       com.centurylinklabs.watchtower.enable: true
     ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
       memlock:
         soft: -1
         hard: -1
     healthcheck:
       test:
         - CMD-SHELL
-        - |
-          set -e
-          # kurzer Timeout < compose timeout
-          curl -fsS --max-time 4 'http://localhost:9200/_cat/health?h=status' \
-            | grep -Eq 'yellow|green'
+        - curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow'
       interval: 15s
       timeout: 10s
       retries: 20
@@ -220,7 +213,7 @@ volumes:
   data_db:
   data_mw_images:
   clamav_db:
-  data_esdata:
+  data_osdata:
 
 networks:
   app-nw:

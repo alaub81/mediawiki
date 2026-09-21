@@ -159,6 +159,12 @@ jobs:
           E2E_PAGE_TITLE=E2E-Tagcloud-Test
           E2E_MARK=E2E_TAGCLOUD_OK
           E2E_BAD_URL=http://does-not-exist.invalid/e2e-broken
+
+          # OpenSearch
+          MW_OS_URL=http://opensearch:9200
+          OS_VERSION=v1.3.20-12
+          OS_HEAP_MIN=512m
+          OS_HEAP_MAX=512m
           EOF
 
       - name: Export CI env to shell (for compose variable substitution)
@@ -630,24 +636,24 @@ jobs:
             exit 1
           fi
 
-      - name: E2E — Elasticsearch healthy (yellow/green)
+      - name: E2E — Opensearch healthy (yellow/green)
         shell: bash
         run: |
           set -euo pipefail
           # bis zu ~3 Minuten warten (40 * 5s)
           for i in $(seq 1 40); do
-            if docker compose exec -T elasticsearch sh -lc \
-              "curl -fsS --max-time 4 'http://elasticsearch:9200/_cat/health?h=status' | grep -Eq 'yellow|green'"; then
-              echo "✓ Elasticsearch healthy"
+            if docker compose exec -T opensearch sh -lc \
+              "curl -fsS --max-time 4 'http://localhost:9200/_cat/health?h=status' | grep -Eq 'yellow|green'"; then
+              echo "✓ OpenSearch healthy"
               exit 0
             fi
             sleep 5
           done
-          echo "::error::Elasticsearch wurde nicht healthy (timeout)"
+          echo "::error::opensearch wurde nicht healthy (timeout)"
           echo "[debug] /_cat/health:"
-          docker compose exec -T elasticsearch sh -lc "wget -qO- 'http://localhost:9200/_cat/health?v'"
+          docker compose exec -T opensearch sh -lc "wget -qO- 'http://localhost:9200/_cat/health?v'"
           echo "[debug] Plugins:"
-          docker compose exec -T elasticsearch sh -lc 'bin/elasticsearch-plugin list || true'
+          docker compose exec -T opensearch sh -lc 'bin/opensearch-plugin list || true'
           exit 1
 
       - name: E2E — Bootstrap Cirrus index (script)
@@ -655,7 +661,7 @@ jobs:
         run: |
           set -euo pipefail
           docker compose exec -T mediawiki sh -lc '
-            /usr/local/bin/generate-elasticindex.sh
+            /usr/local/bin/generate-opensearch-index.sh
           '
 
       - name: E2E — Cirrus index present
@@ -666,7 +672,7 @@ jobs:
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           DB="${MW_DB_NAME:-wikidb}"
           for i in $(seq 1 60); do
-            if docker compose exec -T elasticsearch sh -lc \
+            if docker compose exec -T opensearch sh -lc \
               "curl -fsS 'http://localhost:9200/_cat/indices?h=index' | grep -q '${DB}_content'"; then
               echo "✓ Index ${DB}_content vorhanden"; exit 0; fi
             sleep 3

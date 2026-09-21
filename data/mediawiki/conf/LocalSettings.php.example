@@ -142,7 +142,6 @@ wfLoadSkin( 'Vector' );
 # The following extensions were automatically enabled:
 wfLoadExtension( 'AbuseFilter' );
 wfLoadExtension( 'CategoryTree' );
-wfLoadExtension( 'CirrusSearch' );
 wfLoadExtension( 'Cite' );
 wfLoadExtension( 'CiteThisPage' );
 wfLoadExtension( 'CodeEditor' );
@@ -152,6 +151,7 @@ wfLoadExtension( 'Description2' );
 wfLoadExtension( 'DiscussionTools' );
 wfLoadExtension( 'Echo' );
 wfLoadExtension( 'Elastica' );
+wfLoadExtension( 'CirrusSearch' );
 wfLoadExtension( 'Gadgets' );
 wfLoadExtension( 'HitCounters' );
 wfLoadExtension( 'ImageMap' );
@@ -221,7 +221,7 @@ $wgEnableCanonicalServerLink = true;
 
 # CirrusSearch settings
 $wgSearchType = 'CirrusSearch';
-$wgCirrusSearchServers = [ 'elasticsearch' ];
+$wgCirrusSearchServers = [ 'opensearch' ];
 # $wgCirrusSearchIndexBaseName = 'wikidb';
 $wgCirrusSearchUseCompletionSuggester = true;
 
