@@ -26,6 +26,27 @@ RUN apt-get update \
   && a2enmod headers proxy proxy_http \
   && a2enconf mediawiki-rewrites memcachephp-proxy
 
+# Apply the upstream MediaWiki 1.46 MediaHandler language fix.
+####### Start Patch
+COPY patches/mediawiki-1.46-mediahandler-language.patch /tmp/mediahandler-language.patch
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends patch; \
+    patch --batch --forward --dry-run \
+        -p1 \
+        -d /var/www/html \
+        < /tmp/mediahandler-language.patch; \
+    patch --batch --forward \
+        -p1 \
+        -d /var/www/html \
+        < /tmp/mediahandler-language.patch; \
+    rm -f /tmp/mediahandler-language.patch; \
+    apt-get purge -y --auto-remove patch; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
+###### END Patch
+
 RUN set -eux; \
   BR="${MW_BRANCH:-REL${MEDIAWIKI_MAJOR_VERSION%%.*}_${MEDIAWIKI_MAJOR_VERSION#*.}}"; \
   echo "Using MW_BRANCH=$BR"; \
