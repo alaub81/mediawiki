@@ -1,0 +1,10 @@
+diff --git a/extensions/RelatedArticles/resources/ext.relatedArticles.readMore/RelatedPagesGateway.js b/extensions/RelatedArticles/resources/ext.relatedArticles.readMore/RelatedPagesGateway.js
+--- a/extensions/RelatedArticles/resources/ext.relatedArticles.readMore/RelatedPagesGateway.js
++++ b/extensions/RelatedArticles/resources/ext.relatedArticles.readMore/RelatedPagesGateway.js
+@@ -72,7 +72,6 @@ RelatedPagesGateway.prototype.getPagesFromApi = function ( params ) {
+ 	const parameters = /** @type {MwApiActionQuery} */ Object.assign( {
+ 		formatversion: 2,
+-		origin: '*',
+ 		prop: 'pageimages',
+ 		piprop: 'thumbnail',
+ 		pithumbsize: 160 // FIXME: Revert to 80 once pithumbmode is implemented

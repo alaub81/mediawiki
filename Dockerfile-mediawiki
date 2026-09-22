@@ -29,6 +29,8 @@ RUN apt-get update \
 # Apply the upstream MediaWiki 1.46 MediaHandler language fix.
 ####### Start Patch
 COPY patches/mediawiki-1.46-mediahandler-language.patch /tmp/mediahandler-language.patch
+# Allow authenticated RelatedArticles API requests on private wikis.
+COPY patches/relatedarticles-private-wiki.patch /tmp/relatedarticles-private-wiki.patch
 
 RUN set -eux; \
     apt-get update; \
@@ -42,6 +44,11 @@ RUN set -eux; \
         -d /var/www/html \
         < /tmp/mediahandler-language.patch; \
     rm -f /tmp/mediahandler-language.patch; \
+    patch --batch --forward --dry-run -p1 -d /var/www/html \
+        < /tmp/relatedarticles-private-wiki.patch; \
+    patch --batch --forward -p1 -d /var/www/html \
+        < /tmp/relatedarticles-private-wiki.patch; \
+    rm -f /tmp/relatedarticles-private-wiki.patch; \
     apt-get purge -y --auto-remove patch; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
