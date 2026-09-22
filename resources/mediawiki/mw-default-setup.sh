@@ -219,8 +219,36 @@ if ($clamavEnabled) {
 } else {
     $wgAntivirus = false;
 }
-# enable txt file uploads, to test eicar virus signature
-$wgFileExtensions[] = 'txt';
+
+# File Upload Restriction
+$wgCheckFileExtensions = true;
+$wgStrictFileExtensions = true;
+$wgVerifyMimeType = true;
+$wgFileExtensions = array_values( array_unique( array_merge(
+	$wgFileExtensions,
+	[
+		// Documents and plain-text data
+		'pdf', 'txt', 'md', 'csv', 'tsv', 'rtf',
+
+		// Microsoft Office
+		'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+
+		// OpenDocument
+		'odt', 'ods', 'odp', 'odg',
+
+		// Additional raster image formats
+		'bmp', 'tif', 'tiff', 'ico',
+
+		// Audio
+		'mp3', 'ogg', 'oga', 'opus', 'wav', 'flac', 'm4a',
+
+		// Video
+		'webm', 'mp4', 'm4v', 'mov', 'ogv',
+
+		// Archives
+		'zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz',
+	]
+) ) );
 
 ## Debuging Settings
 # $wgShowExceptionDetails = true;

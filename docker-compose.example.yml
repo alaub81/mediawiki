@@ -29,7 +29,7 @@ services:
       MW_CS_INDEX_UPDATE: ${MW_CS_INDEX_UPDATE:-false}
       MW_CS_INDEX_CRON: "${MW_CS_INDEX_CRON:-15 * * * *}"
       MW_CS_INDEX_RUN_ON_START: "${MW_CS_INDEX_RUN_ON_START:-false}"
-      MW_OS_URL: "${MW_OS_URL:-http://opensearch:9200}"
+      MW_OPENSEARCH_URL: "${MW_OPENSEARCH_URL:-http://opensearch:9200}"
       CLAMAV_ENABLED: ${CLAMAV_ENABLED:-true}
       CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
@@ -180,13 +180,14 @@ services:
       backend-nw:
 
   opensearch:
-    image: docker-registry.wikimedia.org/repos/search-platform/cirrussearch-opensearch-image:${OS_VERSION:-v1.3.20-12}
+    platform: ${OPENSEARCH_PLATFORM:-linux/amd64}
+    image: docker-registry.wikimedia.org/repos/search-platform/cirrussearch-opensearch-image:${OPENSEARCHVERSION:-v1.3.20-12}
     restart: unless-stopped
     environment:
       - TZ=${TZ:-UTC}
       - discovery.type=single-node
       - bootstrap.memory_lock=true
-      - OPENSEARCH_JAVA_OPTS=-Xms${OS_HEAP_MIN:-512m} -Xmx${OS_HEAP_MAX:-512m}     # Keep Xms and Xmx equal
+      - OPENSEARCH_JAVA_OPTS=-Xms${OPENSEARCH_HEAP_MIN:-512m} -Xmx${OPENSEARCH_HEAP_MAX:-512m}     # Keep Xms and Xmx equal
     volumes:
       - data_osdata:/usr/share/opensearch/data
     labels:

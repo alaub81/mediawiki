@@ -2,8 +2,8 @@
 set -euo pipefail
 cd /var/www/html
 
-# OpenSearch URL; in your Compose, this is usually "opensearch:9200"
-MW_OS_URL="${MW_OS_URL:-http://opensearch:9200}"
+# Opensearch URL; in your Compose, this is usually "opensearch:9200"
+MW_OPENSEARCH_URL="${MW_OPENSEARCH_URL:-http://opensearch:9200}"
 
 # Get DB name: ENV or from MediaWiki itself
 DBNAME="${MW_DB_NAME:-}"
@@ -14,7 +14,7 @@ fi
 # Cirrus base name (if you overwrite it), otherwise DB name
 INDEX_BASE="${MW_CIRRUS_INDEX_BASENAME:-$DBNAME}"
 
-has_alias() { curl -fsS --max-time 4 "$MW_OS_URL/_alias/$1" >/dev/null; }
+has_alias() { curl -fsS --max-time 4 "$MW_OPENSEARCH_URL/_alias/$1" >/dev/null; }
 
 CONTENT_ALIAS="${INDEX_BASE}_content"
 GENERAL_ALIAS="${INDEX_BASE}_general"
