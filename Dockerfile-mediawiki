@@ -2,11 +2,11 @@ FROM mediawiki:1.46
 ENV DEBIAN_FRONTEND=noninteractive
 
 ENV MW_INSTALL_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages \
- intersection WikiSEO Wanda WandaScore WikiCategoryTagCloud CookieConsent"
+ intersection WikiSEO WandaScore WikiCategoryTagCloud CookieConsent"
 ENV MW_INSTALL_SKINS=""
 # ENV MW_EXTRA_EXTENSIONS="${MW_INSTALL_EXTENSIONS} RottenLinks WikiCategoryTagCloud CookieConsent DynamicPageList"
 ENV MW_EXTRA_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend CirrusSearch Elastica HitCounters TopTenPages \
-  DynamicPageList WikiSEO Wanda WandaScore WikiCategoryTagCloud CookieConsent RottenLinks"
+  DynamicPageList WikiSEO WikiCategoryTagCloud CookieConsent RottenLinks"
 ENV MW_EXTRA_SKINS="${MW_INSTALL_SKINS}"
 
 COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
@@ -127,6 +127,12 @@ RUN set -eux; \
   # clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/CookieConsent" \
   #                    "/var/www/html/extensions/CookieConsent" \
   #                    "$COMMIT" "$BRANCH"; \
+  # Pin Wanda 3.0.0 from Wikimedia Gerrit because REL1_46 contains Wanda 2.0.0.
+  BRANCH="master"; \
+  COMMIT="0dbbd0c00275ba9f5048e2a8c95f5c6cf77ca51a"; \
+  clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/Wanda" \
+                     "/var/www/html/extensions/Wanda" \
+                     "$COMMIT" "$BRANCH"; \
   BRANCH="main"; \
   # COMMIT="30c4dd5da467f9ae9dd52fb3df0dad9712ef5445"; \
   COMMIT="72279c6f452cf8e7e1318abaca6765b202e525c0"; \

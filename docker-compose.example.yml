@@ -12,6 +12,8 @@ services:
     environment:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
       MW_SERVER_URL: ${MW_SERVER_URL:-http://localhost:8080}
+      MW_SITENAME: ${MW_SITENAME:-My Own Wiki}
+      MW_METANAMESPACE: ${MW_METANAMESPACE:-My_Own_Wiki}
       MW_AUTO_UPDATE: ${MW_AUTO_UPDATE:-false}
       MW_JOBS_CRON: ${MW_JOBS_CRON:-false}
       MW_PHP_UPLOAD_MAX_FILESIZE: ${MW_PHP_UPLOAD_MAX_FILESIZE:-100M}
@@ -30,6 +32,8 @@ services:
       MW_CS_INDEX_CRON: "${MW_CS_INDEX_CRON:-15 * * * *}"
       MW_CS_INDEX_RUN_ON_START: "${MW_CS_INDEX_RUN_ON_START:-false}"
       MW_OPENSEARCH_URL: "${MW_OPENSEARCH_URL:-http://opensearch:9200}"
+      WANDA_ENABLED: "${WANDA_ENABLED:-false}"
+      MW_ELASTICSEARCH_URL: "${MW_ELASTICSEARCH_URL:-http://elasticsearch:9200}"
       CLAMAV_ENABLED: ${CLAMAV_ENABLED:-true}
       CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
@@ -181,7 +185,7 @@ services:
 
   opensearch:
     platform: ${OPENSEARCH_PLATFORM:-linux/amd64}
-    image: docker-registry.wikimedia.org/repos/search-platform/cirrussearch-opensearch-image:${OPENSEARCHVERSION:-v1.3.20-12}
+    image: docker-registry.wikimedia.org/repos/search-platform/cirrussearch-opensearch-image:${OPENSEARCH_VERSION:-v1.3.20-12}
     restart: unless-stopped
     environment:
       - TZ=${TZ:-UTC}
@@ -210,11 +214,45 @@ services:
     networks:
       backend-nw:
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_VERSION:-8.19.21}
+    restart: unless-stopped
+    profiles: ["elasticsearch"]
+    environment:
+      - TZ=${TZ:-UTC}
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - xpack.security.autoconfiguration.enabled=false
+      - ES_JAVA_OPTS=-Xms${ELASTICSEARCH_HEAP_MIN:-512m} -Xmx${ELASTICSEARCH_HEAP_MAX:-512m}
+    volumes:
+      - data_esdata:/usr/share/elasticsearch/data
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow'
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+    networks:
+      backend-nw:
+
 volumes:
   data_db:
   data_mw_images:
   clamav_db:
   data_osdata:
+  data_esdata:
 
 networks:
   app-nw:

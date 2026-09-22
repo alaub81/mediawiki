@@ -259,6 +259,87 @@ $wgFileExtensions = array_values( array_unique( array_merge(
 	]
 ) ) );
 
+# Enable Wanda only when its optional Elasticsearch service is enabled.
+$wandaEnabled = filter_var( getenv( 'WANDA_ENABLED' ) ?: 'false', FILTER_VALIDATE_BOOLEAN );
+
+if ( $wandaEnabled ) {
+	wfLoadExtension( 'Wanda' );
+	wfLoadExtension( 'WandaScore' );
+
+	// OpenAI provider configuration.
+	$wgWandaLLMProvider = 'openai';
+	$wgWandaLLMApiKey = 'REPLACE_WITH_YOUR_OPENAI_API_KEY';
+	$wgWandaLLMModel = 'gpt-5.2';
+	$wgWandaLLMEmbeddingModel = 'text-embedding-3-small';
+	$wgWandaLLMApiEndpoint = 'https://api.openai.com/v1';
+
+	// Dedicated Elasticsearch service used only by Wanda.
+	$wgWandaLLMElasticsearchUrl =
+		getenv( 'MW_ELASTICSEARCH_URL' ) ?: 'http://elasticsearch:9200';
+
+	// Interface and feature settings.
+	$wgWandaShowPopup = true;
+	$wgWandaEnableAttachments = false;
+	$wgWandaEnableEditing = false;
+
+	// Keep answers grounded in readable LHlab wiki content.
+	$wgWandaDisabledSources = [
+		'wikidata',
+		'publicknowledge',
+		'cargo',
+		'smw',
+		'externalwiki',
+	];
+
+	$wgWandaAllowedNamespaces = [
+		NS_MAIN,
+		NS_PROJECT,
+		NS_FILE,
+		NS_HELP,
+		NS_CATEGORY,
+	];
+
+	# The custom prompt handles the response language dynamically.
+	$wgWandaUseContentLang = false;
+
+	# LLM and retrieval behavior.
+	$wgWandaLLMMaxTokens = 4096;
+	$wgWandaLLMTemperature = '0.2';
+	$wgWandaLLMTimeout = 90;
+	$wgWandaMaxContextChars = 24000;
+	$wgWandaConversationMaxChars = 10000;
+	$wgWandaVectorSearchMinScore = 1.55;
+
+	# Use incremental hooks and run the initial full reindex manually.
+	$wgWandaAutoReindex = false;
+	$wgWandaMaxImageSize = 5242880;
+	$wgWandaMaxImageCount = 3;
+
+	# Ground Wanda's answers in the retrieved LHlab wiki content.
+	$wgWandaCustomPrompt = <<<'PROMPT'
+You are the knowledge assistant for LHlab wiki.
+
+Answer the user's question using only the supplied wiki context.
+
+Rules:
+- Give precise, complete, and clearly structured answers.
+- Combine relevant information from multiple wiki pages when necessary.
+- Do not invent facts that are not supported by the supplied context.
+- If the available context is incomplete, ambiguous, or contradictory, state this clearly.
+- Mention the relevant wiki page titles whenever they can be identified from the context.
+- Preserve important technical names, version numbers, commands, paths, and warnings.
+- Distinguish verified facts from conclusions or interpretations.
+- Answer in the language used by the user.
+- Do not expose raw wikitext.
+- Do not suggest database queries or internal maintenance commands to ordinary users.
+- Do not claim that information comes from LHlab wiki unless it is present in the supplied context.
+- If the supplied context does not contain enough information, say so directly instead of guessing.
+PROMPT;
+
+	$wgWandaCustomPromptTitle = '';
+}
+unset( $wandaEnabled );
+
 ## Debuging Settings
 # $wgShowExceptionDetails = true;
 # $wgShowDBErrorBacktrace = true;
