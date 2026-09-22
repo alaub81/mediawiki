@@ -167,6 +167,15 @@ $wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
 $wgRelatedArticlesUseCirrusSearch = true;
 $wgRelatedArticlesCardLimit = 6;
 
+# Searchable namespaces
+$wgNamespacesToBeSearchedDefault = [
+	NS_MAIN => true,
+	NS_PROJECT => true,
+	NS_FILE => true,
+	NS_HELP => true,
+	NS_CATEGORY => true,
+];
+
 # TopTenPages Configuration
 $wgTopTenPagesStartAtOne = true;
 
