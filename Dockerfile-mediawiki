@@ -26,34 +26,6 @@ RUN apt-get update \
   && a2enmod headers proxy proxy_http \
   && a2enconf mediawiki-rewrites memcachephp-proxy
 
-# Apply the upstream MediaWiki 1.46 MediaHandler language fix.
-####### Start Patch
-COPY patches/mediawiki-1.46-mediahandler-language.patch /tmp/mediahandler-language.patch
-# Allow authenticated RelatedArticles API requests on private wikis.
-COPY patches/relatedarticles-private-wiki.patch /tmp/relatedarticles-private-wiki.patch
-
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends patch; \
-    patch --batch --forward --dry-run \
-        -p1 \
-        -d /var/www/html \
-        < /tmp/mediahandler-language.patch; \
-    patch --batch --forward \
-        -p1 \
-        -d /var/www/html \
-        < /tmp/mediahandler-language.patch; \
-    rm -f /tmp/mediahandler-language.patch; \
-    patch --batch --forward --dry-run -p1 -d /var/www/html \
-        < /tmp/relatedarticles-private-wiki.patch; \
-    patch --batch --forward -p1 -d /var/www/html \
-        < /tmp/relatedarticles-private-wiki.patch; \
-    rm -f /tmp/relatedarticles-private-wiki.patch; \
-    apt-get purge -y --auto-remove patch; \
-    apt-get clean; \
-    rm -rf /var/lib/apt/lists/*
-###### END Patch
-
 RUN set -eux; \
   BR="${MW_BRANCH:-REL${MEDIAWIKI_MAJOR_VERSION%%.*}_${MEDIAWIKI_MAJOR_VERSION#*.}}"; \
   echo "Using MW_BRANCH=$BR"; \
@@ -178,6 +150,34 @@ RUN set -eux; \
       cd /var/www/html/extensions/Elastica; \
       composer install --no-dev; \
     fi
+
+# Apply the upstream MediaWiki 1.46 MediaHandler language fix and RelatedArticles patch.
+####### Start Patch
+COPY patches/mediawiki-1.46-mediahandler-language.patch /tmp/mediahandler-language.patch
+# Allow authenticated RelatedArticles API requests on private wikis.
+COPY patches/relatedarticles-private-wiki.patch /tmp/relatedarticles-private-wiki.patch
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends patch; \
+    patch --batch --forward --dry-run \
+        -p1 \
+        -d /var/www/html \
+        < /tmp/mediahandler-language.patch; \
+    patch --batch --forward \
+        -p1 \
+        -d /var/www/html \
+        < /tmp/mediahandler-language.patch; \
+    rm -f /tmp/mediahandler-language.patch; \
+    patch --batch --forward --dry-run -p1 -d /var/www/html \
+        < /tmp/relatedarticles-private-wiki.patch; \
+    patch --batch --forward -p1 -d /var/www/html \
+        < /tmp/relatedarticles-private-wiki.patch; \
+    rm -f /tmp/relatedarticles-private-wiki.patch; \
+    apt-get purge -y --auto-remove patch; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
+###### END Patch
 
 ENTRYPOINT ["/usr/local/bin/mediawiki-entrypoint.sh"]
 CMD ["apache2-foreground"]
