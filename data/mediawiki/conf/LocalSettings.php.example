@@ -15,9 +15,6 @@ if ( !defined( 'MEDIAWIKI' ) ) {
 	exit;
 }
 
-
-
-
 ## Uncomment this to disable output compression
 # $wgDisableOutputCompression = true;
 
@@ -187,7 +184,6 @@ wfLoadExtension( 'VisualEditor' );
 wfLoadExtension( 'WikiCategoryTagCloud' );
 wfLoadExtension( 'WikiEditor' );
 wfLoadExtension( 'WikiSEO' );
-
 
 # End of automatically generated settings.
 # Add more configuration options below.
