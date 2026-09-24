@@ -15,8 +15,6 @@ services:
         condition: service_started
       opensearch:
         condition: service_healthy
-      # elasticsearch:
-      #   condition: service_healthy
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
