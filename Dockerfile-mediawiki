@@ -108,7 +108,7 @@ RUN set -eux; \
   #                    "$COMMIT" "$BRANCH"; \
   # Pin Wanda 3.0.0 from Wikimedia Gerrit because REL1_46 contains Wanda 2.0.0.
   BRANCH="master"; \
-  COMMIT="0dbbd0c00275ba9f5048e2a8c95f5c6cf77ca51a"; \
+  COMMIT="92f7e9bdaf71e905959186d81abc0236a443ea92"; \
   clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/Wanda" \
                      "/var/www/html/extensions/Wanda" \
                      "$COMMIT" "$BRANCH"; \
