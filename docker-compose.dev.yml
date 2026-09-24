@@ -94,7 +94,7 @@ services:
           - wiki
 
   database:
-    image: mariadb:${MARIADB_VERSION:-11.8}
+    image: mariadb:${MARIADB_VERSION:-12.3}
     volumes:
       - data_db:/var/lib/mysql
     restart: unless-stopped

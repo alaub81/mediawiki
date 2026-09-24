@@ -159,12 +159,6 @@ jobs:
           E2E_PAGE_TITLE=E2E-Tagcloud-Test
           E2E_MARK=E2E_TAGCLOUD_OK
           E2E_BAD_URL=http://does-not-exist.invalid/e2e-broken
-
-          # OpenSearch
-          MW_OPENSEARCH_URL=http://opensearch:9200
-          OPENSEARCH_VERSION=v1.3.20-12
-          OPENSEARCH_HEAP_MIN=512m
-          OPENSEARCH_HEAP_MAX=512m
           EOF
 
       - name: Export CI env to shell (for compose variable substitution)
