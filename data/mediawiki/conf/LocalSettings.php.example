@@ -149,6 +149,7 @@ wfLoadExtension( 'Description2' );
 wfLoadExtension( 'DiscussionTools' );
 wfLoadExtension( 'Echo' );
 wfLoadExtension( 'Elastica' );
+wfLoadExtension( 'ExternalData' );
 wfLoadExtension( 'CirrusSearch' );
 wfLoadExtension( 'Gadgets' );
 wfLoadExtension( 'HitCounters' );
