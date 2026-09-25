@@ -20,7 +20,19 @@
 $VERSION='$Id: memcache.php,v 1.1.2.3 2008/08/28 18:07:54 mikl Exp $';
 
 $ADMIN_USERNAME = getenv('MEMCACHEPHP_ADMIN_USER') ?: 'admin';
-$ADMIN_PASSWORD = getenv('MEMCACHEPHP_ADMIN_PASS') ?: 'supersecret';
+
+$passwordFile = getenv('MEMCACHEPHP_ADMIN_PASS_FILE');
+
+if ($passwordFile !== false && $passwordFile !== '') {
+    $password = file_get_contents($passwordFile);
+    if ($password === false) {
+        throw new RuntimeException('Cannot read Memcache PHP password secret');
+    }
+    $ADMIN_PASSWORD = rtrim($password, "\r\n");
+} else {
+    $ADMIN_PASSWORD = getenv('MEMCACHEPHP_ADMIN_PASS') ?: 'supersecret';
+}
+
 $DATE_FORMAT    = getenv('MEMCACHEPHP_DATE_FORMAT') ?: 'Y/m/d H:i:s';
 $GRAPH_SIZE     = (int)(getenv('MEMCACHEPHP_GRAPH_SIZE') ?: 200);
 $MAX_ITEM_DUMP  = (int)(getenv('MEMCACHEPHP_MAX_ITEM_DUMP') ?: 50);
