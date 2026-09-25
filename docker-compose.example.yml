@@ -178,11 +178,15 @@ services:
       com.centurylinklabs.watchtower.enable: true
     healthcheck:
       test:
-        [
-          "CMD-SHELL",
-          "curl -fsS -u \"$${MEMCACHEPHP_ADMIN_USER}:$${MEMCACHEPHP_ADMIN_PASS}\" http://localhost/ | \
-          grep -Eiq 'memcache|server stats|slabs'"
-        ]
+        - CMD-SHELL
+        - >-
+          if [ -n "$${MEMCACHEPHP_ADMIN_PASS_FILE:-}" ]; then
+            pass="$$(cat "$${MEMCACHEPHP_ADMIN_PASS_FILE}")" || exit 1;
+          else
+            pass="$${MEMCACHEPHP_ADMIN_PASS:-supersecret}";
+          fi;
+          curl -fsS -u "$${MEMCACHEPHP_ADMIN_USER:-admin}:$${pass}" http://localhost/ |
+          grep -Eiq 'memcache|server stats|slabs'
       interval: 10s
       timeout: 5s
       retries: 5
