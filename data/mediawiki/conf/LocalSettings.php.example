@@ -257,7 +257,7 @@ $wgHeadScriptCode = <<<'START_END_MARKER'
 <!-- Apple Touch -->
 <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-title" content="Laub-Home" />
-<!-- PWA Manifest (kann auch im Root liegen; wichtig ist nur, dass es erreichbar ist) -->
+<!-- PWA manifest (it can also live at the root if it remains accessible) -->
 <link rel="manifest" href="/favicon/site.webmanifest" />
 START_END_MARKER;
 $wgHeadScriptName = 'Favicon Stuff';
@@ -417,7 +417,7 @@ PROMPT;
 unset( $wandaEnabled );
 
 # ReadOnly Mode
-#$wgReadOnly = "<h1><b>Ist nur der Mirror. Bitte unter www.example.com editieren</b></h1><br>";
+#$wgReadOnly = "<h1><b>This is a mirror. Please edit at www.example.com</b></h1><br>";
 #$wgReadOnly = "<h1><b>Update Ongoing</b></h1><br>";
 #$wgReadOnly = "<h1><b>Migration Ongoing</b></h1><br>";
 

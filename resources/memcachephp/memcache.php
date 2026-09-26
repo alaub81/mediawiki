@@ -37,14 +37,14 @@ $DATE_FORMAT    = getenv('MEMCACHEPHP_DATE_FORMAT') ?: 'Y/m/d H:i:s';
 $GRAPH_SIZE     = (int)(getenv('MEMCACHEPHP_GRAPH_SIZE') ?: 200);
 $MAX_ITEM_DUMP  = (int)(getenv('MEMCACHEPHP_MAX_ITEM_DUMP') ?: 50);
 
-// MEMCACHE_SERVERS als kommaseparierte Liste "host:port,host2:port2"
+// MEMCACHE_SERVERS is a comma-separated list: "host:port,host2:port2"
 $serversEnv = getenv('MEMCACHEPHP_SERVERS') ?: 'memcached:11211';
 $MEMCACHE_SERVERS = array_values(
   array_filter(array_map('trim', explode(',', $serversEnv)))
 );
 ////////// DEFAULT CONFIG AREA ////////////////////////////////////////////////////////////////////
 
-// --- bestehende Defines ersetzen ---
+// --- Define settings from the environment ---
 define('ADMIN_USERNAME', $ADMIN_USERNAME);
 define('ADMIN_PASSWORD', $ADMIN_PASSWORD);
 define('DATE_FORMAT',    $DATE_FORMAT);
@@ -538,8 +538,6 @@ echo <<<EOB
 	<br/>
 EOB;
 }
-
-// TODO, AUTH
 
 $_GET['op'] = !isset($_GET['op'])? '1':$_GET['op'];
 $PHP_SELF= isset($_SERVER['PHP_SELF']) ? htmlentities(strip_tags($_SERVER['PHP_SELF'],'')) : '';

@@ -1,6 +1,6 @@
 ignored:
-  - DL3008   # pin versions in apt-get (optional; du pinnst via base image)
+  - DL3008   # apt-get packages are not pinned individually
   - DL3018   # pin versions in apk/apt (optional)
   - DL3045   # no sudo in container (irrelevant)
-  - DL3003   # use WORKDIR (du nutzt es bereits meist)
+  - DL3003   # the Dockerfile changes directories inside RUN commands
 failure-threshold: warning

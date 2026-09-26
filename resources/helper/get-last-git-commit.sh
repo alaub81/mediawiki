@@ -2,8 +2,8 @@
 # helper script to get commit hash
 set -euo pipefail
 
-MW_SPECIAL_EXTENSIONS="WikiCategoryTagCloud CookieConsent"
-BRANCH="master"  # oder master, wenn du das willst
+MW_SPECIAL_EXTENSIONS="WikiCategoryTagCloud CookieConsent Wanda"
+BRANCH="master"  # branch to query for the listed extensions
 
 for special in $MW_SPECIAL_EXTENSIONS; do
   url="https://gerrit.wikimedia.org/r/mediawiki/extensions/$special";

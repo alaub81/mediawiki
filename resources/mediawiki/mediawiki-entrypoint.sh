@@ -19,7 +19,7 @@ upload_max_filesize=${MW_PHP_UPLOAD_MAX_FILESIZE}
 post_max_size=${MW_PHP_POST_MAX_SIZE}
 EOF
 
-# Sitemap-Redirect in Apache build from ENV
+# Configure the Apache sitemap redirect from environment variables
 ident="${MW_SITEMAP_IDENTIFIER:-wiki}"
 
 # Only use prefix if set; normalize to "/foo/"

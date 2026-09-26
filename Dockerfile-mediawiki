@@ -49,7 +49,7 @@ RUN set -eux; \
       git clone --depth=1 "$url" "$dest"; \
     fi; \
   }; \
-  # fixed commit when cloning from master
+  # Clone a repository at a fixed commit
   clone_fixed_commit() { \
     url="$1"; dest="$2"; commit="$3"; branch="${4:-}"; \
     echo "→ target: $url @ $commit  (branch hint: ${branch:-<none>})"; \
@@ -79,7 +79,7 @@ RUN set -eux; \
         fi; \
       fi; \
     fi; \
-    # 2) Checkout exakt dieses Commits (detached HEAD)
+    # 2) Check out this exact commit (detached HEAD)
     git checkout --detach -q "$commit"; \
     # Clean up (Source only, no .git required)
     git reset --hard -q; git clean -fdx -q; \
@@ -124,7 +124,7 @@ RUN set -eux; \
   chown -R www-data:www-data /var/www/html/extensions; \
   chown -R www-data:www-data /var/www/html/skins
 
-# Supercronic (arch-agnostisch)
+# Download Supercronic for the target architecture
 ARG TARGETARCH
 RUN curl -fsSLo /usr/local/bin/supercronic \
   "https://github.com/aptible/supercronic/releases/download/v0.2.49/supercronic-linux-${TARGETARCH}" \

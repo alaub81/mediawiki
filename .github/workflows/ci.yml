@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # für Trivy SARIF Upload
+  security-events: write  # required to upload Trivy SARIF results
 
 jobs:
   lint:
@@ -71,7 +71,7 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
-          # Tags: PR bekommt pr-XYZ und sha; main bekommt main und sha
+          # PR builds get pr-XYZ and SHA tags; main builds get main and SHA tags
           tags: |
             type=ref,event=pr
             type=sha
@@ -178,7 +178,7 @@ jobs:
       - name: Wait for database (TCP-ready from mediawiki)
         shell: bash
         run: |
-          # Warte aus dem MediaWiki-Container auf TCP-Port der DB (ohne externe Tools)
+          # Wait for the database TCP port from the MediaWiki container without external tools
           docker compose exec -T -u www-data mediawiki sh -lc '
             end=$((SECONDS+120))
             until php -r "exit(@fsockopen(getenv(\"MW_DB_HOST\")?: \"database\", (int)(getenv(\"MW_DB_PORT\")?:3306))?0:1);"; do
@@ -220,7 +220,7 @@ jobs:
       - name: Ensure Short URLs in LocalSettings.php
         shell: bash
         run: |
-          # Datei im Container patchen – idempotent
+          # Update the configuration file in the container without adding duplicate settings
           docker compose exec -T -u www-data mediawiki sh -lc '
             set -eu
             f=${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}
@@ -230,7 +230,7 @@ jobs:
             if grep -q "^\$wgScriptPath" "$f"; then
               sed -i '\''s#^\$wgScriptPath\s*=.*#\$wgScriptPath = "";#'\'' "$f"
             else
-              # vor dem PHP-Schluss einfügen, falls vorhanden – sonst ans Ende
+              # Insert before the PHP closing tag if present; otherwise append
               if grep -q "^?>" "$f"; then
                 sed -i '\''s#^?>#\$wgScriptPath = "";\n?>#'\'' "$f"
               else
@@ -259,7 +259,7 @@ jobs:
 
       - name: E2E - check (API)
         run: |
-          # .env einlesen (falls vorhanden)
+          # Read .env if present
           [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           for i in $(seq 1 30); do
             if curl -fsS "http://localhost:${MW_HTTP_PORT:-8080}/api.php?action=query&meta=siteinfo&format=json" | grep -q '"query"'; then
@@ -275,7 +275,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          # .env einlesen (falls vorhanden)
+          # Read .env if present
           [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           # Tools
           sudo apt-get update >/dev/null && sudo apt-get install -y jq >/dev/null
@@ -365,7 +365,7 @@ jobs:
       - name: E2E - check sitemap redirect and target
         shell: bash
         run: |
-          # ENV laden, ohne PATH zu zerlegen
+          # Load environment values without overwriting PATH
           [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
 
           : "${MW_HTTP_PORT:=8080}"
@@ -375,18 +375,18 @@ jobs:
 
           ok=0
           for i in $(seq 1 40); do
-            # 1) MW-API erreichbar?
+            # 1) Is the MediaWiki API reachable?
             if ! curl -fsS "${BASE%/}/api.php?action=query&meta=siteinfo&format=json" | grep -q '"query"'; then
               sleep 3; continue
             fi
 
-            # 2) Nur den ersten Status von /sitemap.xml prüfen (ohne -L)
+            # 2) Check only the first /sitemap.xml response status (without -L)
             first_code="$(curl -sS -o /dev/null -w '%{http_code}' -I "${BASE%/}/sitemap.xml" || echo)"
-            # Standard: 301. Wenn du 302 auch akzeptieren willst, ersetze die nächste Zeile durch:
+            # Default: 301. To accept 302 as well, replace the next line with:
             # [ "$first_code" = "301" ] || [ "$first_code" = "302" ]
             [ "$first_code" = "301" ] || { sleep 3; continue; }
 
-            # 3) Finalen Code nach Follow-Redirect prüfen (mit -L)
+            # 3) Check the final status after following redirects (with -L)
             final_code="$(curl -sS -o /dev/null -w '%{http_code}' -IL "${BASE%/}/sitemap.xml" || echo)"
             if [ "$final_code" = "200" ]; then
               echo "[e2e] OK: first=$first_code, final=$final_code"
@@ -440,7 +440,7 @@ jobs:
         run: |
           [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           : "${MW_HTTP_PORT:=8080}"
-          : "${E2E_EXPECT_EXTENSIONS:=}"   # leer = nur auflisten
+          : "${E2E_EXPECT_EXTENSIONS:=}"   # empty means list extensions only
           JSON="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=extensions&format=json")"
           if [ -z "$E2E_EXPECT_EXTENSIONS" ]; then
             echo "$JSON" | grep -o '"name":"[^"]*"' | sed 's/.*:"//;s/"$//' | sort -u | sed 's/^/ - /'
@@ -457,20 +457,20 @@ jobs:
       - name: E2E — all extensions are loaded
         shell: bash
         run: |
-          # .env.ci sicher laden ohne PATH zu zerstören
+          # Load .env.ci without overwriting PATH
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           : "${MW_HTTP_PORT:=8080}"
           : "${E2E_EXPECT_EXTENSIONS:=$(docker compose exec -T mediawiki printenv MW_EXTRA_EXTENSIONS | tr -d '\r')}"
           echo "E2E_EXPECT_EXTENSIONS: $E2E_EXPECT_EXTENSIONS"
 
-          # Normalisierer: lower + nur [a-z0-9]
+          # Normalizer: lowercase letters and digits only
           norm() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]'; }
 
-          # API holen und alle Extension-"name"-Felder extrahieren
+          # Fetch the API response and extract every extension "name" field
           JSON="$(curl -fsS "http://localhost:${MW_HTTP_PORT}/api.php?action=query&meta=siteinfo&siprop=extensions&format=json")"
           API_NAMES="$(printf '%s' "$JSON" | grep -o '"name":"[^"]*"' | cut -d: -f2- | tr -d '"' )"
 
-          # In Normalform umwandeln (eine pro Zeile)
+          # Normalize the names, one per line
           API_NORM=""
           while IFS= read -r n; do API_NORM="${API_NORM}$(norm "$n")"$'\n'; done <<<' '"$API_NAMES"
 
@@ -490,13 +490,13 @@ jobs:
       - name: E2E — all skins are loaded
         shell: bash
         run: |
-          # .env.ci sicher laden ohne PATH zu zerstören
+          # Load .env.ci without overwriting PATH
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           : "${MW_HTTP_PORT:=8080}"
           : "${E2E_EXPECT_SKINS:=$(docker compose exec -T mediawiki printenv MW_EXTRA_SKINS | tr -d '\r')}"
           [ -n "$E2E_EXPECT_SKINS" ] || { echo "No E2E_EXPECT_SKINS defined, skipping"; exit 0; }
 
-          # 1) Helfer zuerst definieren
+          # 1) Define the helper first
           norm(){ printf '%s' "$1" | tr '[:upper:]' '[:lower:]' \
                   | sed -E 's/[ _]+/-/g; s/[^a-z0-9-]+//g'; }
           to_code(){
@@ -512,14 +512,14 @@ jobs:
             esac
           }
 
-          # 2) Erwartung aus MW_SKINS bauen (eine Zeile pro Code)
+          # 2) Build expected skin codes from MW_SKINS, one per line
           WANT=""
           for s in $E2E_EXPECT_SKINS; do
             c="$(to_code "$s")"
             [ -n "$c" ] && WANT="${WANT}${c}\n"
           done
 
-          # 3) Installierte/geladene Skins aus der API – WICHTIG: mit \n pro Eintrag!
+          # 3) Get installed and loaded skins from the API, with one name per line
           JSON="$(curl -fsS "http://localhost:${MW_HTTP_PORT:-8080}/api.php?action=query&meta=siteinfo&siprop=skins&format=json")"
           API_CODES="$(
             printf '%s' "$JSON" \
@@ -527,7 +527,7 @@ jobs:
             | while IFS= read -r x; do printf '%s\n' "$(norm "$x")"; done
           )"
 
-          # 4) Vergleichen (exakte Zeilen-Treffer)
+          # 4) Compare exact line matches
           fail=0
           printf '%b' "$WANT" | while IFS= read -r need; do
             [ -z "$need" ] && continue
@@ -543,7 +543,7 @@ jobs:
       - name: E2E — create test page
         shell: bash
         run: |
-          # .env.ci sicher laden ohne PATH zu zerstören
+          # Load .env.ci without overwriting PATH
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           : "${E2E_PAGE_TITLE:=E2E-Tagcloud-Test}"
           : "${E2E_MARK:=E2E_TAGCLOUD_OK}"
@@ -559,7 +559,7 @@ jobs:
 
           Broken link: ['"$E2E_BAD_URL"' E2E-Broken-Link]
           EOF
-          # Seite anlegen/überschreiben (ohne Login, via Maintenance)
+          # Create or overwrite the page through maintenance, without logging in
           php maintenance/run.php edit --summary "e2e create" --no-rc "'"$E2E_PAGE_TITLE"'" < /tmp/e2e-page.txt
           '
 
@@ -591,7 +591,7 @@ jobs:
           : "${MW_SITEMAP_IDENTIFIER:=wiki}"
           p="${MW_SITEMAP_URLPATH:-}"
 
-          # FS-Verzeichnis bestimmen: "" -> /var/www/html ; "sitemap/" -> /var/www/html/sitemap
+          # Resolve the filesystem directory: "" -> /var/www/html; "sitemap/" -> /var/www/html/sitemap
           norm_p="$( [ -n "$p" ] && printf '%s' "$p" | sed -E 's#^/+##; s#/+$##' || true )"
           if [ -n "$norm_p" ]; then
             FS_DIR="/var/www/html/${norm_p}"
@@ -602,14 +602,14 @@ jobs:
 
           echo "[e2e] Expect index at: $IDX"
 
-          # 1x generieren, falls noch nicht da (idempotent)
+          # Generate once if the sitemap does not exist yet
           docker compose exec -T mediawiki sh -lc '
             if [ ! -s "'"$IDX"'" ] && command -v /usr/local/bin/generate-sitemap.sh >/dev/null 2>&1; then
               /usr/local/bin/generate-sitemap.sh || true
             fi
           '
 
-          # prüfen mit Retry
+          # Retry the check
           ok=0
           for i in $(seq 1 20); do
             if docker compose exec -T mediawiki sh -lc '[ -s "'"$IDX"'" ]'; then
@@ -634,7 +634,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # bis zu ~3 Minuten warten (40 * 5s)
+          # Wait up to about 3 minutes (40 * 5s)
           for i in $(seq 1 40); do
             if docker compose exec -T opensearch sh -lc \
               "curl -fsS --max-time 4 'http://localhost:9200/_cat/health?h=status' | grep -Eq 'yellow|green'"; then
@@ -662,7 +662,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Werte aus .env.ci sauber laden (falls vorhanden)
+          # Load values from .env.ci if present
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           DB="${MW_DB_NAME:-wikidb}"
           for i in $(seq 1 60); do
@@ -677,12 +677,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # .env.ci laden, ohne PATH kaputt zu machen
+          # Load .env.ci without overwriting PATH
           if [ -f .env.ci ]; then ORIG_PATH="$PATH"; set -a; . ./.env.ci; set +a; export PATH="$ORIG_PATH"; fi
           : "${MW_HTTP_PORT:=8080}"
           BASE="http://localhost:${MW_HTTP_PORT}"
 
-          # 1) Backend ist CirrusSearch?
+          # 1) Is CirrusSearch the active backend?
           BACKEND="$(docker compose exec -T mediawiki sh -lc 'printf "%s\n" "echo \$wgSearchType, PHP_EOL;" \
             | php maintenance/run.php eval')"
           if [ "$BACKEND" != "CirrusSearch" ]; then
@@ -691,14 +691,14 @@ jobs:
           fi
           echo "✓ wgSearchType=CirrusSearch"
 
-          # 2) Cirrus-API erreichbar?
+          # 2) Is the CirrusSearch API reachable?
           if ! curl -fsS "${BASE}/api.php?action=cirrus-config-dump&format=json" >/dev/null; then
             echo "::error::cirrus-config-dump nicht erreichbar"
             exit 1
           fi
           echo "✓ cirrus-config-dump erreichbar"
 
-          # 3) Optionaler Smoke-Test (morelike) – nicht kritisch
+          # 3) Optional morelike smoke test; failure is not critical
           if curl -fsS "${BASE}/api.php?action=query&list=search&srsearch=morelike:Hauptseite&srlimit=3&format=json" \
               | grep -q '"search":\[' ; then
             echo "✓ morelike liefert JSON"
@@ -711,7 +711,7 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          # ENV laden (optional)
+          # Load environment values if available
           [ -f .env.ci ] && { P="$PATH"; set -a; . ./.env.ci; set +a; PATH="$P"; }
 
           : "${MW_HTTP_PORT:=8080}"
@@ -726,7 +726,7 @@ jobs:
           code="$(curl -sS --fail-with-body -L -D "$tmpdir/headers" -o "$tmpdir/body" -w '%{http_code}' "$url" || true)"
           echo "[e2e] HTTP $code"
 
-          # 1) HTTP-Fehlercodes abfangen
+          # 1) Catch HTTP error codes
           if [ -z "${code:-}" ] || [ "$code" -ge 500 ]; then
             echo "::error::Server error (HTTP $code)"
             sed -n '1,80p' "$tmpdir/headers" || true
@@ -735,11 +735,11 @@ jobs:
             exit 1
           fi
 
-          # 2) Exception-Marker im Body erkennen (auch wenn HTTP 200)
+          # 2) Detect exception markers in the body, including HTTP 200 responses
           if grep -qiE 'MediaWiki internal error|Original exception|Fatal error|Backtrace' "$tmpdir/body"; then
             echo "::error::Exception markers found in response body"
             sed -n '1,80p' "$tmpdir/headers" || true
-            # Zeige einen Body-Ausschnitt um die erste Fundstelle
+            # Show a body excerpt around the first match
             line="$(grep -niE 'MediaWiki internal error|Original exception|Fatal error|Backtrace' "$tmpdir/body" | \
               head -n1 | cut -d: -f1 || true)"
             if [ -n "$line" ]; then
@@ -752,7 +752,7 @@ jobs:
             exit 1
           fi
 
-          # 3) Erwartungstext prüfen (einfacher Smoke-Test)
+          # 3) Check for expected text as a simple smoke test
           if ! grep -qi -- "$E2E_MARK" "$tmpdir/body"; then
             echo "::error::Expected text not found: $E2E_MARK"
             sed -n '1,60p' "$tmpdir/headers" || true
@@ -772,14 +772,14 @@ jobs:
           : "${MW_SERVER_URL:=http://localhost:${MW_HTTP_PORT}}"
           : "${E2E_BAD_URL:=http://does-not-exist.invalid/e2e-broken}"
 
-          # 1) Generierung anstoßen (nimm dein Script, sonst Fallback: Jobs laufen lassen)
+          # 1) Start generation with the script, or run jobs as a fallback
           if docker compose exec -T mediawiki test -x /usr/local/bin/generate-rottenlinks.sh; then
             docker compose exec -T mediawiki /usr/local/bin/generate-rottenlinks.sh || true
           else
             docker compose exec -T -u www-data mediawiki php maintenance/run.php runJobs --maxjobs=200 || true
           fi
 
-          # 2) Spezialseite „RottenLinks“ pollen und nach URL suchen
+          # 2) Poll the RottenLinks special page and look for the URL
           base="${MW_SERVER_URL%/}"
           rl_url="$base/wiki/Spezial:RottenLinks"
           ok=0
@@ -800,7 +800,7 @@ jobs:
       - name: E2E — memcachephp UI
         shell: bash
         run: |
-          # .env einlesen (falls vorhanden)
+          # Read .env if present
           [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
           : "${MEMCACHEPHP_HTTP_PORT:=8097}"
           : "${MEMCACHEPHP_ADMIN_USER:=admin}"
@@ -865,7 +865,7 @@ jobs:
           done
           [ "$ok" = 1 ] || fail "/mcui did not redirect to /memcacheui/"
 
-          # 3) /memcacheui (ohne Slash) -> /memcacheui/
+          # 3) /memcacheui (without trailing slash) -> /memcacheui/
           ok=0
           for i in $(seq 1 $tries); do
             code="$(curl -sS -o /dev/null -w '%{http_code}' -I "$base/memcacheui")" || true
@@ -876,7 +876,7 @@ jobs:
           done
           [ "$ok" = 1 ] || fail "/memcacheui did not redirect to /memcacheui/"
 
-          # 4) Proxied Ziel /memcacheui/ (mit Basic Auth) -> final 200
+          # 4) Proxied /memcacheui/ with Basic Auth -> final 200
           ok=0
           for i in $(seq 1 $tries); do
             final="$(curl -sS -o /dev/null -w '%{http_code}' -IL -u "$MEMCACHEPHP_ADMIN_USER:$MEMCACHEPHP_ADMIN_PASS" \
@@ -886,16 +886,16 @@ jobs:
           done
           [ "$ok" = 1 ] || fail "proxied /memcacheui/ not returning 200 (got $final)"
 
-          # 5) Content-Sanity-Check ohne Broken-Pipe
+          # 5) Check response content without a broken pipe
           html="$(curl -fsS -u "$MEMCACHEPHP_ADMIN_USER:$MEMCACHEPHP_ADMIN_PASS" "$base/memcacheui/")" || {
             echo "::error::failed to fetch /memcacheui/ content"; exit 1; }
 
-          # Breiteres Pattern: Memcache(d), phpMemcache(d)Admin, Server Stats/Slabs/Items
+          # Match Memcache(d), phpMemcache(d)Admin, Server Stats/Slabs/Items
           if printf '%s' "$html" | grep -Ei '(memcache(d)?|phpmemcache(d)?admin|server[[:space:]-]?stats|slabs|items)' >/dev/null; then
             echo "[e2e] OK"
           else
             echo "::error::unexpected content at /memcacheui/"
-            # Debug-Ausschnitt zeigen
+            # Show a debug excerpt
             printf '%s\n' "$html" | head -n 80
             exit 1
           fi

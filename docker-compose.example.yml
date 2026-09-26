@@ -70,10 +70,10 @@ services:
           set -e
           base="http://localhost"
 
-          # 1) API erreichbar?
+          # 1) Is the API reachable?
           curl -fsS "$$base/api.php?action=query&meta=siteinfo&format=json" | grep -q '"query"'
 
-          # 2) /sitemap.xml gibt 301?
+          # 2) Does /sitemap.xml return 301?
           status="$$(curl -fsSI "$$base/sitemap.xml" | awk 'NR==1{print $$2}')"
           [ "$$status" = "301" ]
       interval: 30s

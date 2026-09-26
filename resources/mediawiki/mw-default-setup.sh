@@ -94,11 +94,11 @@ if [ -f "$f" ]; then
   tmp="$(mktemp)"
   awk -v repl="$want" '
     BEGIN{done=0}
-    # vorhandene $wgServer-Zeile ersetzen
+    # Replace the existing $wgServer assignment
     /^\$wgServer[[:space:]]*=/ { print repl; done=1; next }
     { print }
     END{
-      # falls keine Zuweisung gefunden wurde: am Ende anhängen
+      # Append the assignment if none was found
       if(!done) print "\n" repl
     }
   ' "$f" > "$tmp" && mv "$tmp" "$f"
@@ -126,7 +126,7 @@ fi
 # Enable uploads
 sed -i "s#^\$wgEnableUploads[[:space:]]*=.*#\$wgEnableUploads = true;#" "$f"
 
-# Write Own-LocalSettings block idempotently
+# Append the custom LocalSettings block
 cat >>"$f" <<'PHP'
 # ShortUrls settings
 $actions = [
@@ -195,7 +195,7 @@ $wgHeadScriptCode = <<<'START_END_MARKER'
 <!-- Apple Touch -->
 <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-title" content="Laub-Home" />
-<!-- PWA Manifest (kann auch im Root liegen; wichtig ist nur, dass es erreichbar ist) -->
+<!-- PWA manifest (it can also live at the root if it remains accessible) -->
 <link rel="manifest" href="/favicon/site.webmanifest" />
 START_END_MARKER;
 $wgHeadScriptName = 'Favicon Stuff';
@@ -340,7 +340,7 @@ PROMPT;
 }
 unset( $wandaEnabled );
 
-## Debuging Settings
+## Debugging settings
 # $wgShowExceptionDetails = true;
 # $wgShowDBErrorBacktrace = true;
 # $wgShowSQLErrors = true;

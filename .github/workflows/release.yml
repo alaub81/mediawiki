@@ -3,7 +3,7 @@ name: Release (build & push)
 'on':
   push:
     tags:
-      - 'v*.*.*'            # SemVer-Tags
+      - 'v*.*.*'            # SemVer tags
   workflow_dispatch:
     inputs:
       rebuild_tags:
@@ -17,7 +17,7 @@ name: Release (build & push)
         default: 2
         type: number
   schedule:
-    - cron: '0 1 * * 2'     # Dienstag 01:00 UTC
+    - cron: '0 1 * * 2'     # Tuesday at 01:00 UTC
 
 permissions:
   contents: read
@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # (A) TAG-REBUILD: nur bei Cron oder manuell (rebuild_tags=true)
+  # (A) Rebuild tags on schedule or when requested manually (rebuild_tags=true)
   select-tags:
     if: ${{ github.event_name == 'schedule' || inputs.rebuild_tags }}
     runs-on: ubuntu-latest
@@ -53,11 +53,11 @@ jobs:
           TAGS="$(git tag --list 'v*.*.*' --sort=-v:refname | head -n "${num}")"
           printf 'Selected tags:\n%s\n' "${TAGS}"
 
-          # Tags als JSON
+          # Convert tags to JSON
           JSON_TAGS="$(printf '%s\n' "${TAGS}" | jq -R . | jq -s -c .)"
           echo "tags_json=${JSON_TAGS}" >> "$GITHUB_OUTPUT"
 
-          # NEUSTER Tag (erste Zeile der sortierten Liste)
+          # Latest tag is the first line of the sorted list
           LATEST_TAG="$(printf '%s\n' "${TAGS}" | head -n 1)"
           echo "latest_tag=${LATEST_TAG}" >> "$GITHUB_OUTPUT"
 
@@ -128,13 +128,13 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
 
-      # Pre-build (amd64) zum Scannen, nicht pushen
+      # Build for amd64 to scan the image without pushing it
       - name: Build (scan image)
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.image.context }}
           file: ${{ matrix.image.dockerfile }}
-          pull: true               # aktualisiert Base-Image
+          pull: true               # refresh the base image
           push: false
           load: true
           platforms: linux/amd64
@@ -184,7 +184,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # (B) KLASSISCHER RELEASE: nur bei Tag-Push
+  # (B) Standard release on tag push
   release:
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
@@ -221,7 +221,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
           tags: |
-            # nimmt v1.2.3 und macht 1.2.3
+            # Convert v1.2.3 to 1.2.3
             type=semver,pattern={{version}},prefix=
             type=semver,pattern={{major}}.{{minor}},prefix=
             type=semver,pattern={{major}},prefix=
@@ -229,7 +229,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
 
-      # Pre-build (amd64) zum Scannen
+      # Build for amd64 before scanning
       - name: Pre-build (load for scan)
         uses: docker/build-push-action@v7
         with:
