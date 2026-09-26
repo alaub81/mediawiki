@@ -23,7 +23,6 @@ services:
         required: false
     restart: unless-stopped
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-R00tPassword}
       MW_SERVER_URL: ${MW_SERVER_URL:-http://localhost:8080}
       MW_SITENAME: ${MW_SITENAME:-My Own Wiki}
       MW_METANAMESPACE: ${MW_METANAMESPACE:-My_Own_Wiki}

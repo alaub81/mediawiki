@@ -53,6 +53,7 @@ if [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
   echo "${MW_CONFIG_FILE} exists → updating configuration"
 else
   echo "No ${MW_CONFIG_FILE} → running install.php"
+  : "${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD for the initial MediaWiki installation}"
 
   # DB port accessible? (failsafe in addition to previous DB wait)
   end=$((SECONDS+120))
@@ -70,7 +71,7 @@ else
     --dbuser    "${MW_DB_USER:-wikiuser}" \
     --dbpass    "${MW_DB_PASS:-w1k1pass}" \
     --installdbuser "${MW_DB_ADMIN_USER:-root}" \
-    --installdbpass "${MARIADB_ROOT_PASSWORD:-ciRootPassw0rd}" \
+    --installdbpass "${MARIADB_ROOT_PASSWORD}" \
     --lang      "${MW_LANG:-de}" \
     --server    "${MW_SERVER_URL:-http://localhost:8080}" \
     --scriptpath "" \

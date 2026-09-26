@@ -140,7 +140,7 @@ $wgSearchType = 'CirrusSearch';
 
 Elastica must be loaded before CirrusSearch. The hostname `opensearch` is the Docker Compose service name.
 
-For a new installation, enable the setup configuration described in `.env.mwsetup` and make the configuration directory writable during initial setup. After setup, the generated `LocalSettings.php` can be mounted read-only.
+For a new installation, enable `env_file: .env.mwsetup` for the MediaWiki service and make the configuration directory writable during initial setup. Entries in `.env.mwsetup` use values from `.env` when set and otherwise use their listed defaults. The setup database name, user, and password use `MARIADB_DATABASE`, `MARIADB_USER`, and `MARIADB_PASSWORD` unless `MW_DB_NAME`, `MW_DB_USER`, or `MW_DB_PASS` are set. `MARIADB_ROOT_PASSWORD` uses the same value as the database service. Variables set under the MediaWiki service's Compose `environment`, such as `MW_SITENAME`, take precedence over `.env.mwsetup`; set those in `.env` to change them. After setup, disable the env file and mount the generated `LocalSettings.php` read-only.
 
 ### 3. Start the development stack
 
