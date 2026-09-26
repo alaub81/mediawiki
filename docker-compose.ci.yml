@@ -9,7 +9,7 @@ services:
     image: mmediawiki-custom
     pull_policy: never
     env_file:
-      - .env.ci
+      - ${MW_CI_ENV_FILE:-.env.ci}
 
   memcachephp:
     build:

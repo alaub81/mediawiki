@@ -33,7 +33,7 @@ if ($passwordFile !== false && $passwordFile !== '') {
     $ADMIN_PASSWORD = getenv('MEMCACHEPHP_ADMIN_PASS') ?: 'supersecret';
 }
 
-$DATE_FORMAT    = getenv('MEMCACHEPHP_DATE_FORMAT') ?: 'Y/m/d H:i:s';
+$DATE_FORMAT    = getenv('MEMCACHEPHP_DATE_FORMAT') ?: 'Y-m-d H:i:s';
 $GRAPH_SIZE     = (int)(getenv('MEMCACHEPHP_GRAPH_SIZE') ?: 200);
 $MAX_ITEM_DUMP  = (int)(getenv('MEMCACHEPHP_MAX_ITEM_DUMP') ?: 50);
 

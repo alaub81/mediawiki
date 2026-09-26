@@ -23,6 +23,7 @@
 [ ] Update Wiki Artikel
 [ ] Update 1.46 Anleitung in Readme.md
 [ ] LocalSettings.php an lhlab wiki anpassen und überall updaten auch im installer
+[ ] Umbau auf optionale secrets Dateien. LocalSettings.php muss beides nehmen
 
 ```bash
 php maintenance/run.php /var/www/html/extensions/Wanda/maintenance/ReindexAllPages.php 
