@@ -215,7 +215,7 @@ $wgHeadScriptCode = <<<'START_END_MARKER'
 <link rel="shortcut icon" href="/favicon/favicon.ico" />
 <!-- Apple Touch -->
 <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
-<meta name="apple-mobile-web-app-title" content="Laub-Home" />
+<meta name="apple-mobile-web-app-title" content="LHlab" />
 <!-- PWA manifest (it can also live at the root if it remains accessible) -->
 <link rel="manifest" href="/favicon/site.webmanifest" />
 START_END_MARKER;
@@ -382,14 +382,17 @@ unset( $wandaEnabled );
 #$wgReadOnly = "<h1><b>Update Ongoing</b></h1><br>";
 #$wgReadOnly = "<h1><b>Migration Ongoing</b></h1><br>";
 
-## Debugging settings
-# $wgShowExceptionDetails = true;
-# $wgShowDBErrorBacktrace = true;
-# $wgShowSQLErrors = true;
-## Deprecated Messages
-# $wgShowDebug = true;
-# $wgDevelopmentWarnings = true;
-# $wgDeprecationReleaseLimit = '1.43';
+## Debugging settings (set MW_DEBUG in the container environment).
+$mwDebug = filter_var( getenv( 'MW_DEBUG' ) ?: 'false', FILTER_VALIDATE_BOOLEAN );
+# Show stack traces for uncaught exceptions in the page output.
+$wgShowExceptionDetails = $mwDebug;
+# Show debug messages at the bottom of the page.
+$wgShowDebug = $mwDebug;
+# Emit warnings for deprecated features and development issues.
+$wgDevelopmentWarnings = $mwDebug;
+# Limit deprecation warnings to the specified MediaWiki release.
+$wgDeprecationReleaseLimit = getenv( 'MW_DEPRECATION_RELEASE_LIMIT' ) ?: false;
+# Disable PHP error reporting at runtime.
 # error_reporting(0);
 # --- mw-default-setup custom settings END ---
 PHP
