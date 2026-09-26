@@ -416,6 +416,11 @@ PROMPT;
 }
 unset( $wandaEnabled );
 
+# ReadOnly Mode
+#$wgReadOnly = "<h1><b>Ist nur der Mirror. Bitte unter www.example.com editieren</b></h1><br>";
+#$wgReadOnly = "<h1><b>Update Ongoing</b></h1><br>";
+#$wgReadOnly = "<h1><b>Migration Ongoing</b></h1><br>";
+
 # Debugging on
 #$wgShowExceptionDetails = true;
 #$wgShowDBErrorBacktrace = true;
