@@ -50,8 +50,7 @@ else
 fi
 
 if [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
-  echo "${MW_CONFIG_FILE} exists → running update.php"
-  $run update
+  echo "${MW_CONFIG_FILE} exists → updating configuration"
 else
   echo "No ${MW_CONFIG_FILE} → running install.php"
 
@@ -80,12 +79,26 @@ else
     "${MW_SITENAME:-Wiki CI}" \
     "${MW_ADMIN_USER:-Admin}"
 fi
-echo "[install] Installation/Update done."
 
 # $wgServer, $wgScriptPath and $wgArticlePath in LocalSettings.php set/place
 # read LocalSettings.php
 f="${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}"
   [ -f "$f" ] || { echo "Config file $f not found"; exit 1; }
+
+# Keep the generated site name and project namespace tied to the runtime values.
+want_site="\$wgSitename = getenv('MW_SITENAME') ?: \"My Own Wiki\";"
+want_meta="\$wgMetaNamespace = getenv('MW_METANAMESPACE') ?: \"My_Own_Wiki\";"
+tmp="$(mktemp)"
+awk -v site="$want_site" -v meta="$want_meta" '
+  BEGIN { found_site=0; found_meta=0 }
+  /^\$wgSitename[[:space:]]*=/ { print site; found_site=1; next }
+  /^\$wgMetaNamespace[[:space:]]*=/ { print meta; found_meta=1; next }
+  { print }
+  END {
+    if (!found_site) print site
+    if (!found_meta) print meta
+  }
+' "$f" > "$tmp" && mv "$tmp" "$f"
 
 # Target line (exactly as shown, without quotes around the expression)
 want="\$wgServer = getenv('MW_SERVER_URL') ?: 'http://localhost:8080';"
@@ -126,8 +139,16 @@ fi
 # Enable uploads
 sed -i "s#^\$wgEnableUploads[[:space:]]*=.*#\$wgEnableUploads = true;#" "$f"
 
-# Append the custom LocalSettings block
+# Append the custom LocalSettings block only once. Existing configurations may
+# already contain the older, unmarked version of this block.
+if grep -Fq '# --- mw-default-setup custom settings BEGIN ---' "$f" || \
+   grep -Fq 'function HeadScript(' "$f"; then
+  echo "[LocalSettings] Custom configuration already present; skipping append."
+else
 cat >>"$f" <<'PHP'
+# --- mw-default-setup custom settings BEGIN ---
+# End of automatically generated settings.
+# Add more configuration options below.
 # ShortUrls settings
 $actions = [
 	'edit',
@@ -207,6 +228,22 @@ function HeadScript( OutputPage &$out, Skin &$skin ) {
         return TRUE;
 }
 
+# IPv6 Ready badge: remove the /* and */ lines below to enable it.
+/*
+$wgFooterIcons['poweredby-ipv6'] = [
+  'ipv6ready' => [
+  // Local Image
+  // "src" => "$wgResourceBasePath/images/button-ipv6-small.png",
+  // Remote Image
+  "src" => "https://ipv6-test.com/button-ipv6-small.png",
+  "url" => "https://ipv6-test.com/validate.php?url=referer",
+  "alt" => "ipv6 ready",
+  "height" => "31",
+  "width" => "88",
+  ]
+];
+*/
+
 # Allow to overwrite the article title
 $wgAllowDisplayTitle = true;
 $wgRestrictDisplayTitle = false;
@@ -282,7 +319,7 @@ if ( $wandaEnabled ) {
 	$wgWandaEnableAttachments = false;
 	$wgWandaEnableEditing = false;
 
-	// Keep answers grounded in readable LHlab wiki content.
+	// Keep answers grounded in readable wiki content.
 	$wgWandaDisabledSources = [
 		'wikidata',
 		'publicknowledge',
@@ -315,9 +352,9 @@ if ( $wandaEnabled ) {
 	$wgWandaMaxImageSize = 5242880;
 	$wgWandaMaxImageCount = 3;
 
-	# Ground Wanda's answers in the retrieved LHlab wiki content.
-	$wgWandaCustomPrompt = <<<'PROMPT'
-You are the knowledge assistant for LHlab wiki.
+	# Ground Wanda's answers in the retrieved wiki content.
+	$wgWandaCustomPrompt = <<<PROMPT
+You are the knowledge assistant for {$wgSitename}.
 
 Answer the user's question using only the supplied wiki context.
 
@@ -332,13 +369,18 @@ Rules:
 - Answer in the language used by the user.
 - Do not expose raw wikitext.
 - Do not suggest database queries or internal maintenance commands to ordinary users.
-- Do not claim that information comes from LHlab wiki unless it is present in the supplied context.
+- Do not claim that information comes from {$wgSitename} unless it is present in the supplied context.
 - If the supplied context does not contain enough information, say so directly instead of guessing.
 PROMPT;
 
 	$wgWandaCustomPromptTitle = '';
 }
 unset( $wandaEnabled );
+
+# ReadOnly Mode
+#$wgReadOnly = "<h1><b>This is a mirror. Please edit at www.example.com</b></h1><br>";
+#$wgReadOnly = "<h1><b>Update Ongoing</b></h1><br>";
+#$wgReadOnly = "<h1><b>Migration Ongoing</b></h1><br>";
 
 ## Debugging settings
 # $wgShowExceptionDetails = true;
@@ -349,6 +391,11 @@ unset( $wandaEnabled );
 # $wgDevelopmentWarnings = true;
 # $wgDeprecationReleaseLimit = '1.43';
 # error_reporting(0);
+# --- mw-default-setup custom settings END ---
 PHP
+fi
 
+# Load extension schema changes after the configuration has been written.
+$run update
 echo "[LocalSettings] LocalSettings-Konfiguration wurde in $f aktualisiert."
+echo "[install] Installation/Update done."

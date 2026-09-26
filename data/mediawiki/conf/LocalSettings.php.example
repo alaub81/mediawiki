@@ -269,7 +269,8 @@ function HeadScript( OutputPage &$out, Skin &$skin ) {
         return TRUE;
 }
 
-# IPV6 Ready Logo
+# IPv6 Ready badge: remove the /* and */ lines below to enable it.
+/*
 $wgFooterIcons['poweredby-ipv6'] = [
   'ipv6ready' => [
   // Local Image
@@ -282,6 +283,7 @@ $wgFooterIcons['poweredby-ipv6'] = [
   "width" => "88",
   ]
 ];
+*/
 
 # Allow to overwrite the article title
 $wgAllowDisplayTitle = true;
@@ -358,7 +360,7 @@ if ( $wandaEnabled ) {
 	$wgWandaEnableAttachments = false;
 	$wgWandaEnableEditing = false;
 
-	// Keep answers grounded in readable LHlab wiki content.
+	// Keep answers grounded in readable wiki content.
 	$wgWandaDisabledSources = [
 		'wikidata',
 		'publicknowledge',
@@ -391,9 +393,9 @@ if ( $wandaEnabled ) {
 	$wgWandaMaxImageSize = 5242880;
 	$wgWandaMaxImageCount = 3;
 
-	# Ground Wanda's answers in the retrieved LHlab wiki content.
-	$wgWandaCustomPrompt = <<<'PROMPT'
-You are the knowledge assistant for LHlab wiki.
+	# Ground Wanda's answers in the retrieved wiki content.
+	$wgWandaCustomPrompt = <<<PROMPT
+You are the knowledge assistant for {$wgSitename}.
 
 Answer the user's question using only the supplied wiki context.
 
@@ -408,7 +410,7 @@ Rules:
 - Answer in the language used by the user.
 - Do not expose raw wikitext.
 - Do not suggest database queries or internal maintenance commands to ordinary users.
-- Do not claim that information comes from LHlab wiki unless it is present in the supplied context.
+- Do not claim that information comes from {$wgSitename} unless it is present in the supplied context.
 - If the supplied context does not contain enough information, say so directly instead of guessing.
 PROMPT;
 
