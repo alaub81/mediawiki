@@ -221,10 +221,12 @@ $wgCirrusSearchServers = [ 'opensearch' ];
 # $wgCirrusSearchIndexBaseName = 'wikidb';
 $wgCirrusSearchUseCompletionSuggester = true;
 
+# Related Articles using CirrusSearch
 # $wgRelatedArticlesFooterWhitelistedSkins = ['minerva', 'vector'];
 $wgRelatedArticlesDescriptionSource = 'pagedescription';
 $wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
 $wgRelatedArticlesUseCirrusSearch = true;
+$wgRelatedArticlesCardLimit = 6;
 # $wgRelatedArticlesOnlyUseCirrusSearch = true;
 
 # Searchable namespaces
