@@ -125,6 +125,37 @@ set_php_setting wgRightsUrl "\$wgRightsUrl = \"https://creativecommons.org/licen
 set_php_setting wgRightsText "\$wgRightsText = \"Creative Commons „Namensnennung“\";"
 set_php_setting wgRightsIcon "\$wgRightsIcon = \"\$wgResourceBasePath/resources/assets/licenses/cc-by.png\";"
 
+# Use appropriately sized variants of the bundled MW-C artwork.
+set_php_logos() {
+  local tmp
+  tmp="$(mktemp)"
+  awk -v quote="'" '
+    function print_logos() {
+      print "$wgLogos = ["
+      print "\t" quote "1x" quote " => \"$wgResourceBasePath/favicon/mw-c_logo-135x135.png\","
+      print "\t" quote "icon" quote " => \"$wgResourceBasePath/favicon/mw-c_logo-100x100.png\","
+      print "];"
+    }
+    /^\$wgLogos[[:space:]]*=/ {
+      if (!found) print_logos()
+      found=1
+      skip=1
+      if (/\];[[:space:]]*$/) skip=0
+      next
+    }
+    skip {
+      if (/^[[:space:]]*\];[[:space:]]*$/) skip=0
+      next
+    }
+    /^\?>[[:space:]]*$/ && !found { print_logos(); found=1 }
+    { print }
+    END { if (!found) print_logos() }
+  ' "$f" > "$tmp"
+  cat "$tmp" > "$f"
+  rm -f "$tmp"
+}
+set_php_logos
+
 # Keep the generated site name and project namespace tied to the runtime values.
 want_site="\$wgSitename = getenv('MW_SITENAME') ?: \"My Own Wiki\";"
 want_meta="\$wgMetaNamespace = getenv('MW_METANAMESPACE') ?: \"My_Own_Wiki\";"
