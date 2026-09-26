@@ -20,6 +20,9 @@
     <https://securityheaders.com/?q=https%3A%2F%2Flhlab.wiki&followRedirects=on>
     <https://pagespeed.web.dev/analysis/https-lhlab-wiki-wiki-Dimplex_Wärmepumpe_Smart-Grid_mit_Shelly_Relais/57ygqq2725?form_factor=mobile>
 
+[ ] Update Wiki Artikel
+[ ] Update 1.46 Anleitung in Readme.md
+
 ```bash
 php maintenance/run.php /var/www/html/extensions/Wanda/maintenance/ReindexAllPages.php 
 

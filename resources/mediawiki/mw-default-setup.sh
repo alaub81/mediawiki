@@ -260,7 +260,7 @@ $wgFileExtensions = array_values( array_unique( array_merge(
 ) ) );
 
 # Enable Wanda only when its optional Elasticsearch service is enabled.
-$wandaEnabled = filter_var( getenv( 'WANDA_ENABLED' ) ?: 'false', FILTER_VALIDATE_BOOLEAN );
+$wandaEnabled = filter_var( getenv( 'MW_WANDA_ENABLED' ) ?: 'false', FILTER_VALIDATE_BOOLEAN );
 
 if ( $wandaEnabled ) {
 	wfLoadExtension( 'Wanda' );

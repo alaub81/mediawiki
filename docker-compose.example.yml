@@ -38,7 +38,7 @@ services:
       MW_CS_INDEX_CRON: "${MW_CS_INDEX_CRON:-15 * * * *}"
       MW_CS_INDEX_RUN_ON_START: "${MW_CS_INDEX_RUN_ON_START:-false}"
       MW_OPENSEARCH_URL: "${MW_OPENSEARCH_URL:-http://opensearch:9200}"
-      WANDA_ENABLED: "${WANDA_ENABLED:-false}"
+      MW_WANDA_ENABLED: "${MW_WANDA_ENABLED:-false}"
       MW_ELASTICSEARCH_URL: "${MW_ELASTICSEARCH_URL:-http://elasticsearch:9200}"
       CLAMAV_ENABLED: ${CLAMAV_ENABLED:-true}
       CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
