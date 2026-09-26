@@ -1,16 +1,14 @@
 # ToDos
 
-[] README.md OpenSearch einbauen, Update auf OpenSearch und ändern des Defaul setups mit `mw-default-setup.sh`
-[] Elasticsearch Wanda
-[] Wanda ClamAV in `.env` dokumentieren
-[] RottenLinks Commit check nach neuerem
-[] Virusscann test
+[ ] README.md OpenSearch einbauen, Update auf OpenSearch und ändern des Defaul setups mit `mw-default-setup.sh`
+[ ] Elasticsearch Wanda
+[ ] Wanda ClamAV in `.env` dokumentieren
+[ ] RottenLinks Commit check nach neuerem
 [ ] Wieso MariaDB Root Passwort in MediaWiki? nur wegen mw-setup? kann sicher auch weg und in die mw.setup?
 [ ] ## Transitional: the memcachephp image does not read *_FILE yet.
       ## Prepared secret: secrets/memcachephp_admin_pass (keep in sync)
       MW_MEMCACHEPHP_ADMIN_PASS=<set-locally>
-[] Problem mit dependencies wenn elasticsearch nicht hochgefahren wird... docker compose.. das selbe auch bei clamav
-
+[x] Problem mit dependencies wenn elasticsearch nicht hochgefahren wird... docker compose.. das selbe auch bei clamav
 [?] MARIADB_VARS doch setzen und wiki DB anlegen lassen? testen
 [!] !!nicht machen!! - MW_SITEMAP_IDENTIFIER=wiki und $wgArticlePath = "/wiki/$1"; kann noch in die redirects und in die shortURLs?
 [?] ExternalContent Extension wenn für 1.44 verfügbar [ExternalContent](https://www.mediawiki.org/wiki/Extension:External_Content)

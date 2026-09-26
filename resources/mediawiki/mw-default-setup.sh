@@ -20,33 +20,41 @@ HAS_EXT=0; HAS_WITH=0
 printf '%s' "$INSTALL_HELP" | grep -q -- '--extensions'       && HAS_EXT=1
 printf '%s' "$INSTALL_HELP" | grep -q -- '--with-extensions'  && HAS_WITH=1
 
-# Space → CSV from MW_ACTIVE_EXTENSIONS
+# Select extensions for the installer. Wanda and WandaScore are loaded only
+# by the conditional configuration block below.
 EXT_CSV=""
+append_extension() {
+  case "$1" in
+    Wanda|WandaScore) return ;;
+  esac
+  if [ -z "$EXT_CSV" ]; then EXT_CSV="$1"; else EXT_CSV="$EXT_CSV,$1"; fi
+}
 if [ -n "${MW_ACTIVE_EXTENSIONS:-}" ]; then
   set -f
   for e in $MW_ACTIVE_EXTENSIONS; do
-    if [ -z "$EXT_CSV" ]; then EXT_CSV="$e"; else EXT_CSV="$EXT_CSV,$e"; fi
+    append_extension "$e"
   done
   set +f
+else
+  for dir in extensions/*; do
+    [ -f "$dir/extension.json" ] || continue
+    append_extension "${dir##*/}"
+  done
 fi
 
 # Which flag to use?
 EXT_FLAG=""
-if [ -z "$EXT_CSV" ]; then
-  if [ $HAS_WITH -eq 1 ]; then
-    EXT_FLAG="--with-extensions"
-  else
-    echo "[install] Hinweis: --with-extensions nicht verfügbar; keine Extensions per Installer geladen." >&2
-  fi
-else
+if [ -n "$EXT_CSV" ]; then
   if [ $HAS_EXT -eq 1 ]; then
     EXT_FLAG="--extensions $EXT_CSV"
   elif [ $HAS_WITH -eq 1 ]; then
-    echo "[install] Hinweis: --extensions fehlt; benutze --with-extensions und ignoriere Liste." >&2
+    echo "[install] Hinweis: --extensions fehlt; --with-extensions lädt auch Wanda/WandaScore vorübergehend." >&2
     EXT_FLAG="--with-extensions"
   else
     echo "[install] Hinweis: Weder --extensions noch --with-extensions verfügbar; lade Extensions nachträglich." >&2
   fi
+else
+  echo "[install] Keine automatisch zu ladenden Extensions gefunden." >&2
 fi
 
 if [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
@@ -77,7 +85,7 @@ else
     --scriptpath "" \
     --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
     ${EXT_FLAG:+$EXT_FLAG} \
-    "${MW_SITENAME:-Wiki CI}" \
+    "${MW_SITENAME:-My Own Wiki}" \
     "${MW_ADMIN_USER:-Admin}"
 fi
 
@@ -85,6 +93,37 @@ fi
 # read LocalSettings.php
 f="${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}"
   [ -f "$f" ] || { echo "Config file $f not found"; exit 1; }
+
+# Older installer runs may have enabled Wanda unconditionally. The block below
+# owns both extensions, so remove only the top-level installer assignments.
+sed -i "/^wfLoadExtension( 'Wanda' );$/d; /^wfLoadExtension( 'WandaScore' );$/d" "$f"
+
+# Replace installer defaults without adding duplicate assignments on later runs.
+set_php_setting() {
+  local name="$1" value="$2" tmp
+  tmp="$(mktemp)"
+  awk -v name="$name" -v value="$value" '
+    $0 ~ "^\\$" name "[[:space:]]*=" {
+      if (!found) print value
+      found=1
+      next
+    }
+    /^\?>[[:space:]]*$/ && !found { print value; found=1 }
+    { print }
+    END { if (!found) print value }
+  ' "$f" > "$tmp"
+  cat "$tmp" > "$f"
+  rm -f "$tmp"
+}
+
+set_php_setting wgMainCacheType "\$wgMainCacheType = CACHE_MEMCACHED;"
+set_php_setting wgMemCachedServers "\$wgMemCachedServers = array_values( array_filter( array_map( 'trim', explode( ',', getenv( 'MW_MEMCACHED_SERVERS' ) ?: 'memcached:11211' ) ) ) );"
+set_php_setting wgLocaltimezone "\$wgLocaltimezone = getenv('TZ') ?: 'UTC';"
+set_php_setting wgRightsUrl "\$wgRightsUrl = \"https://creativecommons.org/licenses/by/4.0/\";"
+# Preserve the typographic quotation marks in the German license text.
+# shellcheck disable=SC1111
+set_php_setting wgRightsText "\$wgRightsText = \"Creative Commons „Namensnennung“\";"
+set_php_setting wgRightsIcon "\$wgRightsIcon = \"\$wgResourceBasePath/resources/assets/licenses/cc-by.png\";"
 
 # Keep the generated site name and project namespace tied to the runtime values.
 want_site="\$wgSitename = getenv('MW_SITENAME') ?: \"My Own Wiki\";"
@@ -148,8 +187,6 @@ if grep -Fq '# --- mw-default-setup custom settings BEGIN ---' "$f" || \
 else
 cat >>"$f" <<'PHP'
 # --- mw-default-setup custom settings BEGIN ---
-# End of automatically generated settings.
-# Add more configuration options below.
 # ShortUrls settings
 $actions = [
 	'edit',
@@ -173,21 +210,23 @@ foreach ( $actions as $action ) {
 }
 $wgActionPaths['view'] = "/wiki/$1";
 $wgArticlePath = "/wiki/$1";
-# --- ShortUrls settings (auto) END ---
 
 # Output <link rel="canonical"> on every page
 $wgEnableCanonicalServerLink = true;
 
-# --- CirrusSearch settings (auto) BEGIN ---
+# CirrusSearch settings
 $wgSearchType = 'CirrusSearch';
 $wgCirrusSearchServers = [ 'opensearch' ];
+# $wgCirrusSearchIndexBaseName = 'wikidb';
 $wgCirrusSearchUseCompletionSuggester = true;
 
 # Related Articles using CirrusSearch
+# $wgRelatedArticlesFooterWhitelistedSkins = ['minerva', 'vector'];
 $wgRelatedArticlesDescriptionSource = 'pagedescription';
 $wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
 $wgRelatedArticlesUseCirrusSearch = true;
 $wgRelatedArticlesCardLimit = 6;
+# $wgRelatedArticlesOnlyUseCirrusSearch = true;
 
 # Searchable namespaces
 $wgNamespacesToBeSearchedDefault = [
@@ -383,7 +422,7 @@ unset( $wandaEnabled );
 #$wgReadOnly = "<h1><b>Update Ongoing</b></h1><br>";
 #$wgReadOnly = "<h1><b>Migration Ongoing</b></h1><br>";
 
-## Debugging settings (set MW_DEBUG in the container environment).
+# Debugging settings (set MW_DEBUG in the container environment).
 $mwDebug = filter_var( getenv( 'MW_DEBUG' ) ?: 'false', FILTER_VALIDATE_BOOLEAN );
 # Show stack traces for uncaught exceptions in the page output.
 $wgShowExceptionDetails = $mwDebug;
@@ -394,7 +433,7 @@ $wgDevelopmentWarnings = $mwDebug;
 # Limit deprecation warnings to the specified MediaWiki release.
 $wgDeprecationReleaseLimit = getenv( 'MW_DEPRECATION_RELEASE_LIMIT' ) ?: false;
 # Disable PHP error reporting at runtime.
-# error_reporting(0);
+#error_reporting(0);
 # --- mw-default-setup custom settings END ---
 PHP
 fi

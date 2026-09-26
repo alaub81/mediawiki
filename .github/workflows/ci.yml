@@ -149,7 +149,8 @@ jobs:
           MEMCACHEPHP_HTTP_PORT=8097
           MEMCACHEPHP_ADMIN_USER=admin
           MEMCACHEPHP_ADMIN_PASS=supersecret
-          MEMCACHEPHP_SERVERS=memcached:11211
+          MW_MEMCACHED_SERVERS=memcached:11211
+          MEMCACHEPHP_SERVERS=${MW_MEMCACHED_SERVERS}
 
           # ClamAV
           CLAMAV_ENABLE=true
