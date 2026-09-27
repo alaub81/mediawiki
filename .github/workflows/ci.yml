@@ -146,7 +146,6 @@ jobs:
           MW_ROTTENLINKS_RUN_ON_START=true
 
           # MemcachePHP
-          MEMCACHEPHP_HTTP_PORT=8097
           MEMCACHEPHP_ADMIN_USER=admin
           MEMCACHEPHP_ADMIN_PASS=supersecret
           MW_MEMCACHED_SERVERS=memcached:11211
@@ -798,29 +797,7 @@ jobs:
             exit 1
           fi
 
-      - name: E2E — memcachephp UI
-        shell: bash
-        run: |
-          # Read .env if present
-          [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
-          : "${MEMCACHEPHP_HTTP_PORT:=8097}"
-          : "${MEMCACHEPHP_ADMIN_USER:=admin}"
-          : "${MEMCACHEPHP_ADMIN_PASS:=supersecret}"
-
-          BASE="http://localhost:${MEMCACHEPHP_HTTP_PORT}/"
-
-          echo "[e2e] Checking ${BASE} with basic auth user=${MEMCACHEPHP_ADMIN_USER}"
-
-          for i in $(seq 1 30); do
-            if curl -fsS -u "${MEMCACHEPHP_ADMIN_USER}:${MEMCACHEPHP_ADMIN_PASS}" "${BASE}" \
-              | grep -Eiq 'memcache|server stats|slabs'; then
-              echo "MEMCACHEPHP OK"
-              exit 0
-            fi
-            sleep 3
-          done
-
-      - name: E2E — MemcachePHP hinter /memcache Reverse Proxy
+      - name: E2E — MemcachePHP über MediaWiki-Proxy
         shell: bash
         run: |
           [ -f .env.ci ] && { set -a; . ./.env.ci; set +a; }
@@ -880,7 +857,7 @@ jobs:
           # 4) Proxied /memcacheui/ with Basic Auth -> final 200
           ok=0
           for i in $(seq 1 $tries); do
-            final="$(curl -sS -o /dev/null -w '%{http_code}' -IL -u "$MEMCACHEPHP_ADMIN_USER:$MEMCACHEPHP_ADMIN_PASS" \
+            final="$(curl -sS -o /dev/null -w '%{http_code}' -L -u "$MEMCACHEPHP_ADMIN_USER:$MEMCACHEPHP_ADMIN_PASS" \
               "$base/memcacheui/")" || true
             [ "$final" = "200" ] && { ok=1; break; }
             sleep 3
