@@ -1,5 +1,6 @@
 .env
 .env.ci
+/secrets/
 docker-compose.yml
 data/mediawiki/conf/mw_local_settings/LocalSettings.php
 data/mediawiki/conf/LocalSettings.php

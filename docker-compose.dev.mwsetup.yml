@@ -59,8 +59,8 @@ services:
       CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
       TZ: ${TZ:-UTC}
-    # env_file:
-    #   - .env.mwsetup
+    env_file:
+      - .env.mwsetup
     ports:
       - ${MW_HTTP_PORT:-8080}:80
     labels:
@@ -70,9 +70,9 @@ services:
       # After initial setup, download LocalSettings.php to data/conf directory
       # and uncomment the following line and use compose to restart
       # the mediawiki service
-      - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
+      # - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
       # or custom config file don't forget to set MW_CONFIG_FILE env var in .env
-      # - ./data/mediawiki/conf/mw_local_settings:/var/www/html/conf/:rw
+      - ./data/mediawiki/conf/mw_local_settings:/var/www/html/conf/:rw
       # --- Custom files and volumes: ---
       # - ./data/mediawiki/conf/robots.txt:/var/www/html/robots.txt:ro
       # - ./data/mediawiki/conf/.htaccess:/var/www/html/.htaccess:ro

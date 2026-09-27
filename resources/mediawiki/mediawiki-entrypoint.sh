@@ -52,13 +52,27 @@ add_cron_if_missing() {
 }
 
 # MediaWiki Update
-if [ "${MW_AUTO_UPDATE:-false}" = "true" ] && [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
-  echo "[entrypoint] running database update (idempotent)…"
+if [ "${MW_AUTO_UPDATE:-false}" = "true" ] && [ -f "$MW_CONFIG_FILE" ]; then
   # Prevent parallel starts:
   mkdir -p /run; exec 9>/run/mw-update.lock
   if flock -n 9; then
-    php maintenance/run.php update --quick --skip-config-validation || {
-      echo "::error::update.php failed"; exit 1; }
+    # eval exits with 10 only when the MediaWiki schema is absent. Connection
+    # and configuration errors retain their own nonzero status and stay fatal.
+    # shellcheck disable=SC2016 # PHP's $e must remain literal for eval.
+    if printf '%s\n' 'try { exit( \MediaWiki\MediaWikiServices::getInstance()->getConnectionProvider()->getPrimaryDatabase()->tableExists( "site_stats", "entrypoint" ) ? 0 : 10 ); } catch ( \Throwable $e ) { exit( 11 ); }' |
+        php maintenance/run.php eval --conf "$MW_CONFIG_FILE" >/dev/null; then
+      echo "[entrypoint] running database update (idempotent)…"
+      php maintenance/run.php update --conf "$MW_CONFIG_FILE" --quick --skip-config-validation || {
+        echo "::error::update.php failed"; exit 1; }
+    else
+      check_status=$?
+      if [ "$check_status" -eq 10 ]; then
+        echo "[entrypoint] MediaWiki is not installed. Please run 'php maintenance/run.php installPreConfigured --conf $MW_CONFIG_FILE' to install the wiki."
+      else
+        echo "::error::Could not check whether MediaWiki is installed (exit status $check_status)." >&2
+        exit "$check_status"
+      fi
+    fi
   else
     echo "[entrypoint] another update is in progress; skipping"
   fi

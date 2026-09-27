@@ -1,6 +1,6 @@
 # LHlab wiki — MediaWiki Docker Stack
 
-A reproducible Docker stack for **LHlab wiki**, based on MediaWiki 1.46 with MariaDB, OpenSearch, CirrusSearch, Elastica, Memcached, ClamAV, scheduled maintenance jobs, and a custom MediaWiki image.
+A reproducible Docker stack from **LHlab wiki**, based on MediaWiki 1.46 with MariaDB, OpenSearch, CirrusSearch, Elastica, Memcached, ClamAV, scheduled maintenance jobs, and a custom MediaWiki image.
 
 ## Included services
 
@@ -79,8 +79,17 @@ The custom MediaWiki image installs these extensions:
 
 - Docker Engine
 - Docker Compose v2
-- At least 2 GB of available memory for the complete stack
+- Plan for about 3 GiB of memory available to Docker for the core services, or about 6 GiB with the `clamav,elasticsearch` profiles enabled as in `.env.example`. These are provisional capacity guidelines, not measured peak requirements.
 - An amd64 host or amd64 container emulation for the Wikimedia OpenSearch image
+
+RAM measurements on a Docker Desktop VM with 7.75 GiB allocated (27 September 2026, `docker stats`, roughly four seconds between samples):
+
+| Profile | Containers | Highest sampled total | Observation |
+| --- | ---: | ---: | --- |
+| Core services, optional profiles disabled | 5 | 1.57 GiB | Two minutes, including startup from a stopped stack |
+| Full `.env.example` profiles (`clamav,elasticsearch`) | 7 | 3.61 GiB | Four minutes, adding the optional services to the running core stack |
+
+An earlier full-stack snapshot showed 4.07 GiB (ClamAV 0.99 GiB, Elasticsearch 1.26 GiB, OpenSearch 1.44 GiB, other services 0.39 GiB). Each measured profile answered 120 read-only API requests (site information, search, recent changes) successfully. A bounded search-index update processed only one page, and the MediaWiki database updater found no pending schema changes. At the end of the full-profile run, cgroup swap usage was zero and no container had been OOM-killed or restarted. These short runs on a nearly empty wiki do not establish minimum RAM or worst-case peaks. Leave room for larger indexes and maintenance jobs and, on Docker Desktop, allocate the memory to the Docker VM.
 
 ## Quick start
 
@@ -131,16 +140,29 @@ data/mediawiki/conf/LocalSettings.php
 Its CirrusSearch configuration must contain:
 
 ```php
-wfLoadExtension( 'Elastica' );
 wfLoadExtension( 'CirrusSearch' );
+wfLoadExtension( 'Elastica' );
 
 $wgCirrusSearchServers = [ 'opensearch' ];
 $wgSearchType = 'CirrusSearch';
 ```
 
-Elastica must be loaded before CirrusSearch. The hostname `opensearch` is the Docker Compose service name.
+For a new installation, enable `env_file: .env.mwsetup` for the MediaWiki service and make the configuration directory writable during initial setup. Most setup-only entries in `.env.mwsetup` have direct values; review the admin password. `MW_DB_NAME`, `MW_DB_USER`, and `MW_DB_PASS` use `MARIADB_DATABASE`, `MARIADB_USER`, and `MARIADB_PASSWORD` from `.env` when set. `MW_SITENAME` and `MARIADB_ROOT_PASSWORD` also use values from `.env` when set. Variables also set under the MediaWiki service's Compose `environment`, such as `MW_SITENAME`, take precedence over `.env.mwsetup`. The development Compose file reads `MW_DB_PASS` from `.env.mwsetup`. After setup, disable the env file and mount the generated `LocalSettings.php` read-only.
 
-For a new installation, enable `env_file: .env.mwsetup` for the MediaWiki service and make the configuration directory writable during initial setup. Entries in `.env.mwsetup` use values from `.env` when set and otherwise use their listed defaults. The setup database name, user, and password use `MARIADB_DATABASE`, `MARIADB_USER`, and `MARIADB_PASSWORD` unless `MW_DB_NAME`, `MW_DB_USER`, or `MW_DB_PASS` are set. `MARIADB_ROOT_PASSWORD` uses the same value as the database service. Variables set under the MediaWiki service's Compose `environment`, such as `MW_SITENAME`, take precedence over `.env.mwsetup`; set those in `.env` to change them. After setup, disable the env file and mount the generated `LocalSettings.php` read-only.
+If `LocalSettings.php` is already present but its MediaWiki database has not been installed, `MW_AUTO_UPDATE=true` skips the updater and prints the `installPreConfigured` command with the configured file path. Run that installation command before relying on scheduled maintenance jobs.
+
+When `MW_WANDA_ENABLED=true`, provide the OpenAI API key as `MW_WANDA_OPENAI_API_key` in `.env` or mount a Docker secret named `mw_wanda_openai_api_key` into the MediaWiki container at `/run/secrets/mw_wanda_openai_api_key`. The secret takes precedence. The Compose examples pass the `.env` value into the container as `MW_WANDA_OPENAI_API_KEY`, matching the uppercase lookup in `dockerSecret()`. A Docker secret must also be granted to the `mediawiki` service in your Compose configuration.
+
+### Use password files with Docker Compose
+
+`docker-compose.secrets.yml` mounts the five files from `./secrets/` and removes the password environment variables inherited from `docker-compose.yml`. It also changes the MariaDB health check to read the root password file. Use `.env.secrets` for the remaining, non-secret settings:
+
+```bash
+docker compose --env-file .env.secrets -f docker-compose.yml -f docker-compose.secrets.yml config --quiet
+docker compose --env-file .env.secrets -f docker-compose.yml -f docker-compose.secrets.yml up -d
+```
+
+The overlay requires Docker Compose 2.24.4 or newer for `!override`. Keep the appropriate `LocalSettings.php` mount enabled in the base Compose file. Replace the example passwords and the placeholder OpenAI key in `./secrets/` before deployment. If the MariaDB data volume already exists, its stored passwords must match the secret files; changing the files does not change database accounts. The `.env.secrets` file has no password assignments. With this overlay, inherited password environment variables are removed even if they are present in an env file, but keeping them there is unnecessary and makes an accidental start without the overlay use those values.
 
 ### 3. Start the development stack
 
@@ -230,6 +252,8 @@ services:
 ```
 
 ## Building the CirrusSearch index
+
+On a fresh installation, `mw-default-setup.sh` builds the initial CirrusSearch index after the database update. The commands below rebuild an index manually, for example after a migration.
 
 OpenSearch data cannot be reused directly from an Elasticsearch data volume. After migrating, create a fresh OpenSearch volume and rebuild the search index from MediaWiki.
 
@@ -390,6 +414,8 @@ The MemcachePHP UI is reverse-proxied through MediaWiki at:
 ```text
 /memcacheui/
 ```
+
+The UI requires Basic Auth. Deleting an item or flushing a server uses a POST form with a session CSRF token; old `op=5` and `op=6` GET links no longer perform these actions.
 
 ## Persistent volumes
 

@@ -1,6 +1,24 @@
 #!/usr/bin/env bash
 set -eu
 
+# Match LocalSettings.php: prefer /run/secrets/<name>, then <NAME> in the environment.
+docker_secret() {
+  local name="$1" fallback="${2:-}" env_name file
+  env_name="$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]')"
+  file="/run/secrets/$name"
+
+  if [ -r "$file" ]; then
+    cat -- "$file"
+  elif [ -n "${!env_name:-}" ]; then
+    printf '%s' "${!env_name}"
+  elif [ -n "$fallback" ]; then
+    printf '%s' "$fallback"
+  else
+    echo "Missing secret: $name" >&2
+    return 1
+  fi
+}
+
 : "${MW_CONFIG_FILE:=/var/www/html/LocalSettings.php}"
 MW_CONFIG_FILE_PATH=$(dirname "$MW_CONFIG_FILE" 2>/dev/null || echo "/var/www/html")
 if [ -n "${MW_CONFIG_FILE_PATH:-}" ]; then
@@ -57,11 +75,14 @@ else
   echo "[install] Keine automatisch zu ladenden Extensions gefunden." >&2
 fi
 
+did_install=0
 if [ -f "${MW_CONFIG_FILE:-/var/www/html/LocalSettings.php}" ]; then
   echo "${MW_CONFIG_FILE} exists → updating configuration"
 else
   echo "No ${MW_CONFIG_FILE} → running install.php"
-  : "${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD for the initial MediaWiki installation}"
+  db_pass="$(docker_secret mw_db_pass w1k1pass)"
+  # db_root_pass="$(docker_secret mariadb_root_password)"
+  admin_pass="$(docker_secret mw_admin_pass AdminPass123)"
 
   # DB port accessible? (failsafe in addition to previous DB wait)
   end=$((SECONDS+120))
@@ -71,22 +92,38 @@ else
   done
   echo ${EXT_FLAG:+$EXT_FLAG}
   # Installation
+  # with root db setup...
+  # $run install \
+  #   --confpath "${MW_CONFIG_FILE_PATH}" \
+  #   --dbtype mysql \
+  #   --dbserver  "${MW_DB_HOST:-database}:${MW_DB_PORT:-3306}" \
+  #   --dbname    "${MW_DB_NAME:-wikidb}" \
+  #   --dbuser    "${MW_DB_USER:-wikiuser}" \
+  #   --dbpass    "$db_pass" \
+  #   --installdbuser "${MW_DB_ADMIN_USER:-root}" \
+  #   --installdbpass "$db_root_pass" \
+  #   --lang      "${MW_LANG:-de}" \
+  #   --server    "${MW_SERVER_URL:-http://localhost:8080}" \
+  #   --scriptpath "" \
+  #   --pass      "$admin_pass" \
+  #   ${EXT_FLAG:+$EXT_FLAG} \
+  #   "${MW_SITENAME:-My Own Wiki}" \
+  #   "${MW_ADMIN_USER:-Admin}"
   $run install \
     --confpath "${MW_CONFIG_FILE_PATH}" \
     --dbtype mysql \
     --dbserver  "${MW_DB_HOST:-database}:${MW_DB_PORT:-3306}" \
     --dbname    "${MW_DB_NAME:-wikidb}" \
     --dbuser    "${MW_DB_USER:-wikiuser}" \
-    --dbpass    "${MW_DB_PASS:-w1k1pass}" \
-    --installdbuser "${MW_DB_ADMIN_USER:-root}" \
-    --installdbpass "${MARIADB_ROOT_PASSWORD}" \
+    --dbpass    "$db_pass" \
     --lang      "${MW_LANG:-de}" \
     --server    "${MW_SERVER_URL:-http://localhost:8080}" \
     --scriptpath "" \
-    --pass      "${MW_ADMIN_PASS:-AdminPass123}" \
+    --pass      "$admin_pass" \
     ${EXT_FLAG:+$EXT_FLAG} \
     "${MW_SITENAME:-My Own Wiki}" \
     "${MW_ADMIN_USER:-Admin}"
+  did_install=1
 fi
 
 # $wgServer, $wgScriptPath and $wgArticlePath in LocalSettings.php set/place
@@ -209,6 +246,64 @@ fi
 
 # Enable uploads
 sed -i "s#^\$wgEnableUploads[[:space:]]*=.*#\$wgEnableUploads = true;#" "$f"
+
+# Make the same secret lookup available in installer-generated LocalSettings.php.
+if ! grep -Fq 'function dockerSecret(' "$f"; then
+  helper="$(mktemp)"
+  tmp="$(mktemp)"
+  cat >"$helper" <<'PHP'
+/**
+ * Read a secret from the Docker secret file /run/secrets/<name>.
+ * Falls back to the environment variable <NAME> (upper case) if the file
+ * does not exist. Throws if a required secret is missing.
+ * Generic helper, can be reused in any MediaWiki LocalSettings.php.
+ */
+if ( !function_exists( 'dockerSecret' ) ) {
+	function dockerSecret( string $name, bool $required = true ): string {
+		$file = "/run/secrets/$name";
+		if ( is_readable( $file ) ) {
+			return trim( file_get_contents( $file ) );
+		}
+		$env = getenv( strtoupper( $name ) );
+		if ( $env !== false && $env !== '' ) {
+			return $env;
+		}
+		if ( $required ) {
+			throw new RuntimeException( "Missing secret: $name" );
+		}
+		return '';
+	}
+}
+
+PHP
+  if ! awk -v helper="$helper" '
+    !inserted && index( $0, "<?php" ) {
+      print
+      while ( ( getline line < helper ) > 0 ) print line
+      close( helper )
+      inserted = 1
+      next
+    }
+    { print }
+    END { if ( !inserted ) exit 1 }
+  ' "$f" >"$tmp"; then
+    rm -f "$helper" "$tmp"
+    echo "[LocalSettings] Cannot insert dockerSecret into $f" >&2
+    exit 1
+  fi
+  cat "$tmp" >"$f"
+  rm -f "$helper" "$tmp"
+fi
+
+# Read database connection settings at runtime. The installer writes --dbpass
+# as plain text, so replace it after dockerSecret() is available.
+set_php_setting wgDBserver "\$wgDBserver = ( getenv( 'MW_DB_HOST' ) ?: 'database' ) . ':' . ( getenv( 'MW_DB_PORT' ) ?: '3306' );"
+set_php_setting wgDBname "\$wgDBname = getenv( 'MW_DB_NAME' ) ?: 'wikidb';"
+set_php_setting wgDBuser "\$wgDBuser = getenv( 'MW_DB_USER' ) ?: 'wikiuser';"
+set_php_setting wgDBpassword "\$wgDBpassword = dockerSecret( 'mw_db_pass' );"
+
+# Upgrade an older generated Wanda placeholder without replacing a real key.
+sed -i "s/'REPLACE_WITH_YOUR_OPENAI_API_KEY'/dockerSecret( 'mw_wanda_openai_api_key' )/; s/dockerSecret( 'openai_api_key' )/dockerSecret( 'mw_wanda_openai_api_key' )/" "$f"
 
 # Append the custom LocalSettings block only once. Existing configurations may
 # already contain the older, unmarked version of this block.
@@ -376,7 +471,7 @@ if ( $wandaEnabled ) {
 
 	// OpenAI provider configuration.
 	$wgWandaLLMProvider = 'openai';
-	$wgWandaLLMApiKey = 'REPLACE_WITH_YOUR_OPENAI_API_KEY';
+	$wgWandaLLMApiKey = dockerSecret( 'mw_wanda_openai_api_key' );
 	$wgWandaLLMModel = 'gpt-5.2';
 	$wgWandaLLMEmbeddingModel = 'text-embedding-3-small';
 	$wgWandaLLMApiEndpoint = 'https://api.openai.com/v1';
@@ -470,6 +565,10 @@ PHP
 fi
 
 # Load extension schema changes after the configuration has been written.
-$run update
+$run update --quick
+if [ "$did_install" -eq 1 ]; then
+  echo "[install] Building the initial CirrusSearch index..."
+  /usr/local/bin/generate-opensearch-index.sh
+fi
 echo "[LocalSettings] LocalSettings-Konfiguration wurde in $f aktualisiert."
 echo "[install] Installation/Update done."
