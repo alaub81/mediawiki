@@ -59,7 +59,8 @@ define('MAX_ITEM_DUMP',  $MAX_ITEM_DUMP);
 
 ///////////////// Password protect ////////////////////////////////////////////////////////////////
  if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_PW']) ||
-           $_SERVER['PHP_AUTH_USER'] != ADMIN_USERNAME ||$_SERVER['PHP_AUTH_PW'] != ADMIN_PASSWORD) {
+           !hash_equals(ADMIN_USERNAME, $_SERVER['PHP_AUTH_USER']) ||
+           !hash_equals(ADMIN_PASSWORD, $_SERVER['PHP_AUTH_PW'])) {
 			Header("WWW-Authenticate: Basic realm=\"Memcache Login\"");
 			Header("HTTP/1.0 401 Unauthorized");
 
@@ -70,6 +71,75 @@ define('MAX_ITEM_DUMP',  $MAX_ITEM_DUMP);
 				</body></html>
 EOB;
 			exit;
+}
+
+// Basic Auth restricts access; the session token protects write actions made
+// from an already authenticated browser.
+ini_set('session.use_strict_mode', '1');
+$secureCookie = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
+    ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+session_set_cookie_params([
+    'httponly' => true,
+    'secure' => $secureCookie,
+    'samesite' => 'Lax',
+]);
+session_start();
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrfToken = $_SESSION['csrf_token'];
+
+function html($value) {
+    return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+function failRequest($status, $message) {
+    http_response_code($status);
+    header('Content-Type: text/plain; charset=UTF-8');
+    exit($message);
+}
+
+function serverIndex($value) {
+    global $MEMCACHE_SERVERS;
+    if (!is_string($value) || !ctype_digit($value)) {
+        return null;
+    }
+    $index = (int)$value;
+    return $index < count($MEMCACHE_SERVERS) ? $index : null;
+}
+
+function decodedCacheKey($encoded) {
+    if (!is_string($encoded) || strlen($encoded) > 336) {
+        return null;
+    }
+    $key = base64_decode($encoded, true);
+    // Memcached text-protocol keys are at most 250 bytes and cannot contain
+    // whitespace or control characters (especially CR/LF command separators).
+    if ($key === false || $key === '' || strlen($key) > 250 ||
+        preg_match('/[\x00-\x20\x7F]/', $key)) {
+        return null;
+    }
+    return $key;
+}
+
+function actionUrl($params = []) {
+    global $selfPath, $selectedServerIndex;
+    if ($selectedServerIndex !== null && !array_key_exists('singleout', $params)) {
+        $params = ['singleout' => $selectedServerIndex] + $params;
+    }
+    $query = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+    return html($selfPath . ($query === '' ? '' : '?' . $query));
+}
+
+function actionForm($operation, $server, $label, $key = null) {
+    global $csrfToken;
+    $form = '<form method="post" action="'.actionUrl(['op' => $operation]).'" style="display:inline">'
+        .'<input type="hidden" name="csrf_token" value="'.html($csrfToken).'">'
+        .'<input type="hidden" name="server" value="'.html($server).'">';
+    if ($key !== null) {
+        $form .= '<input type="hidden" name="key" value="'.html(base64_encode($key)).'">';
+    }
+    return $form.'<button type="submit">'.html($label).'</button></form>';
 }
 
 ///////////MEMCACHE FUNCTIONS /////////////////////////////////////////////////////////////////////
@@ -303,11 +373,8 @@ function bsize($s) {
 
 // create menu entry
 function menu_entry($ob,$title) {
-	global $PHP_SELF;
-	if ($ob==$_GET['op']){
-	    return "<li><a class=\"child_active\" href=\"$PHP_SELF&op=$ob\">$title</a></li>";
-	}
-	return "<li><a class=\"active\" href=\"$PHP_SELF&op=$ob\">$title</a></li>";
+	$class = (string)$ob === $_GET['op'] ? 'child_active' : 'active';
+	return '<li><a class="'.$class.'" href="'.actionUrl(['op' => $ob]).'">'.html($title).'</a></li>';
 }
 
 function getHeader(){
@@ -446,6 +513,7 @@ div.info table td h3 {
     text-decoration:underline;
 }
 div.graph { margin-bottom:1em }
+.cache-value { white-space:pre-wrap; overflow-wrap:anywhere; margin:0; }
 div.graph h2 { background:rgb(204,204,204);; color:black; font-size:1em; margin:0; padding:0.1em 1em 0.1em 1em; }
 div.graph table { border:solid rgb(204,204,204) 1px; color:black; font-weight:normal; width:100%; }
 div.graph table td.td-0 { background:rgb(238,238,238); }
@@ -516,53 +584,80 @@ function getFooter(){
     return $footer;
 
 }
-function getMenu(){
-    global $PHP_SELF;
-echo "<ol class=menu>";
-if ($_GET['op']!=4){
-echo <<<EOB
-    <li><a href="$PHP_SELF&op={$_GET['op']}">Refresh Data</a></li>
-EOB;
-}
-else {
-echo <<<EOB
-    <li><a href="$PHP_SELF&op=2}">Back</a></li>
-EOB;
-}
-echo
-	menu_entry(1,'View Host Stats'),
-	menu_entry(2,'Variables');
-
-echo <<<EOB
-	</ol>
-	<br/>
-EOB;
+function getMenu() {
+    echo '<ol class="menu">';
+    if (in_array($_GET['op'], ['1', '2'], true)) {
+        echo '<li><a href="'.actionUrl(['op' => $_GET['op']]).'">Refresh Data</a></li>';
+    } else {
+        $backOp = $_GET['op'] === '6' ? 1 : 2;
+        echo '<li><a href="'.actionUrl(['op' => $backOp]).'">Back</a></li>';
+    }
+    echo menu_entry(1, 'View Host Stats'), menu_entry(2, 'Variables');
+    echo '</ol><br>';
 }
 
-$_GET['op'] = !isset($_GET['op'])? '1':$_GET['op'];
-$PHP_SELF= isset($_SERVER['PHP_SELF']) ? htmlentities(strip_tags($_SERVER['PHP_SELF'],'')) : '';
-$prefix = isset($_SERVER['HTTP_X_FORWARDED_PREFIX']) ? rtrim($_SERVER['HTTP_X_FORWARDED_PREFIX'], '/') : '';
-if ($prefix !== '' && strpos($PHP_SELF, $prefix . '/') !== 0) {
-    $PHP_SELF = $prefix . $PHP_SELF;
+$_GET['op'] = $_GET['op'] ?? '1';
+if (!is_string($_GET['op']) || !in_array($_GET['op'], ['1', '2', '4', '5', '6'], true)) {
+    failRequest(400, 'Invalid operation');
 }
 
-$PHP_SELF=$PHP_SELF.'?';
+$scriptPath = $_SERVER['SCRIPT_NAME'] ?? '/index.php';
+if (!is_string($scriptPath) || !preg_match('~\A/[A-Za-z0-9._/-]+\z~D', $scriptPath)) {
+    $scriptPath = '/index.php';
+}
+$prefix = $_SERVER['HTTP_X_FORWARDED_PREFIX'] ?? '';
+if (!is_string($prefix) || !preg_match('~\A(?:/[A-Za-z0-9_-]+)*\z~D', $prefix)) {
+    $prefix = '';
+}
+$selfPath = $prefix !== '' && str_starts_with($scriptPath, $prefix . '/')
+    ? $scriptPath : $prefix . $scriptPath;
+$selectedServerIndex = null;
+if (array_key_exists('singleout', $_GET)) {
+    $selectedServerIndex = serverIndex($_GET['singleout']);
+    if ($selectedServerIndex === null) {
+        failRequest(400, 'Invalid server');
+    }
+    $MEMCACHE_SERVERS = [$MEMCACHE_SERVERS[$selectedServerIndex]];
+}
+
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if (in_array($_GET['op'], ['5', '6'], true)) {
+    if ($method !== 'POST') {
+        header('Allow: POST');
+        failRequest(405, 'Use POST for this action');
+    }
+    $submittedToken = $_POST['csrf_token'] ?? null;
+    if (!is_string($submittedToken) || !hash_equals($csrfToken, $submittedToken)) {
+        failRequest(403, 'Invalid CSRF token');
+    }
+} elseif ($method !== 'GET') {
+    header('Allow: GET');
+    failRequest(405, 'Use GET for this page');
+}
+
+$actionServerIndex = null;
+$actionKey = null;
+if (in_array($_GET['op'], ['4', '5', '6'], true)) {
+    $input = $_GET['op'] === '4' ? $_GET : $_POST;
+    $actionServerIndex = serverIndex($input['server'] ?? null);
+    if ($actionServerIndex === null) {
+        failRequest(400, 'Invalid server');
+    }
+    if ($_GET['op'] !== '6') {
+        $actionKey = decodedCacheKey($input['key'] ?? null);
+        if ($actionKey === null) {
+            failRequest(400, 'Invalid cache key');
+        }
+    }
+}
+
 $time = time();
-// sanitize _GET
-
-foreach($_GET as $key=>$g){
-    $_GET[$key]=htmlentities($g);
-}
-
-
-// singleout
-// when singleout is set, it only gives details for that server.
-if (isset($_GET['singleout']) && $_GET['singleout']>=0 && $_GET['singleout'] <count($MEMCACHE_SERVERS)){
-    $MEMCACHE_SERVERS = array($MEMCACHE_SERVERS[$_GET['singleout']]);
-}
 
 // display images
 if (isset($_GET['IMG'])){
+    if (!is_string($_GET['IMG']) || !in_array($_GET['IMG'], ['1', '2'], true)) {
+        failRequest(400, 'Invalid image');
+    }
     $memcacheStats = getMemcacheStats();
     $memcacheStatsSingle = getMemcacheStats(false);
 
@@ -730,14 +825,14 @@ EOB;
 		$i=0;
 		if (!isset($_GET['singleout']) && count($MEMCACHE_SERVERS)>1){
     		foreach($MEMCACHE_SERVERS as $server){
-    		      echo ($i+1).'. <a href="'.$PHP_SELF.'&singleout='.$i++.'">'.$server.'</a><br/>';
+                echo ($i+1).'. <a href="'.actionUrl(['singleout' => $i++]).'">'.html($server).'</a><br/>';
     		}
 		}
 		else{
-		    echo '1.'.$MEMCACHE_SERVERS[0];
+		    echo '1.'.html($MEMCACHE_SERVERS[0]);
 		}
 		if (isset($_GET['singleout'])){
-		      echo '<a href="'.$PHP_SELF.'">(all servers)</a><br/>';
+		      echo '<a href="'.html($selfPath).'">(all servers)</a><br/>';
 		}
 		echo "</td></tr>\n";
 		echo "<tr class=tr-1><td class=td-0>Total Memcache Cache</td><td>".bsize($memcacheStats['limit_maxbytes'])."</td></tr>\n";
@@ -749,11 +844,12 @@ EOB;
 		<div class="info div1"><h2>Memcache Server Information</h2>
 EOB;
         foreach($MEMCACHE_SERVERS as $server){
+            $serverId = array_search($server, $MEMCACHE_SERVERS, true);
             echo '<table cellspacing=0><tbody>';
-            echo '<tr class=tr-1><td class=td-1>'.$server.'</td><td><a href="'.$PHP_SELF.'&server='.array_search($server,$MEMCACHE_SERVERS).'&op=6">[<b>Flush this server</b>]</a></td></tr>';
+            echo '<tr class=tr-1><td class=td-1>'.html($server).'</td><td>'.actionForm(6, $serverId, 'Flush this server').'</td></tr>';
     		echo '<tr class=tr-0><td class=td-0>Start Time</td><td>',date(DATE_FORMAT,$memcacheStatsSingle[$server]['STAT']['time']-$memcacheStatsSingle[$server]['STAT']['uptime']),'</td></tr>';
     		echo '<tr class=tr-1><td class=td-0>Uptime</td><td>',duration($memcacheStatsSingle[$server]['STAT']['time']-$memcacheStatsSingle[$server]['STAT']['uptime']),'</td></tr>';
-    		echo '<tr class=tr-0><td class=td-0>Memcached Server Version</td><td>'.$memcacheStatsSingle[$server]['STAT']['version'].'</td></tr>';
+            echo '<tr class=tr-0><td class=td-0>Memcached Server Version</td><td>'.html($memcacheStatsSingle[$server]['STAT']['version']).'</td></tr>';
     		echo '<tr class=tr-1><td class=td-0>Used Cache Size</td><td>',bsize($memcacheStatsSingle[$server]['STAT']['bytes']),'</td></tr>';
     		echo '<tr class=tr-0><td class=td-0>Total Cache Size</td><td>',bsize($memcacheStatsSingle[$server]['STAT']['limit_maxbytes']),'</td></tr>';
     		echo '</tbody></table>';
@@ -776,8 +872,8 @@ EOB;
 	echo
 		graphics_avail() ?
 			  '<tr>'.
-			  "<td class=td-0><img alt=\"\" $size src=\"$PHP_SELF&IMG=1&".(isset($_GET['singleout'])? 'singleout='.$_GET['singleout'].'&':'')."$time\"></td>".
-			  "<td class=td-1><img alt=\"\" $size src=\"$PHP_SELF&IMG=2&".(isset($_GET['singleout'])? 'singleout='.$_GET['singleout'].'&':'')."$time\"></td></tr>\n"
+				  '<td class=td-0><img alt="" '.$size.' src="'.actionUrl(['IMG' => 1, 't' => $time]).'"></td>'.
+				  '<td class=td-1><img alt="" '.$size.' src="'.actionUrl(['IMG' => 2, 't' => $time]).'"></td></tr>'
 			: "",
 		'<tr>',
 		'<td class=td-0><span class="green box">&nbsp;</span>Free: ',bsize($mem_avail).sprintf(" (%.1f%%)",$mem_avail*100/$mem_size),"</td>\n",
@@ -815,29 +911,28 @@ EOB;
 		$maxDump = MAX_ITEM_DUMP;
 		foreach($items as $server => $entries) {
 
-    	echo <<< EOB
-
-			<div class="info"><table cellspacing=0><tbody>
-			<tr><th colspan="2">$server</th></tr>
-			<tr><th>Slab Id</th><th>Info</th></tr>
-EOB;
+            echo '<div class="info"><table cellspacing=0><tbody>'
+                .'<tr><th colspan="2">'.html($server).'</th></tr>'
+                .'<tr><th>Slab Id</th><th>Info</th></tr>';
 
 			foreach($entries as $slabId => $slab) {
-			    $dumpUrl = $PHP_SELF.'&op=2&server='.(array_search($server,$MEMCACHE_SERVERS)).'&dumpslab='.$slabId;
+			    $serverId = array_search($server, $MEMCACHE_SERVERS, true);
+			    $dumpUrl = actionUrl(['op' => 2, 'server' => $serverId, 'dumpslab' => $slabId]);
 				echo
 					"<tr class=tr-$m>",
-					"<td class=td-0><center>",'<a href="',$dumpUrl,'">',$slabId,'</a>',"</center></td>",
+						"<td class=td-0><center>",'<a href="',$dumpUrl,'">',html($slabId),'</a>',"</center></td>",
 					"<td class=td-last><b>Item count:</b> ",$slab['number'],'<br/><b>Age:</b>',duration($time-$slab['age']),'<br/> <b>Evicted:</b>',((isset($slab['evicted']) && $slab['evicted']==1)? 'Yes':'No');
-					if ((isset($_GET['dumpslab']) && $_GET['dumpslab']==$slabId) &&  (isset($_GET['server']) && $_GET['server']==array_search($server,$MEMCACHE_SERVERS))){
+						if (isset($_GET['dumpslab']) && is_string($_GET['dumpslab']) && $_GET['dumpslab'] === (string)$slabId &&
+                            serverIndex($_GET['server'] ?? null) === $serverId) {
 					    echo "<br/><b>Items: item</b><br/>";
 					    $items = dumpCacheSlab($server,$slabId,$slab['number']);
                         // maybe someone likes to do a pagination here :)
 					    $i=1;
-                        foreach($items['ITEM'] as $itemKey=>$itemInfo){
+                        foreach($items['ITEM'] ?? [] as $itemKey=>$itemInfo){
                             $itemInfo = trim($itemInfo,'[ ]');
 
 
-                            echo '<a href="',$PHP_SELF,'&op=4&server=',(array_search($server,$MEMCACHE_SERVERS)),'&key=',base64_encode($itemKey).'">',$itemKey,'</a>';
+                            echo '<a href="',actionUrl(['op' => 4, 'server' => $serverId, 'key' => base64_encode($itemKey)]),'">',html($itemKey),'</a>';
                             if ($i++ % 10 == 0) {
                                 echo '<br/>';
                             }
@@ -860,48 +955,40 @@ EOB;
     break;
 
     case 4: //item dump
-        if (!isset($_GET['key']) || !isset($_GET['server'])){
-            echo "No key set!";
-            break;
-        }
-        // I'm not doing anything to check the validity of the key string.
-        // probably an exploit can be written to delete all the files in key=base64_encode("\n\r delete all").
-        // somebody has to do a fix to this.
-        $theKey = htmlentities(base64_decode($_GET['key']));
-
-        $theserver = $MEMCACHE_SERVERS[(int)$_GET['server']];
+        $theserver = $MEMCACHE_SERVERS[$actionServerIndex];
         list($h,$p) = explode(':',$theserver);
-        $r = sendMemcacheCommand($h,$p,'get '.$theKey);
+        $r = sendMemcacheCommand($h,$p,'get '.$actionKey);
         echo <<<EOB
         <div class="info"><table cellspacing=0><tbody>
-			<tr><th>Server<th>Key</th><th>Value</th><th>Delete</th></tr>
+			<tr><th>Server</th><th>Key</th><th>Value</th><th>Delete</th></tr>
 EOB;
-        echo "<tr><td class=td-0>",$theserver,"</td><td class=td-0>",$theKey,
-             " <br/>flag:",$r['VALUE'][$theKey]['stat']['flag'],
-             " <br/>Size:",bsize($r['VALUE'][$theKey]['stat']['size']),
-             "</td><td>",chunk_split($r['VALUE'][$theKey]['value'],40),"</td>",
-             '<td><a href="',$PHP_SELF,'&op=5&server=',(int)$_GET['server'],'&key=',base64_encode($theKey),"\">Delete</a></td>","</tr>";
+        $entry = $r['VALUE'][$actionKey] ?? null;
+        if ($entry === null) {
+            echo '<tr><td class="td-0">'.html($theserver).'</td><td>'.html($actionKey).'</td><td>Not found</td><td></td></tr>';
+        } else {
+            echo '<tr><td class="td-0">'.html($theserver).'</td>'
+                .'<td class="td-0">'.html($actionKey)
+                .'<br>flag: '.html($entry['stat']['flag'])
+                .'<br>Size: '.html(bsize($entry['stat']['size'])).'</td>'
+                .'<td><pre class="cache-value">'.html($entry['value']).'</pre></td>'
+                .'<td>'.actionForm(5, $actionServerIndex, 'Delete', $actionKey).'</td></tr>';
+        }
         echo <<<EOB
 			</tbody></table>
 			</div><hr/>
 EOB;
     break;
     case 5: // item delete
-    	if (!isset($_GET['key']) || !isset($_GET['server'])){
-			echo "No key set!";
-			break;
-        }
-        $theKey = htmlentities(base64_decode($_GET['key']));
-		$theserver = $MEMCACHE_SERVERS[(int)$_GET['server']];
+		$theserver = $MEMCACHE_SERVERS[$actionServerIndex];
 		list($h,$p) = explode(':',$theserver);
-        $r = sendMemcacheCommand($h,$p,'delete '.$theKey);
-        echo 'Deleting '.$theKey.':'.$r;
+        $r = sendMemcacheCommand($h,$p,'delete '.$actionKey);
+        echo 'Deleting '.html($actionKey).': '.html($r);
 	break;
 
    case 6: // flush server
-        $theserver = $MEMCACHE_SERVERS[(int)$_GET['server']];
+        $theserver = $MEMCACHE_SERVERS[$actionServerIndex];
         $r = flushServer($theserver);
-        echo 'Flush  '.$theserver.":".$r;
+        echo 'Flush '.html($theserver).': '.html($r);
    break;
 }
 echo getFooter();
