@@ -12,26 +12,13 @@
   "packageRules": [
     {
       "matchManagers": ["dockerfile", "github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
-      "automergeType": "pr",
-      "major": { "automerge": false },
-      "minor": { "automerge": true },
-      "patch": { "automerge": true }
+      "automergeType": "pr"
     },
     {
       "matchDatasources": ["docker"],
       "groupName": "base-images"
-    }
-  ],
-  "regexManagers": [
-    {
-      "fileMatch": ["^\\.env$", "^\\.env\\.example$"],
-      "matchStrings": [
-        "LOGANALYZER_VERSION=(?<currentValue>\\d+\\.\\d+\\.\\d+)"
-      ],
-      "datasourceTemplate": "github-tags",
-      "depNameTemplate": "adiscon/loganalyzer",
-      "versioningTemplate": "semver"
     }
   ]
 }

@@ -48,22 +48,31 @@ jobs:
           set -euo pipefail
 
           num="${{ inputs.num_tags }}"
-          [ -z "${num}" ] && num=1
+          [ -z "${num}" ] && num=2
+          [[ "${num}" =~ ^[1-9][0-9]*$ ]] || { echo "Invalid num_tags: ${num}" >&2; exit 1; }
 
-          TAGS="$(git tag --list 'v*.*.*' --sort=-v:refname | head -n "${num}")"
+          TAGS="$(git tag --list 'v*.*.*' --sort=-v:refname \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sed -n "1,${num}p" || true)"
           printf 'Selected tags:\n%s\n' "${TAGS}"
+
+          if [ -z "${TAGS}" ]; then
+            echo 'tags_json=[]' >> "$GITHUB_OUTPUT"
+            echo 'latest_tag=' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           # Convert tags to JSON
           JSON_TAGS="$(printf '%s\n' "${TAGS}" | jq -R . | jq -s -c .)"
           echo "tags_json=${JSON_TAGS}" >> "$GITHUB_OUTPUT"
 
           # Latest tag is the first line of the sorted list
-          LATEST_TAG="$(printf '%s\n' "${TAGS}" | head -n 1)"
+          LATEST_TAG="$(printf '%s\n' "${TAGS}" | sed -n '1p')"
           echo "latest_tag=${LATEST_TAG}" >> "$GITHUB_OUTPUT"
 
   rebuild:
     needs: select-tags
-    if: ${{ needs.select-tags.outputs.tags_json != '' }}
+    if: ${{ needs.select-tags.outputs.tags_json != '' && needs.select-tags.outputs.tags_json != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -120,10 +129,12 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
+          flavor: |
+            latest=false
           tags: |
             type=raw,value=${{ steps.semver.outputs.full }}
-            type=raw,value=${{ steps.semver.outputs.minor }}
-            type=raw,value=${{ steps.semver.outputs.major }}
+            type=raw,value=${{ steps.semver.outputs.minor }},enable=${{ matrix.tag == needs.select-tags.outputs.latest_tag }}
+            type=raw,value=${{ steps.semver.outputs.major }},enable=${{ matrix.tag == needs.select-tags.outputs.latest_tag }}
             type=raw,value=latest,enable=${{ matrix.tag == needs.select-tags.outputs.latest_tag }}
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
@@ -201,6 +212,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check whether this is the newest stable release
+        id: release_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tags="$(git tag --list 'v*.*.*' --sort=-v:refname)"
+          latest_tag="$(printf '%s\n' "$tags" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed -n '1p' || true)"
+          if [ "$GITHUB_REF_NAME" = "$latest_tag" ]; then
+            echo 'is_latest=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'is_latest=false' >> "$GITHUB_OUTPUT"
+          fi
+          echo "Newest stable tag: ${latest_tag:-none}; current tag: $GITHUB_REF_NAME"
 
       - name: Login to GHCR
         uses: docker/login-action@v4
@@ -215,17 +242,19 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Docker meta (semver without v + latest)
+      - name: Docker meta (semver without v; aliases only for newest release)
         id: meta
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image.name }}
+          flavor: |
+            latest=false
           tags: |
             # Convert v1.2.3 to 1.2.3
             type=semver,pattern={{version}},prefix=
-            type=semver,pattern={{major}}.{{minor}},prefix=
-            type=semver,pattern={{major}},prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{major}}.{{minor}},prefix=,enable=${{ steps.release_tag.outputs.is_latest }}
+            type=semver,pattern={{major}},prefix=,enable=${{ steps.release_tag.outputs.is_latest }}
+            type=raw,value=latest,enable=${{ steps.release_tag.outputs.is_latest }}
           labels: |
             org.opencontainers.image.source=${{ github.repository }}
 

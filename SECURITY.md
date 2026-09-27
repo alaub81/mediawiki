@@ -1,71 +1,35 @@
 # Security Policy
 
-Thank you for helping keep **syslogserver** secure! This document explains which versions are supported and how to report vulnerabilities responsibly.
+This repository contains the Docker setup from **LHlab wiki**, including the custom MediaWiki and MemcachePHP images. Please report security issues in this setup privately so they can be investigated before public disclosure.
 
-## Supported Versions
+## Supported versions
 
-| Component / Image Tag | Support Status | Notes |
-|---|---|---|
-| `main` branch | ✅ Supported | Active development; receives security fixes and dependency updates. |
-| Versioned container tags (e.g., `loganalyzer:4.x`, `syslog-ng:…`) | ✅ Supported | Updated for critical security issues when feasible. |
-| Deprecated/archived tags | ⚠️ Best effort | No guarantees for timely patches. |
+Security fixes are developed against the current `main` branch and, when appropriate, published in a new versioned image release. The currently documented MediaWiki release line is `1.46.x`. Older tags remain available, but fixes are not guaranteed to be backported to them. Please include the exact Git commit, release tag, or image tag in your report, regardless of the version affected.
 
-> We keep base images and dependencies up to date using **GitHub Actions**, **Dependabot**, **Renovate**, and **Trivy** scans.
+## Report a vulnerability
 
-## How to Report a Vulnerability
+If the repository offers **Report a vulnerability**, use the private report form under [Security → Advisories](https://github.com/alaub81/mediawiki/security/advisories/new). If that option is unavailable, [open an issue requesting a private security contact](https://github.com/alaub81/mediawiki/issues/new) **without posting exploit details, credentials, or other sensitive information**. Do not submit a vulnerability description in a public issue.
 
-**Preferred:** Open a private *GitHub Security Advisory* for this repository:
-`Security` → `Advisories` → **Report a vulnerability**
-Direct link: [https://github.com/alaub81/syslogserver/security/advisories/new](https://github.com/alaub81/syslogserver/security/advisories/new)
+Please include, where possible:
 
-Please include:
+- The affected component, file, and commit or image tag.
+- The impact and steps to reproduce the issue in a test environment.
+- Relevant configuration, logs, or screenshots with secrets and personal data removed.
+- Any known mitigation.
 
-- Affected component/file and **commit or tag** (SHA or release),
-- Clear **description** and **impact**,
-- **Steps to reproduce** / Proof of Concept,
-- Relevant **logs**/screenshots (scrub secrets),
-- Any **mitigations** or fix suggestions you may have.
-
-### Our Response SLAs
-
-- **Acknowledgement:** within **48 hours** (business days).
-- **Triage & severity assignment:** within **5 business days**.
-- **Fix or mitigation:** targeted within **30 days** for High/Critical, best effort otherwise. Timelines may vary based on complexity and upstream dependencies.
-
-We’ll coordinate a disclosure timeline with you and publish a security advisory once a fix or mitigation is available.
-
-## Coordinated Disclosure
-
-- Please **do not disclose** details publicly until a fix/mitigation is available and we have published an advisory.
-- With your permission, we are happy to credit you in the release notes or advisory.
+We will review reports and coordinate a fix and disclosure with the reporter. No fixed acknowledgement or remediation deadline is promised.
 
 ## Scope
 
-### In scope
+Issues in this repository are in scope, including:
 
-- This repository: Dockerfiles, Compose files, scripts, configuration, and images; including `syslog-ng` pipelines, MariaDB init/events, `loganalyzer`, and `dbcleanup` containers.
-- Secret handling (`.env`/Docker secrets), DB authentication, configuration parsing.
+- Dockerfiles, Compose files, GitHub Actions workflows, and release configuration.
+- Entrypoint and maintenance scripts, Apache proxy and rewrite configuration, and the bundled MemcachePHP application.
+- Example MediaWiki configuration and this stack's handling of credentials, Docker secrets, uploads, and internal services.
+- Integration problems involving MediaWiki, MariaDB, OpenSearch, Elasticsearch, Memcached, or ClamAV when caused by this repository's configuration or code.
 
-### Out of scope
+Vulnerabilities that exist solely in an upstream project should be reported to that project's maintainers. If this stack's configuration makes an upstream issue exploitable or prevents a fix from being applied, please report that here as well.
 
-(please report upstream and/or submit as informative only)
+## Responsible testing
 
-- Vulnerabilities in **upstream** software (e.g., `syslog-ng`, `php`, `apache`, `mariadb`, base images).
-- Theoretical issues without a realistic exploit path in this project’s context.
-- Denial-of-service by extreme log volume (rate limiting/quotas are operational concerns).
-
-## Safe Harbor
-
-We support **good-faith security research** in your own test environment:
-
-- No access to third-party data, no social engineering, no physical access.
-- Do not intentionally disrupt production systems.
-- Follow applicable laws. Report findings privately (see above).
-
-## Cryptography / PGP (optional)
-
-If you prefer encrypted communication, we can provide a PGP key upon request. Please mention this in your report.
-
----
-
-**Thank you!** Security is a continuous effort—your responsible disclosure helps keep this project safe for everyone.
+Test only systems you own or are authorized to assess. Avoid accessing other users' data or disrupting a production wiki. Give maintainers an opportunity to investigate and coordinate disclosure before publishing details.
