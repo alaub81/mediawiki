@@ -1,11 +1,11 @@
 # ToDos
 
-[?] MARIADB_VARS doch setzen und wiki DB anlegen lassen? testen
-[!] !!nicht machen!! - MW_SITEMAP_IDENTIFIER=wiki und $wgArticlePath = "/wiki/$1"; kann noch in die redirects und in die shortURLs?
-[?] ExternalContent Extension wenn für 1.44 verfügbar [ExternalContent](https://www.mediawiki.org/wiki/Extension:External_Content)
-[!] !!nicht machen!! - Database Port kann weg beim mw-default installer!
-[!] !!geht nicht als default!! copy bei SyntaxHighlight
-[?] Artikel kleinschreiben
+- [?] MARIADB_VARS doch setzen und wiki DB anlegen lassen? testen
+- [!] !!nicht machen!! - MW_SITEMAP_IDENTIFIER=wiki und $wgArticlePath = "/wiki/$1"; kann noch in die redirects und in die shortURLs?
+- [?] ExternalContent Extension wenn für 1.44 verfügbar [ExternalContent](https://www.mediawiki.org/wiki/Extension:External_Content)
+- [!] !!nicht machen!! - Database Port kann weg beim mw-default installer!
+- [!] !!geht nicht als default!! copy bei SyntaxHighlight
+- [?] Artikel kleinschreiben
 
   ```php
   // Make first character of page titles case-sensitive globally
@@ -14,17 +14,17 @@
   $wgCapitalLinkOverrides[NS_MAIN] = false; // Only main namespace is affected
   ```
 
-[ ] Kategorien aufräumen --> Unterkategorien --> bei den Haupt Categorien Logos und Text
-[ ] Page Speed Results umsetzen
-[ ] Wenn Google Adsense geht: CSP aktivieren und Header Prüfen, Pagespeed tests
+- [x] Umbau auf optionale secrets Dateien. LocalSettings.php muss beides nehmen
+- [x] Testen aller drei Installations Möglichkeiten
+- [x] Prüfen ob die Datenbank Variablen benötigt werden, oder ob sie gar zum Standard werden sollen
+- [ ] Kategorien aufräumen --> Unterkategorien --> bei den Haupt Categorien Logos und Text
+- [ ] Page Speed Results umsetzen
+- [ ] Wenn Google Adsense geht: CSP aktivieren und Header Prüfen, Pagespeed tests
     <https://securityheaders.com/?q=https%3A%2F%2Flhlab.wiki&followRedirects=on>
     <https://pagespeed.web.dev/analysis/https-lhlab-wiki-wiki-Dimplex_Wärmepumpe_Smart-Grid_mit_Shelly_Relais/57ygqq2725?form_factor=mobile>
 
-[ ] Update des Wiki Artikel
-[ ] Umbau auf optionale secrets Dateien. LocalSettings.php muss beides nehmen
-[ ] Testen aller drei Installations Möglichkeiten
-[ ] Prüfen ob die Datenbank Variablen benötigt werden, oder ob sie gar zum Standard werden sollen
-[ ] docker compose dateien --> example als basis, alle weiteren als addon bauen
+- [ ] Update des Wiki Artikel
+- [ ] docker compose dateien --> example als basis, alle weiteren als addon bauen
 
 ```bash
 php maintenance/run.php /var/www/html/extensions/Wanda/maintenance/ReindexAllPages.php
