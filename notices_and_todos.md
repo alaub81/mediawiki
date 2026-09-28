@@ -25,6 +25,7 @@
 
 - [ ] Update des Wiki Artikel
 - [ ] docker compose dateien --> example als basis, alle weiteren als addon bauen
+- [ ] BIND_ADDRESS=127.0.0.1 einbauen
 
 ```bash
 php maintenance/run.php /var/www/html/extensions/Wanda/maintenance/ReindexAllPages.php

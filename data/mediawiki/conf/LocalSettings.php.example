@@ -248,7 +248,7 @@ $wgCirrusSearchServers = [ 'opensearch' ];
 $wgCirrusSearchUseCompletionSuggester = true;
 
 # Related Articles using CirrusSearch
-# $wgRelatedArticlesFooterWhitelistedSkins = ['minerva', 'vector'];
+# $wgRelatedArticlesFooterWhitelistedSkins = ['minerva', 'vector-2022'];
 $wgRelatedArticlesDescriptionSource = 'pagedescription';
 $wgRelatedArticlesUseCirrusSearchApiUrl = '/api.php';
 $wgRelatedArticlesUseCirrusSearch = true;
