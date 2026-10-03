@@ -444,6 +444,20 @@ PROMPT;
 }
 unset( $wandaEnabled );
 
+## Enable 2FA with OATHAuth extension (TOTP or passkey as second factor)
+# deprecated since 1.46
+$wgOATHRequiredForGroups = [
+    'user',
+    'sysop',
+    'bureaucrat',
+    'interface-admin'
+];
+# comming in 1.47
+#$wgOATHAuth2FAForAllWarnings = true;
+#$wgOATHAuthEnforce2FAForAll = true;
+# Enable Passkeys
+$wgOATHPasswordlessLogin = true;
+
 # ReadOnly Mode
 #$wgReadOnly = "<h1><b>This is a mirror. Please edit at www.example.com</b></h1><br>";
 #$wgReadOnly = "<h1><b>Update Ongoing</b></h1><br>";
