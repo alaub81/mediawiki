@@ -446,12 +446,12 @@ unset( $wandaEnabled );
 
 ## Enable 2FA with OATHAuth extension (TOTP or passkey as second factor)
 # deprecated since 1.46
-$wgOATHRequiredForGroups = [
-    'user',
-    'sysop',
-    'bureaucrat',
-    'interface-admin'
-];
+#$wgOATHRequiredForGroups = [
+#    'user',
+#    'sysop',
+#    'bureaucrat',
+#    'interface-admin'
+#];
 # comming in 1.47
 #$wgOATHAuth2FAForAllWarnings = true;
 #$wgOATHAuthEnforce2FAForAll = true;
