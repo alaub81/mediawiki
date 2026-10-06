@@ -151,33 +151,30 @@ RUN set -eux; \
       composer install --no-dev; \
     fi
 
-# Apply the upstream MediaWiki 1.46 MediaHandler language fix and RelatedArticles patch.
-####### Start Patch
-COPY patches/mediawiki-1.46-mediahandler-language.patch /tmp/mediahandler-language.patch
 # Allow authenticated RelatedArticles API requests on private wikis.
 COPY patches/relatedarticles-private-wiki.patch /tmp/relatedarticles-private-wiki.patch
 
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends patch; \
-    patch --batch --forward --dry-run \
-        -p1 \
-        -d /var/www/html \
-        < /tmp/mediahandler-language.patch; \
-    patch --batch --forward \
-        -p1 \
-        -d /var/www/html \
-        < /tmp/mediahandler-language.patch; \
-    rm -f /tmp/mediahandler-language.patch; \
-    patch --batch --forward --dry-run -p1 -d /var/www/html \
-        < /tmp/relatedarticles-private-wiki.patch; \
-    patch --batch --forward -p1 -d /var/www/html \
-        < /tmp/relatedarticles-private-wiki.patch; \
-    rm -f /tmp/relatedarticles-private-wiki.patch; \
+    : > /usr/local/share/mediawiki-upstream-patches; \
+    apply_patch() { \
+      patch_file="$1"; \
+      if patch --batch --forward --dry-run -p1 -d /var/www/html < "$patch_file"; then \
+        patch --batch --forward -p1 -d /var/www/html < "$patch_file"; \
+      elif patch --batch --reverse --dry-run -p1 -d /var/www/html < "$patch_file"; then \
+        echo "Already applied upstream: $patch_file"; \
+        basename "$patch_file" >> /usr/local/share/mediawiki-upstream-patches; \
+      else \
+        echo "ERROR: patch conflicts with upstream source: $patch_file" >&2; \
+        return 1; \
+      fi; \
+      rm -f "$patch_file"; \
+    }; \
+    apply_patch /tmp/relatedarticles-private-wiki.patch; \
     apt-get purge -y --auto-remove patch; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
-###### END Patch
 
 ENTRYPOINT ["/usr/local/bin/mediawiki-entrypoint.sh"]
 CMD ["apache2-foreground"]

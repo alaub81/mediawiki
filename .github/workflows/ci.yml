@@ -159,6 +159,23 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      - name: Warn about patches already included upstream
+        if: matrix.image.name == 'mediawiki-custom'
+        env:
+          PATCH_CHECK_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          patches="$(docker run --rm --entrypoint sh "$PATCH_CHECK_IMAGE" -c '
+            if [ -f /usr/local/share/mediawiki-upstream-patches ]; then
+              cat /usr/local/share/mediawiki-upstream-patches
+            fi
+          ')"
+          while IFS= read -r patch_name; do
+            [ -n "$patch_name" ] || continue
+            echo "::warning title=Redundant MediaWiki patch::$patch_name is already included upstream; remove the manual patch."
+          done <<< "$patches"
+
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:

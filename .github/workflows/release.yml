@@ -153,6 +153,23 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Warn about patches already included upstream
+        if: matrix.image.name == 'mediawiki-custom'
+        env:
+          PATCH_CHECK_IMAGE: scan:${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          patches="$(docker run --rm --entrypoint sh "$PATCH_CHECK_IMAGE" -c '
+            if [ -f /usr/local/share/mediawiki-upstream-patches ]; then
+              cat /usr/local/share/mediawiki-upstream-patches
+            fi
+          ')"
+          while IFS= read -r patch_name; do
+            [ -n "$patch_name" ] || continue
+            echo "::warning title=Redundant MediaWiki patch::$patch_name is already included upstream; remove the manual patch."
+          done <<< "$patches"
+
       - name: Trivy FS (SARIF)
         uses: aquasecurity/trivy-action@v0.36.0
         continue-on-error: true
@@ -271,6 +288,23 @@ jobs:
           tags: scan:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Warn about patches already included upstream
+        if: matrix.image.name == 'mediawiki-custom'
+        env:
+          PATCH_CHECK_IMAGE: scan:${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          patches="$(docker run --rm --entrypoint sh "$PATCH_CHECK_IMAGE" -c '
+            if [ -f /usr/local/share/mediawiki-upstream-patches ]; then
+              cat /usr/local/share/mediawiki-upstream-patches
+            fi
+          ')"
+          while IFS= read -r patch_name; do
+            [ -n "$patch_name" ] || continue
+            echo "::warning title=Redundant MediaWiki patch::$patch_name is already included upstream; remove the manual patch."
+          done <<< "$patches"
 
       - name: Trivy Image (SARIF)
         uses: aquasecurity/trivy-action@v0.36.0
