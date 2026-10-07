@@ -1,25 +1,55 @@
-Wanda 3.0.0 (master @ 92f7e9bdaf71): UTF-8-safe truncation of LLM prompt text
+Wanda 3.0.0 (master @ 92f7e9bdaf71): UTF-8-safe truncation + configurable search candidates
 
-Problem: generateLLMResponse() and the query handlers cut context text with substr()
-to a byte budget. If the cut lands inside a multibyte UTF-8 character (e.g. German
-umlauts), the string becomes invalid UTF-8, json_encode() returns false and an empty
-body is sent to the LLM -> OpenAI "HTTP 400: We could not parse the JSON body".
+1) UTF-8-safe truncation of LLM prompt text
+   generateLLMResponse() and the query handlers cut context text with substr() to a
+   byte budget. If the cut lands inside a multibyte UTF-8 character (e.g. German
+   umlauts), json_encode() returns false and an empty body is sent to the LLM ->
+   OpenAI "HTTP 400: We could not parse the JSON body".
+   - substr() -> mb_strcut( ..., 'UTF-8' ) wherever text for a prompt is truncated
+   - JSON_INVALID_UTF8_SUBSTITUTE on all outgoing LLM/embedding/search payloads
 
-Fix:
- - substr() -> mb_strcut( ..., 'UTF-8' ) wherever text for a prompt is truncated
-   (wiki, Wikidata, Cargo, SMW, RAG, external wiki context, image descriptions,
-   follow-up results, Wikibase user query); same byte budget, never cuts inside a
-   character. Debug log output is left unchanged.
- - JSON_INVALID_UTF8_SUBSTITUTE on all outgoing LLM/embedding/search payloads as a
-   safety net for invalid UTF-8 already present in page or PDF text.
+2) $wgWandaSearchCandidates
+   Vector and text search fetched only 5 hits from Elasticsearch and filtered them by
+   $wgWandaAllowedNamespaces/read permission afterwards; if all 5 were filtered out,
+   Wanda fell back to text search although better allowed pages existed.
+   New setting: number of hits fetched before filtering (default 5 = unchanged).
 
 Apply from the MediaWiki root: patch -p1 -d /var/www/html < wanda-utf8-truncation.patch
 
+diff --git a/extensions/Wanda/extension.json b/extensions/Wanda/extension.json
+index d798a2f..cbdc886 100644
+--- a/extensions/Wanda/extension.json
++++ b/extensions/Wanda/extension.json
+@@ -230,6 +230,7 @@
+ 		"WandaLLMEmbeddingModel": null,
+ 		"WandaLLMElasticsearchUrl": null,
+ 		"WandaVectorSearchMinScore": 1.7,
++		"WandaSearchCandidates": 5,
+ 		"WandaLLMMaxTokens": 1000,
+ 		"WandaLLMTemperature": "0.7",
+ 		"WandaLLMTimeout": 30,
 diff --git a/extensions/Wanda/includes/APIChat.php b/extensions/Wanda/includes/APIChat.php
-index 321d587..c2feb60 100644
+index 321d587..b21d4d8 100644
 --- a/extensions/Wanda/includes/APIChat.php
 +++ b/extensions/Wanda/includes/APIChat.php
-@@ -596,7 +596,7 @@ class APIChat extends ApiBase {
+@@ -44,6 +44,8 @@ class APIChat extends ApiBase {
+ 	private static $useContentLang = false;
+ 	/** @var float */
+ 	private static $vectorSearchMinScore;
++	/** @var int Hits fetched from Elasticsearch before the namespace/permission filter */
++	private static $searchCandidates = 5;
+ 	/** @var bool */
+ 	private static $enableConversationMemory = true;
+ 	/** @var int */
+@@ -116,6 +118,7 @@ class APIChat extends ApiBase {
+ 		self::$customPrompt = $this->getConfig()->get( 'WandaCustomPrompt' ) ?? "";
+ 		self::$useContentLang = $this->getConfig()->get( 'WandaUseContentLang' ) ?? false;
+ 		self::$vectorSearchMinScore = $this->getConfig()->get( 'WandaVectorSearchMinScore' ) ?? 1.7;
++		self::$searchCandidates = max( 1, (int)( $this->getConfig()->get( 'WandaSearchCandidates' ) ?? 5 ) );
+ 		self::$enableConversationMemory = true;
+ 		self::$conversationMaxChars = $this->getConfig()->get( 'WandaConversationMaxChars' ) ?? 6000;
+ 		self::$disabledSources = (array)( $this->getConfig()->get( 'WandaDisabledSources' ) ?? [] );
+@@ -596,7 +599,7 @@ class APIChat extends ApiBase {
  					foreach ( $lines as $line ) {
  						$line = trim( $line );
  						if ( !empty( $line ) && !preg_match( '/^[\[\{]/', $line ) ) {
@@ -28,7 +58,7 @@ index 321d587..c2feb60 100644
  							break;
  						}
  					}
-@@ -677,7 +677,7 @@ class APIChat extends ApiBase {
+@@ -677,7 +680,7 @@ class APIChat extends ApiBase {
  
  				$text = $this->extractReadableHtmlText( $body );
  				if ( strlen( $text ) > 4000 ) {
@@ -37,7 +67,16 @@ index 321d587..c2feb60 100644
  				}
  				$urlParts[] = "--- From: " . $url . " ---\n" . trim( $text );
  			}
-@@ -925,7 +925,7 @@ class APIChat extends ApiBase {
+@@ -894,7 +897,7 @@ class APIChat extends ApiBase {
+ 
+ 		// Perform kNN search across all chunks using nested query
+ 		$queryData = [
+-			"size" => 5,
++			"size" => self::$searchCandidates,
+ 			"query" => [
+ 				"nested" => [
+ 					"path" => "content_vectors",
+@@ -925,7 +928,7 @@ class APIChat extends ApiBase {
  
  		$ch = curl_init( $searchUrl );
  		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
@@ -46,7 +85,16 @@ index 321d587..c2feb60 100644
  		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
  		curl_setopt( $ch, CURLOPT_TIMEOUT, self::$timeout );
  		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ "Content-Type: application/json" ] );
-@@ -1042,7 +1042,7 @@ class APIChat extends ApiBase {
+@@ -1032,7 +1035,7 @@ class APIChat extends ApiBase {
+ 					"fuzziness" => "AUTO"
+ 				]
+ 			],
+-			"size" => 5,
++			"size" => self::$searchCandidates,
+ 			"_source" => [ "title", "content", "text" ],
+ 			"min_score" => 1.0
+ 		];
+@@ -1042,7 +1045,7 @@ class APIChat extends ApiBase {
  
  		$ch = curl_init( $searchUrl );
  		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
@@ -55,7 +103,7 @@ index 321d587..c2feb60 100644
  		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
  		curl_setopt( $ch, CURLOPT_TIMEOUT, self::$timeout );
  		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ "Content-Type: application/json" ] );
-@@ -1224,7 +1224,7 @@ class APIChat extends ApiBase {
+@@ -1224,7 +1227,7 @@ class APIChat extends ApiBase {
  
  			$ch = curl_init( $url );
  			curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, 'POST' );
@@ -64,7 +112,7 @@ index 321d587..c2feb60 100644
  			curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
  			curl_setopt( $ch, CURLOPT_TIMEOUT, self::$timeout );
  			curl_setopt( $ch, CURLOPT_HTTPHEADER, [ 'Content-Type: application/json' ] );
-@@ -1348,7 +1348,7 @@ class APIChat extends ApiBase {
+@@ -1348,7 +1351,7 @@ class APIChat extends ApiBase {
  			}
  		}
  
@@ -73,7 +121,7 @@ index 321d587..c2feb60 100644
  
  		$ch = curl_init( self::$llmApiEndpoint . "generate" );
  		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
-@@ -1491,7 +1491,7 @@ class APIChat extends ApiBase {
+@@ -1491,7 +1494,7 @@ class APIChat extends ApiBase {
  		$payload[$tokenKey] = self::$maxTokens;
  
  		$sendRequest = static function ( $payloadData ) {
@@ -82,7 +130,7 @@ index 321d587..c2feb60 100644
  
  			$ch = curl_init( "https://api.openai.com/v1/chat/completions" );
  			curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
-@@ -1647,7 +1647,7 @@ class APIChat extends ApiBase {
+@@ -1647,7 +1650,7 @@ class APIChat extends ApiBase {
  		if ( !empty( $systemPrompt ) ) {
  			$payloadData['system'] = $systemPrompt;
  		}
@@ -91,7 +139,7 @@ index 321d587..c2feb60 100644
  
  		$ch = curl_init( "https://api.anthropic.com/v1/messages" );
  		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
-@@ -1763,7 +1763,7 @@ class APIChat extends ApiBase {
+@@ -1763,7 +1766,7 @@ class APIChat extends ApiBase {
  			"messages" => $messages,
  			$tokenKey => self::$maxTokens,
  			"temperature" => self::$temperature
@@ -100,7 +148,7 @@ index 321d587..c2feb60 100644
  
  		// Azure endpoint should include the deployment name
  		$ch = curl_init( self::$llmApiEndpoint );
-@@ -2052,7 +2052,7 @@ class APIChat extends ApiBase {
+@@ -2052,7 +2055,7 @@ class APIChat extends ApiBase {
  		if ( $wikidataContext !== '' ) {
  			$wikidataBudget = min( $wikidataBudgetCap, $maxContextChars );
  			if ( strlen( $wikidataContext ) > $wikidataBudget ) {
@@ -109,7 +157,7 @@ index 321d587..c2feb60 100644
  			}
  		}
  
-@@ -2060,7 +2060,7 @@ class APIChat extends ApiBase {
+@@ -2060,7 +2063,7 @@ class APIChat extends ApiBase {
  		if ( $cargoContext !== '' ) {
  			$cargoBudget = min( $cargoBudgetCap, $maxContextChars - strlen( $wikidataContext ) );
  			if ( strlen( $cargoContext ) > $cargoBudget ) {
@@ -118,7 +166,7 @@ index 321d587..c2feb60 100644
  			}
  		}
  
-@@ -2068,7 +2068,7 @@ class APIChat extends ApiBase {
+@@ -2068,7 +2071,7 @@ class APIChat extends ApiBase {
  		if ( $smwContext !== '' ) {
  			$smwBudget = min( $smwBudgetCap, $maxContextChars - strlen( $wikidataContext ) - strlen( $cargoContext ) );
  			if ( strlen( $smwContext ) > $smwBudget ) {
@@ -127,7 +175,7 @@ index 321d587..c2feb60 100644
  			}
  		}
  
-@@ -2079,7 +2079,7 @@ class APIChat extends ApiBase {
+@@ -2079,7 +2082,7 @@ class APIChat extends ApiBase {
  				$maxContextChars - strlen( $wikidataContext ) - strlen( $cargoContext ) - strlen( $smwContext )
  			);
  			if ( strlen( $ragContext ) > $ragBudget ) {
@@ -136,7 +184,7 @@ index 321d587..c2feb60 100644
  			}
  		}
  
-@@ -2091,7 +2091,7 @@ class APIChat extends ApiBase {
+@@ -2091,7 +2094,7 @@ class APIChat extends ApiBase {
  					strlen( $smwContext ) - strlen( $ragContext )
  			);
  			if ( strlen( $externalWikiContext ) > $externalWikiBudget ) {
@@ -145,7 +193,7 @@ index 321d587..c2feb60 100644
  					. "\n[...truncated...]";
  			}
  		}
-@@ -2100,7 +2100,7 @@ class APIChat extends ApiBase {
+@@ -2100,7 +2103,7 @@ class APIChat extends ApiBase {
  			strlen( $cargoContext ) - strlen( $smwContext ) - strlen( $ragContext ) -
  			strlen( $externalWikiContext ) );
  		if ( $context !== '' && strlen( $context ) > $wikiBudget ) {
