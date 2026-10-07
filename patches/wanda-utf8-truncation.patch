@@ -1,0 +1,211 @@
+Wanda (REL1_46): UTF-8-safe truncation of the LLM context
+
+Problem: generateLLMResponse() cuts the wiki/Cargo context with substr() to a byte
+budget. If the cut lands inside a multibyte UTF-8 character (e.g. German umlauts),
+the string becomes invalid UTF-8, json_encode() returns false and an empty body is
+sent to the LLM -> OpenAI "HTTP 400: We could not parse the JSON body".
+
+Fix:
+ - substr() -> mb_strcut( ..., 'UTF-8' ) where text sent to the LLM is truncated
+   (same byte budget, never cuts inside a character)
+ - JSON_INVALID_UTF8_SUBSTITUTE on all outgoing request payloads as a safety net
+   for invalid UTF-8 already present in page/PDF text
+
+Based on: wikimedia/mediawiki-extensions-Wanda REL1_46 @ f05813795b1d
+Apply in the extension directory: patch -p1 < wanda-utf8-truncation.patch
+
+diff --git a/includes/APIChat.php b/includes/APIChat.php
+index 3e4373b..e7a63dd 100644
+--- a/includes/APIChat.php
++++ b/includes/APIChat.php
+@@ -382,7 +382,7 @@ class APIChat extends ApiBase {
+ 					foreach ( $lines as $line ) {
+ 						$line = trim( $line );
+ 						if ( !empty( $line ) && !preg_match( '/^[\[\{]/', $line ) ) {
+-							$description = substr( $line, 0, 500 );
++							$description = mb_strcut( $line, 0, 500, 'UTF-8' );
+ 							break;
+ 						}
+ 					}
+@@ -525,7 +525,7 @@ class APIChat extends ApiBase {
+ 
+ 		$ch = curl_init( $searchUrl );
+ 		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
+-		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $queryData ) );
++		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $queryData, JSON_INVALID_UTF8_SUBSTITUTE ) );
+ 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+ 		curl_setopt( $ch, CURLOPT_TIMEOUT, self::$timeout );
+ 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ "Content-Type: application/json" ] );
+@@ -629,7 +629,7 @@ class APIChat extends ApiBase {
+ 
+ 		$ch = curl_init( $searchUrl );
+ 		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
+-		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $queryData ) );
++		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $queryData, JSON_INVALID_UTF8_SUBSTITUTE ) );
+ 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+ 		curl_setopt( $ch, CURLOPT_TIMEOUT, self::$timeout );
+ 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ "Content-Type: application/json" ] );
+@@ -799,7 +799,7 @@ class APIChat extends ApiBase {
+ 
+ 			$ch = curl_init( $url );
+ 			curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, 'POST' );
+-			curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $payload ) );
++			curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ) );
+ 			curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+ 			curl_setopt( $ch, CURLOPT_TIMEOUT, self::$timeout );
+ 			curl_setopt( $ch, CURLOPT_HTTPHEADER, [ 'Content-Type: application/json' ] );
+@@ -920,7 +920,7 @@ class APIChat extends ApiBase {
+ 			}
+ 		}
+ 
+-		$data = json_encode( $payload );
++		$data = json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE );
+ 
+ 		$ch = curl_init( self::$llmApiEndpoint . "generate" );
+ 		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
+@@ -1060,7 +1060,7 @@ class APIChat extends ApiBase {
+ 		$payload[$tokenKey] = self::$maxTokens;
+ 
+ 		$sendRequest = static function ( $payloadData ) {
+-			$data = json_encode( $payloadData );
++			$data = json_encode( $payloadData, JSON_INVALID_UTF8_SUBSTITUTE );
+ 
+ 			$ch = curl_init( "https://api.openai.com/v1/chat/completions" );
+ 			curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
+@@ -1213,7 +1213,7 @@ class APIChat extends ApiBase {
+ 		if ( !empty( $systemPrompt ) ) {
+ 			$payloadData['system'] = $systemPrompt;
+ 		}
+-		$data = json_encode( $payloadData );
++		$data = json_encode( $payloadData, JSON_INVALID_UTF8_SUBSTITUTE );
+ 
+ 		$ch = curl_init( "https://api.anthropic.com/v1/messages" );
+ 		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
+@@ -1326,7 +1326,7 @@ class APIChat extends ApiBase {
+ 			"messages" => $messages,
+ 			$tokenKey => self::$maxTokens,
+ 			"temperature" => self::$temperature
+-		] );
++		], JSON_INVALID_UTF8_SUBSTITUTE );
+ 
+ 		// Azure endpoint should include the deployment name
+ 		$ch = curl_init( self::$llmApiEndpoint );
+@@ -1596,7 +1596,8 @@ class APIChat extends ApiBase {
+ 		if ( $cargoContext !== '' ) {
+ 			$cargoBudget = min( 3000, $maxContextChars );
+ 			if ( strlen( $cargoContext ) > $cargoBudget ) {
+-				$cargoContext = substr( $cargoContext, 0, $cargoBudget ) . "\n[...truncated...]";
++				// Cut by bytes but never inside a multibyte UTF-8 character (invalid UTF-8 makes json_encode fail)
++				$cargoContext = mb_strcut( $cargoContext, 0, $cargoBudget, 'UTF-8' ) . "\n[...truncated...]";
+ 			}
+ 		}
+ 
+@@ -1605,7 +1606,8 @@ class APIChat extends ApiBase {
+ 			$wikiBudget = max( 0, $maxContextChars - strlen( $cargoContext ) );
+ 		}
+ 		if ( $context !== '' && strlen( $context ) > $wikiBudget ) {
+-			$context = substr( $context, 0, $wikiBudget ) . "\n[...truncated...]";
++			// Cut by bytes but never inside a multibyte UTF-8 character (invalid UTF-8 makes json_encode fail)
++			$context = mb_strcut( $context, 0, $wikiBudget, 'UTF-8' ) . "\n[...truncated...]";
+ 		}
+ 
+ 		$contextBlock = '';
+diff --git a/includes/CargoQueryHandler.php b/includes/CargoQueryHandler.php
+index fe871f2..e9f5213 100644
+--- a/includes/CargoQueryHandler.php
++++ b/includes/CargoQueryHandler.php
+@@ -402,7 +402,8 @@ class CargoQueryHandler {
+ 	): ?array {
+ 		$maxPreviousChars = 6000;
+ 		if ( strlen( $previousResults ) > $maxPreviousChars ) {
+-			$previousResults = substr( $previousResults, 0, $maxPreviousChars ) .
++			// Cut by bytes but never inside a multibyte UTF-8 character (invalid UTF-8 makes json_encode fail)
++			$previousResults = mb_strcut( $previousResults, 0, $maxPreviousChars, 'UTF-8' ) .
+ 				"\n[... earlier results truncated ...]";
+ 		}
+ 
+@@ -842,7 +843,7 @@ class CargoQueryHandler {
+ 
+ 		$response = $this->curlPost(
+ 			$this->llmApiEndpoint . 'generate',
+-			json_encode( $payload ),
++			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
+ 			[ 'Content-Type: application/json' ]
+ 		);
+ 
+@@ -883,7 +884,7 @@ class CargoQueryHandler {
+ 		$sendRequest = function ( $payload ) use ( $headers ): ?string {
+ 			$response = $this->curlPost(
+ 				'https://api.openai.com/v1/chat/completions',
+-				json_encode( $payload ),
++				json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
+ 				$headers
+ 			);
+ 			return $response;
+@@ -945,7 +946,7 @@ class CargoQueryHandler {
+ 
+ 		$response = $this->curlPost(
+ 			'https://api.anthropic.com/v1/messages',
+-			json_encode( $payload ),
++			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
+ 			[
+ 				'Content-Type: application/json',
+ 				'x-api-key: ' . $this->llmApiKey,
+@@ -990,7 +991,7 @@ class CargoQueryHandler {
+ 
+ 		$response = $this->curlPost(
+ 			$this->llmApiEndpoint,
+-			json_encode( $payload ),
++			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
+ 			[
+ 				'Content-Type: application/json',
+ 				'api-key: ' . $this->llmApiKey
+@@ -1039,7 +1040,7 @@ class CargoQueryHandler {
+ 
+ 		$response = $this->curlPost(
+ 			$url,
+-			json_encode( $payload ),
++			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
+ 			[ 'Content-Type: application/json' ]
+ 		);
+ 
+diff --git a/includes/EmbeddingGenerator.php b/includes/EmbeddingGenerator.php
+index 6c5e0cc..6117044 100644
+--- a/includes/EmbeddingGenerator.php
++++ b/includes/EmbeddingGenerator.php
+@@ -221,7 +221,7 @@ class EmbeddingGenerator {
+ 		$ch = curl_init( $url );
+ 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+ 		curl_setopt( $ch, CURLOPT_POST, true );
+-		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data ) );
++		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data, JSON_INVALID_UTF8_SUBSTITUTE ) );
+ 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [
+ 			'Content-Type: application/json',
+ 			'Authorization: Bearer ' . $apiKey
+@@ -263,7 +263,7 @@ class EmbeddingGenerator {
+ 		$ch = curl_init( $url );
+ 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+ 		curl_setopt( $ch, CURLOPT_POST, true );
+-		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data ) );
++		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data, JSON_INVALID_UTF8_SUBSTITUTE ) );
+ 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ 'Content-Type: application/json' ] );
+ 		curl_setopt( $ch, CURLOPT_TIMEOUT, $timeout );
+ 
+@@ -305,7 +305,7 @@ class EmbeddingGenerator {
+ 		$ch = curl_init( $url );
+ 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+ 		curl_setopt( $ch, CURLOPT_POST, true );
+-		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data ) );
++		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data, JSON_INVALID_UTF8_SUBSTITUTE ) );
+ 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ 'Content-Type: application/json' ] );
+ 		curl_setopt( $ch, CURLOPT_TIMEOUT, $timeout );
+ 
+@@ -352,7 +352,7 @@ class EmbeddingGenerator {
+ 		$ch = curl_init( $url );
+ 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+ 		curl_setopt( $ch, CURLOPT_POST, true );
+-		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data ) );
++		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data, JSON_INVALID_UTF8_SUBSTITUTE ) );
+ 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [
+ 			'Content-Type: application/json',
+ 			'api-key: ' . $apiKey

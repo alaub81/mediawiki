@@ -153,6 +153,8 @@ RUN set -eux; \
 
 # Allow authenticated RelatedArticles API requests on private wikis.
 COPY patches/relatedarticles-private-wiki.patch /tmp/relatedarticles-private-wiki.patch
+# Wanda: UTF-8-safe truncation of the LLM context (OpenAI HTTP 400 with umlauts).
+COPY patches/wanda-utf8-truncation.patch /tmp/wanda-utf8-truncation.patch
 
 RUN set -eux; \
     apt-get update; \
@@ -172,6 +174,7 @@ RUN set -eux; \
       rm -f "$patch_file"; \
     }; \
     apply_patch /tmp/relatedarticles-private-wiki.patch; \
+    apply_patch /tmp/wanda-utf8-truncation.patch; \
     apt-get purge -y --auto-remove patch; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
