@@ -6,7 +6,7 @@ MW_SPECIAL_EXTENSIONS="WikiCategoryTagCloud CookieConsent Wanda"
 BRANCH="master"  # branch to query for the listed extensions
 
 for special in $MW_SPECIAL_EXTENSIONS; do
-  url="https://gerrit.wikimedia.org/r/mediawiki/extensions/$special";
+  url="https://github.com/wikimedia/mediawiki-extensions-${special}.git";
   REF=$(git ls-remote "$url" "refs/heads/$BRANCH" | awk '{print $1}')
   echo "$special last Commit is: $REF"
 done;

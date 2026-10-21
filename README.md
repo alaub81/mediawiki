@@ -47,6 +47,8 @@ The custom MediaWiki image installs these extensions:
 - Wanda
 - WandaScore
 
+The image build downloads Wikimedia extensions and skins from the public GitHub mirrors (`wikimedia/mediawiki-extensions-<name>` and `wikimedia/mediawiki-skins-<name>`), so it does not require access to Gerrit. Release-branch selection and pinned commits are preserved; RottenLinks continues to use its Miraheze GitHub repository.
+
 ## Repository layout
 
 ```text

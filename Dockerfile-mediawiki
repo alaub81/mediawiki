@@ -85,31 +85,32 @@ RUN set -eux; \
     git reset --hard -q; git clean -fdx -q; \
     echo "✓ checked out $commit into $dest"; \
   }; \
+  # Use Wikimedia GitHub mirrors so CI builds do not require Gerrit access.
   # Extensions
   for ext in $MW_INSTALL_EXTENSIONS; do \
-    url="https://gerrit.wikimedia.org/r/mediawiki/extensions/$ext"; \
+    url="https://github.com/wikimedia/mediawiki-extensions-${ext}.git"; \
     clone_with_fallback "$url" "/var/www/html/extensions/$ext"; \
   done; \
   # Skins
   for skin in $MW_INSTALL_SKINS; do \
-    url="https://gerrit.wikimedia.org/r/mediawiki/skins/$skin"; \
+    url="https://github.com/wikimedia/mediawiki-skins-${skin}.git"; \
     clone_with_fallback "$url" "/var/www/html/skins/$skin"; \
   done; \
   # Special Stuff
   # BRANCH="master"; \
   # COMMIT="335edadddb7a438e0e4698e9103d5efd4c46f9d8" ; \
-  # clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/WikiCategoryTagCloud" \
+  # clone_fixed_commit "https://github.com/wikimedia/mediawiki-extensions-WikiCategoryTagCloud.git" \
   #                    "/var/www/html/extensions/WikiCategoryTagCloud" \
   #                    "$COMMIT" "$BRANCH"; \
   # BRANCH="master"; \
   # COMMIT="e02209dddb79a5f8fc0e7cdb1438ff8ee928a2ee"; \
-  # clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/CookieConsent" \
+  # clone_fixed_commit "https://github.com/wikimedia/mediawiki-extensions-CookieConsent.git" \
   #                    "/var/www/html/extensions/CookieConsent" \
   #                    "$COMMIT" "$BRANCH"; \
-  # Pin Wanda 3.0.0 from Wikimedia Gerrit because REL1_46 contains Wanda 2.0.0.
+  # Pin Wanda 3.0.0 from the Wikimedia GitHub mirror because REL1_46 contains Wanda 2.0.0.
   BRANCH="master"; \
   COMMIT="92f7e9bdaf71e905959186d81abc0236a443ea92"; \
-  clone_fixed_commit "https://gerrit.wikimedia.org/r/mediawiki/extensions/Wanda" \
+  clone_fixed_commit "https://github.com/wikimedia/mediawiki-extensions-Wanda.git" \
                      "/var/www/html/extensions/Wanda" \
                      "$COMMIT" "$BRANCH"; \
   BRANCH="main"; \
