@@ -49,8 +49,8 @@ run_check() {
   printf '\n'
 }
 
-run_check 'Hadolint (MediaWiki)' hadolint --config .hadolint.yaml Dockerfile-mediawiki
-run_check 'Hadolint (MemcachePHP)' hadolint --config .hadolint.yaml Dockerfile-memcachephp
+run_check 'Hadolint (MediaWiki)' hadolint --config .hadolint.yaml resources/mediawiki/Dockerfile
+run_check 'Hadolint (MemcachePHP)' hadolint --config .hadolint.yaml resources/memcachephp/Dockerfile
 run_check 'ShellCheck' shellcheck "${shell_scripts[@]}"
 run_check 'yamllint' yamllint --strict --config-file .yamllint.yaml .
 

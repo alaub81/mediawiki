@@ -1,8 +1,8 @@
 services:
   mediawiki:
     build:
-      context: .
-      dockerfile: Dockerfile-mediawiki
+      context: ./resources/mediawiki
+      dockerfile: Dockerfile
       args:
         MW_INSTALL_EXTENSIONS: ${MW_INSTALL_EXTENSIONS:-}
         MW_INSTALL_SKINS: ${MW_INSTALL_SKINS:-}
@@ -13,7 +13,7 @@ services:
 
   memcachephp:
     build:
-      context: .
-      dockerfile: Dockerfile-memcachephp
+      context: ./resources/memcachephp
+      dockerfile: Dockerfile
     image: memcachephp
     pull_policy: never

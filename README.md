@@ -53,17 +53,21 @@ The image build downloads Wikimedia extensions and skins from the public GitHub 
 
 ```text
 .
-├── Dockerfile-mediawiki
-├── Dockerfile-memcachephp
 ├── docker-compose.dev.yml
 ├── docker-compose.example.yml
 ├── docker-compose.ci.yml
 ├── .env.example
 ├── resources/
-│   ├── favicon/
 │   ├── helper/
 │   ├── memcachephp/
+│   │   ├── .dockerignore
+│   │   ├── Dockerfile
+│   │   └── memcache.php
 │   └── mediawiki/
+│       ├── .dockerignore
+│       ├── Dockerfile
+│       ├── favicon/
+│       ├── patches/
 │       ├── mediawiki-entrypoint.sh
 │       ├── mw-default-setup.sh
 │       ├── generate-opensearch-index.sh
@@ -76,6 +80,23 @@ The image build downloads Wikimedia extensions and skins from the public GitHub 
         ├── conf/
         └── logo/
 ```
+
+Each image has a self-contained build context under `resources/<image>/`.
+The MediaWiki directory includes its scripts, Apache configuration, favicons and
+extension patches; MemcachePHP includes its PHP application. Compose files,
+runtime configuration under `data/`, tests and repository tooling remain outside
+the image contexts. `resources/helper/` contains host-side examples and utilities.
+
+To build either image directly from the repository root:
+
+```bash
+docker build -t mediawiki-custom resources/mediawiki
+docker build -t memcachephp resources/memcachephp
+```
+
+CI, release builds, Renovate and Dependabot use the same image directories.
+Scheduled rebuilds of historical tags also support the previous root-level
+Dockerfiles and repository-wide build context.
 
 ## Requirements
 

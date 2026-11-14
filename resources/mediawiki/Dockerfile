@@ -9,9 +9,9 @@ ENV MW_EXTRA_EXTENSIONS="Lockdown Description2 RelatedArticles MobileFrontend Ci
   DynamicPageList WikiSEO WikiCategoryTagCloud CookieConsent RottenLinks ExternalData"
 ENV MW_EXTRA_SKINS="${MW_INSTALL_SKINS}"
 
-COPY resources/mediawiki/mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
-COPY resources/mediawiki/memcachephp-proxy.conf /etc/apache2/conf-available/memcachephp-proxy.conf
-COPY --chown=www-data:www-data resources/favicon /var/www/html/favicon/
+COPY mediawiki-rewrites.conf /etc/apache2/conf-available/mediawiki-rewrites.conf
+COPY memcachephp-proxy.conf /etc/apache2/conf-available/memcachephp-proxy.conf
+COPY --chown=www-data:www-data favicon /var/www/html/favicon/
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -131,12 +131,12 @@ RUN curl -fsSLo /usr/local/bin/supercronic \
   "https://github.com/aptible/supercronic/releases/download/v0.2.49/supercronic-linux-${TARGETARCH}" \
   && chmod +x /usr/local/bin/supercronic
 
-COPY --chmod=0755 resources/mediawiki/mediawiki-entrypoint.sh /usr/local/bin/mediawiki-entrypoint.sh
-COPY --chmod=0755 resources/mediawiki/generate-sitemap.sh /usr/local/bin/generate-sitemap.sh
-COPY --chmod=0755 resources/mediawiki/generate-rottenlinks.sh /usr/local/bin/generate-rottenlinks.sh
-COPY --chmod=0755 resources/mediawiki/mw-default-setup.sh /usr/local/bin/mw-default-setup.sh
-COPY --chmod=0755 resources/mediawiki/generate-opensearch-index.sh /usr/local/bin/generate-opensearch-index.sh
-COPY --chmod=0755 resources/mediawiki/update-cirrussearch-index.sh /usr/local/bin/update-cirrussearch-index.sh
+COPY --chmod=0755 mediawiki-entrypoint.sh /usr/local/bin/mediawiki-entrypoint.sh
+COPY --chmod=0755 generate-sitemap.sh /usr/local/bin/generate-sitemap.sh
+COPY --chmod=0755 generate-rottenlinks.sh /usr/local/bin/generate-rottenlinks.sh
+COPY --chmod=0755 mw-default-setup.sh /usr/local/bin/mw-default-setup.sh
+COPY --chmod=0755 generate-opensearch-index.sh /usr/local/bin/generate-opensearch-index.sh
+COPY --chmod=0755 update-cirrussearch-index.sh /usr/local/bin/update-cirrussearch-index.sh
 
 # Get Composer Binary from official image
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

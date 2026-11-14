@@ -16,8 +16,8 @@ jobs:
       fail-fast: false
       matrix:
         dockerfile:
-          - Dockerfile-mediawiki
-          - Dockerfile-memcachephp
+          - resources/mediawiki/Dockerfile
+          - resources/memcachephp/Dockerfile
     steps:
       - uses: actions/checkout@v7
 
@@ -42,7 +42,7 @@ jobs:
           strict: true
 
       - name: Actionlint
-        if: matrix.dockerfile == 'Dockerfile-mediawiki'
+        if: matrix.dockerfile == 'resources/mediawiki/Dockerfile'
         uses: docker://rhysd/actionlint:1.7.7
         with:
           args: -color -shellcheck=
@@ -116,8 +116,8 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - {name: "mediawiki-custom", dockerfile: "Dockerfile-mediawiki", context: "."}
-          - {name: "memcachephp", dockerfile: "Dockerfile-memcachephp", context: "."}
+          - {name: "mediawiki-custom", dockerfile: "resources/mediawiki/Dockerfile", context: "resources/mediawiki"}
+          - {name: "memcachephp", dockerfile: "resources/memcachephp/Dockerfile", context: "resources/memcachephp"}
     steps:
       - uses: actions/checkout@v7
 

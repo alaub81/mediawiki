@@ -1,0 +1,7 @@
+.git
+**/*.log
+secrets/*
+.env
+.env.secrets
+.env.example
+**/.DS_Store

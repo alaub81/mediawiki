@@ -80,11 +80,11 @@ jobs:
         tag: ${{ fromJSON(needs.select-tags.outputs.tags_json) }}
         image:
           - name: 'mediawiki-custom'
-            dockerfile: 'Dockerfile-mediawiki'
-            context: '.'
+            dockerfile: 'resources/mediawiki/Dockerfile'
+            context: 'resources/mediawiki'
           - name: 'memcachephp'
-            dockerfile: 'Dockerfile-memcachephp'
-            context: '.'
+            dockerfile: 'resources/memcachephp/Dockerfile'
+            context: 'resources/memcachephp'
 
     steps:
       - name: Checkout at tag
@@ -92,6 +92,33 @@ jobs:
         with:
           ref: ${{ matrix.tag }}
           fetch-depth: 0
+
+      - name: Resolve image build context
+        id: build_paths
+        env:
+          IMAGE_NAME: ${{ matrix.image.name }}
+          DOCKERFILE: ${{ matrix.image.dockerfile }}
+          BUILD_CONTEXT: ${{ matrix.image.context }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dockerfile="$DOCKERFILE"
+          context="$BUILD_CONTEXT"
+          # Historical release tags still have root-level Dockerfiles.
+          if [[ ! -f "$dockerfile" ]]; then
+            case "$IMAGE_NAME" in
+              mediawiki-custom) dockerfile=Dockerfile-mediawiki ;;
+              memcachephp) dockerfile=Dockerfile-memcachephp ;;
+              *) echo "Unknown image: $IMAGE_NAME" >&2; exit 1 ;;
+            esac
+            context=.
+          fi
+          test -f "$dockerfile"
+          test -d "$context"
+          {
+            echo "dockerfile=$dockerfile"
+            echo "context=$context"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Compute semver tags (strip v + major/minor)
         id: semver
@@ -143,8 +170,8 @@ jobs:
       - name: Build (scan image)
         uses: docker/build-push-action@v7
         with:
-          context: ${{ matrix.image.context }}
-          file: ${{ matrix.image.dockerfile }}
+          context: ${{ steps.build_paths.outputs.context }}
+          file: ${{ steps.build_paths.outputs.dockerfile }}
           pull: true               # refresh the base image
           push: false
           load: true
@@ -218,8 +245,8 @@ jobs:
         if: ${{ success() }}
         uses: docker/build-push-action@v7
         with:
-          context: ${{ matrix.image.context }}
-          file: ${{ matrix.image.dockerfile }}
+          context: ${{ steps.build_paths.outputs.context }}
+          file: ${{ steps.build_paths.outputs.dockerfile }}
           platforms: linux/amd64,linux/arm64
           pull: true
           push: true
@@ -237,11 +264,11 @@ jobs:
       matrix:
         image:
           - name: 'mediawiki-custom'
-            dockerfile: 'Dockerfile-mediawiki'
-            context: '.'
+            dockerfile: 'resources/mediawiki/Dockerfile'
+            context: 'resources/mediawiki'
           - name: 'memcachephp'
-            dockerfile: 'Dockerfile-memcachephp'
-            context: '.'
+            dockerfile: 'resources/memcachephp/Dockerfile'
+            context: 'resources/memcachephp'
 
     steps:
       - uses: actions/checkout@v7

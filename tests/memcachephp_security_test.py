@@ -65,7 +65,7 @@ def expect_status(actual, expected):
 
 
 try:
-    docker("build", "-q", "-f", "Dockerfile-memcachephp", "-t", image, ".")
+    docker("build", "-q", "-t", image, "resources/memcachephp")
     docker("network", "create", network)
     docker("run", "-d", "--name", cache_container, "--network", network,
            "-p", "127.0.0.1::11211", "memcached:alpine", "-m", "16")

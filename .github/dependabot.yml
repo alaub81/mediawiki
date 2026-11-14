@@ -17,7 +17,10 @@ updates:
 
   # 2) Docker (Dockerfiles + docker-compose.*)
   - package-ecosystem: "docker"
-    directory: "/"
+    directories:
+      - "/"
+      - "/resources/mediawiki"
+      - "/resources/memcachephp"
     schedule:
       interval: "weekly"
       day: "monday"
