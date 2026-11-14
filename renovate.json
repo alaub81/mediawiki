@@ -22,6 +22,14 @@
   ],
   "packageRules": [
     {
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["aptible/supercronic"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": false
+    },
+    {
       "matchManagers": ["dockerfile", "github-actions"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
