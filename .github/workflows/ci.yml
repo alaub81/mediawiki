@@ -176,7 +176,7 @@ jobs:
             echo "::warning title=Redundant MediaWiki patch::$patch_name is already included upstream; remove the manual patch."
           done <<< "$patches"
 
-      - name: Trivy scan
+      - name: Trivy Image (SARIF)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
@@ -184,14 +184,27 @@ jobs:
           format: sarif
           output: trivy-${{ matrix.image.name }}.sarif
           vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH,MEDIUM'
+          severity: 'UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL'
+          ignore-unfixed: false
+          exit-code: '0'
+
+      - name: Trivy Image (gate)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: table
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
           ignore-unfixed: true
+          exit-code: '1'
 
       - name: Upload SARIF
-        if: ${{ github.event.repository.private == false }}
+        if: ${{ always() && github.event.repository.private == false && hashFiles('trivy-*.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-${{ matrix.image.name }}.sarif
+          category: trivy-image-ci-${{ matrix.image.name }}
 
   e2e:
     runs-on: ubuntu-latest
