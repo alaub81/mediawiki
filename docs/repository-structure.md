@@ -24,8 +24,9 @@ Branch protection remains deferred. No other repository is changed.
 
 The image contexts remain self-contained. The host-only commit lookup utility
 and NGINX example have moved out of `resources/`. They are not image inputs.
-The root `linter-check.sh` remains the current lint entry point until the local
-checks are migrated in step 2.
+Local checks now use `tests/linter-check.sh`, `tests/test-check.sh` and
+`tests/integration-check.sh`. See the [development guide](development.md) for
+the step 2 tooling.
 
 ## Compose filename migration
 

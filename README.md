@@ -472,6 +472,23 @@ The UI requires Basic Auth. Deleting an item or flushing a server uses a POST fo
 
 The OpenSearch index is derived data and can be rebuilt from the MediaWiki database. Database and uploaded-file backups remain essential.
 
+## Development and checks
+
+Run the shared local checks from the repository root:
+
+```bash
+./tests/linter-check.sh
+./tests/test-check.sh
+./tests/integration-check.sh
+```
+
+The linter prepares pinned tools in ignored, isolated directories. The test
+command runs offline regressions and resolves the Compose examples without
+starting containers. The integration command runs the existing MemcachePHP
+security test with disposable containers and requires a running Docker daemon.
+See [local development and checks](docs/development.md) for requirements,
+tool versions, test coverage and the staged CI migration.
+
 ## CI and E2E tests
 
 The CI workflow uses `compose.yml` as its base configuration. Therefore, OpenSearch must be configured consistently in both:

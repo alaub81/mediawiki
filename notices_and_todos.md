@@ -122,7 +122,7 @@ Arguments:
 
 ## Code- und README-Review vom 27.09.2026
 
-Statische Prüfung des aktuellen Arbeitsstands. `./linter-check.sh`, `bash -n`, JSON-Prüfung von `renovate.json` und `docker compose config --quiet` für Beispiel-, Entwicklungs- und Secrets-Konfiguration waren erfolgreich. Ein echter Container- und E2E-Test war nicht möglich, da der Zugriff auf den lokalen Docker-Daemon verweigert wurde. Die bestehenden, teils noch nicht committeten Änderungen wurden nicht überschrieben.
+Statische Prüfung des aktuellen Arbeitsstands. `./tests/linter-check.sh`, `bash -n`, JSON-Prüfung von `renovate.json` und `docker compose config --quiet` für Beispiel-, Entwicklungs- und Secrets-Konfiguration waren erfolgreich. Ein echter Container- und E2E-Test war nicht möglich, da der Zugriff auf den lokalen Docker-Daemon verweigert wurde. Die bestehenden, teils noch nicht committeten Änderungen wurden nicht überschrieben.
 
 ### P0 – Installation, Betrieb und Sicherheit
 
