@@ -53,12 +53,27 @@ The image build downloads Wikimedia extensions and skins from the public GitHub 
 
 ```text
 .
-├── docker-compose.dev.yml
-├── docker-compose.example.yml
-├── docker-compose.ci.yml
+├── compose.yml
+├── compose.dev.yml
+├── compose.setup.yml
+├── compose.secrets.yml
 ├── .env.example
+├── .github/
+│   ├── FUNDING.yml
+│   ├── ISSUE_TEMPLATE/
+│   ├── PULL_REQUEST_TEMPLATE.md
+│   ├── dependabot.yml
+│   └── workflows/
+├── docs/
+│   ├── README.md
+│   ├── repository-structure.md
+│   └── examples/
+├── tests/
+│   ├── compose.test.yml
+│   └── memcachephp_security_test.py
+├── tools/
+│   └── get-last-git-commit.sh
 ├── resources/
-│   ├── helper/
 │   ├── memcachephp/
 │   │   ├── .dockerignore
 │   │   ├── Dockerfile
@@ -85,7 +100,10 @@ Each image has a self-contained build context under `resources/<image>/`.
 The MediaWiki directory includes its scripts, Apache configuration, favicons and
 extension patches; MemcachePHP includes its PHP application. Compose files,
 runtime configuration under `data/`, tests and repository tooling remain outside
-the image contexts. `resources/helper/` contains host-side examples and utilities.
+the image contexts. Host-side utilities live under `tools/`; the NGINX example
+lives under `docs/examples/`. See the [documentation index](docs/README.md) and
+[Compose filename migration](docs/repository-structure.md#compose-filename-migration)
+before updating an existing installation.
 
 To build either image directly from the repository root:
 
@@ -115,6 +133,12 @@ RAM measurements on a Docker Desktop VM with 7.75 GiB allocated (27 September 20
 An earlier full-stack snapshot showed 4.07 GiB (ClamAV 0.99 GiB, Elasticsearch 1.26 GiB, OpenSearch 1.44 GiB, other services 0.39 GiB). Each measured profile answered 120 read-only API requests (site information, search, recent changes) successfully. A bounded search-index update processed only one page, and the MediaWiki database updater found no pending schema changes. At the end of the full-profile run, cgroup swap usage was zero and no container had been OOM-killed or restarted. These short runs on a nearly empty wiki do not establish minimum RAM or worst-case peaks. Leave room for larger indexes and maintenance jobs and, on Docker Desktop, allocate the memory to the Docker VM.
 
 ## Quick start
+
+For an existing installation with a customized `docker-compose.yml`, continue
+using `docker compose -f docker-compose.yml ...` and the same project name.
+Docker Compose prefers the new `compose.yml` when both files exist; do not switch
+files implicitly or replace live settings with a template. See the
+[migration guide](docs/repository-structure.md#compose-filename-migration).
 
 ### 1. Create the environment file
 
@@ -178,11 +202,11 @@ When `MW_WANDA_ENABLED=true`, provide the OpenAI API key as `MW_WANDA_OPENAI_API
 
 ### Use password files with Docker Compose
 
-`docker-compose.secrets.yml` mounts the five files from `./secrets/` and removes the password environment variables inherited from `docker-compose.yml`. It also changes the MariaDB health check to read the root password file. Use `.env.secrets` for the remaining, non-secret settings:
+`compose.secrets.yml` mounts the five files from `./secrets/` and removes the password environment variables inherited from `compose.yml`. It also changes the MariaDB health check to read the root password file. Use `.env.secrets` for the remaining, non-secret settings:
 
 ```bash
-docker compose --env-file .env.secrets -f docker-compose.yml -f docker-compose.secrets.yml config --quiet
-docker compose --env-file .env.secrets -f docker-compose.yml -f docker-compose.secrets.yml up -d
+docker compose --env-file .env.secrets -f compose.yml -f compose.secrets.yml config --quiet
+docker compose --env-file .env.secrets -f compose.yml -f compose.secrets.yml up -d
 ```
 
 The overlay requires Docker Compose 2.24.4 or newer for `!override`. Keep the appropriate `LocalSettings.php` mount enabled in the base Compose file. Replace the example passwords and the placeholder OpenAI key in `./secrets/` before deployment. If the MariaDB data volume already exists, its stored passwords must match the secret files; changing the files does not change database accounts. The `.env.secrets` file has no password assignments. With this overlay, inherited password environment variables are removed even if they are present in an env file, but keeping them there is unnecessary and makes an accidental start without the overlay use those values.
@@ -191,16 +215,15 @@ The overlay requires Docker Compose 2.24.4 or newer for `!override`. Keep the ap
 
 ```bash
 docker compose \
-  -f docker-compose.dev.yml \
+  -f compose.dev.yml \
   --env-file .env \
   up -d --build
 ```
 
-To use the prebuilt MediaWiki and MemcachePHP images, first copy the example Compose file:
+To use the prebuilt MediaWiki and MemcachePHP images, use the production file:
 
 ```bash
-cp docker-compose.example.yml docker-compose.yml
-docker compose --env-file .env up -d
+docker compose --env-file .env -f compose.yml up -d
 ```
 
 ### 4. Inspect service health
@@ -451,10 +474,10 @@ The OpenSearch index is derived data and can be rebuilt from the MediaWiki datab
 
 ## CI and E2E tests
 
-The CI workflow uses `docker-compose.example.yml` as its base configuration. Therefore, OpenSearch must be configured consistently in both:
+The CI workflow uses `compose.yml` as its base configuration. Therefore, OpenSearch must be configured consistently in both:
 
-- `docker-compose.dev.yml`
-- `docker-compose.example.yml`
+- `compose.dev.yml`
+- `compose.yml`
 
 The E2E workflow should address the service as `opensearch`:
 
@@ -573,6 +596,11 @@ docker compose exec -T mediawiki \
 - Prefer Docker secrets or another secret-management mechanism for production credentials.
 - Back up the MariaDB database and MediaWiki uploads regularly.
 - Pin production image versions instead of using floating `latest` tags.
+
+## Support this project
+
+If this project is useful to you, you can optionally
+[support its maintenance on Buy Me a Coffee](https://www.buymeacoffee.com/alaub81).
 
 ## License
 

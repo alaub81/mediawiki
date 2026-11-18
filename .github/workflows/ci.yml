@@ -80,7 +80,7 @@ jobs:
           MW_WANDA_ENABLED: ${{ matrix.wanda_enabled }}
         run: |
           set -Eeuo pipefail
-          cp docker-compose.example.yml docker-compose.yml
+          cp compose.yml docker-compose.yml
 
           docker compose --env-file .env.example config --quiet
           services="$(docker compose --env-file .env.example config --services)"
@@ -214,7 +214,7 @@ jobs:
 
       - name: Copy docker-compose.yml
         run: |
-          cp docker-compose.example.yml docker-compose.yml
+          cp compose.yml docker-compose.yml
 
       - name: Write CI .env (override)
         run: |
@@ -272,7 +272,7 @@ jobs:
         run: |
           docker compose \
             -f docker-compose.yml \
-            -f docker-compose.ci.yml \
+            -f tests/compose.test.yml \
             --env-file .env.ci \
             up -d --build
 

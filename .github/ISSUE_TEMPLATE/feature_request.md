@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an idea for portwatcher
+about: Suggest an improvement to the MediaWiki Docker stack
 labels: enhancement
 ---
 
@@ -8,4 +8,10 @@ labels: enhancement
 ...
 
 **Describe the solution you'd like**
+...
+
+**Affected services and compatibility**
+Which services, optional profiles or deployment platforms would this affect?
+
+**Alternatives considered**
 ...

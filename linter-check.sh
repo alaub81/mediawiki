@@ -23,6 +23,8 @@ fi
 # Include tracked scripts and untracked, non-ignored scripts such as this one.
 shell_scripts=()
 while IFS= read -r -d '' script; do
+  # Renamed paths remain in the Git index until the move is staged.
+  [[ -f "$script" ]] || continue
   shell_scripts+=("$script")
 done < <(git ls-files -z --cached --others --exclude-standard -- '*.sh')
 
