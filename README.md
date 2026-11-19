@@ -480,16 +480,32 @@ Run the shared local checks from the repository root:
 ./tests/linter-check.sh
 ./tests/test-check.sh
 ./tests/integration-check.sh
+./tests/e2e-check.sh
 ```
 
 The linter prepares pinned tools in ignored, isolated directories. The test
 command runs offline regressions and resolves the Compose examples without
 starting containers. The integration command runs the existing MemcachePHP
 security test with disposable containers and requires a running Docker daemon.
+The E2E command builds both current-source images once and runs the full isolated
+MediaWiki suite. CI reuses its already built images with `--skip-build`.
 See [local development and checks](docs/development.md) for requirements,
 tool versions, test coverage and the staged CI migration.
 
 ## CI and E2E tests
+
+CI runs the shared linters and offline checks once, then tests current-source
+MediaWiki and MemcachePHP images on native amd64 and arm64 runners. Each image is
+built once per architecture and reused for E2E, security tests and Trivy. Only
+the third-party amd64 OpenSearch image uses emulation on arm64. Documentation-only
+changes skip application builds; unknown/shared inputs run the complete stack.
+The final `CI required` status rejects failed, cancelled or unexpectedly skipped checks.
+
+Trivy scans each own image once to full JSON and derives full SARIF plus a
+fixable HIGH/CRITICAL gate. Complete reports and E2E diagnostics are retained for
+seven days even after a gate failure; SARIF is also uploaded to Code Scanning on
+public main pushes. PRs retain the full reports as artifacts without requiring
+Code Scanning write access. See the [CI and scan policy](docs/ci.md).
 
 The CI workflow uses `compose.yml` as its base configuration. Therefore, OpenSearch must be configured consistently in both:
 

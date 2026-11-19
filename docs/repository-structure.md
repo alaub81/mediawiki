@@ -76,10 +76,10 @@ docker compose --env-file .env.secrets -f compose.yml -f compose.secrets.yml con
 docker compose --env-file .env.ci-test -f compose.yml -f tests/compose.test.yml config --quiet
 ```
 
-The CI workflow receives only source-filename corrections in this step. Its
-existing temporary `docker-compose.yml` copy, jobs, tests, builds and scan policy
-remain in place until the dedicated CI migration. Release workflow logic is
-unchanged. Historical tags retain their own file layouts.
+Step 1 changed only filenames. The subsequent CI migration now uses a disposable
+stack resolved from the production base, the test override and `tests/e2e.env`;
+it no longer copies a root `docker-compose.yml`. See the [CI guide](ci.md).
+Release workflow logic is unchanged. Historical tags retain their own layouts.
 
 ## GitHub templates and funding
 

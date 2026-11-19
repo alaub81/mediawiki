@@ -1,6 +1,7 @@
 """Exercise MemcachePHP security behavior against disposable Docker containers."""
 
 import base64
+import argparse
 import http.cookiejar
 from pathlib import Path
 import re
@@ -64,14 +65,22 @@ def expect_status(actual, expected):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--image", help="Reuse a previously built image without building or deleting it"
+    )
+    args = parser.parse_args()
     suffix = uuid.uuid4().hex[:10]
-    image = f"memcachephp-security-test:{suffix}"
+    image = args.image or f"memcachephp-security-test:{suffix}"
     network = f"memcachephp-security-{suffix}"
     cache_container = f"memcachephp-security-cache-{suffix}"
     web_container = f"memcachephp-security-web-{suffix}"
 
     try:
-        docker("build", "-q", "-t", image, "resources/memcachephp")
+        if args.image:
+            docker("image", "inspect", image)
+        else:
+            docker("build", "-q", "-t", image, "resources/memcachephp")
         docker("network", "create", network)
         docker(
             "run",
@@ -207,7 +216,8 @@ def main():
         for container in (web_container, cache_container):
             subprocess.run(["docker", "rm", "-f", container], capture_output=True)
         subprocess.run(["docker", "network", "rm", network], capture_output=True)
-        subprocess.run(["docker", "image", "rm", image], capture_output=True)
+        if not args.image:
+            subprocess.run(["docker", "image", "rm", image], capture_output=True)
 
 
 if __name__ == "__main__":

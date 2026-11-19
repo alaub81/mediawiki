@@ -1,8 +1,8 @@
 # Local development and checks
 
-Step 2 introduces common local entry points and pinned tools. The existing CI
-and release workflows are unchanged; switching CI to these entry points is a
-separate migration. Branch protection remains deferred.
+Local entry points and pinned tools are shared with CI. CI now runs both supported
+architectures; the release workflow is still awaiting its separate migration.
+Branch protection remains deferred. See the [CI and scan policy](ci.md).
 
 ## Requirements and tool installation
 
@@ -20,6 +20,7 @@ runs reuse matching installed versions. All generated tools/caches are ignored.
 | ShellCheck | 0.11.0 | `lint-tools.json` |
 | Hadolint | 2.15.1 | `lint-tools.json` |
 | Actionlint | 1.7.12 | `lint-tools.json` |
+| Trivy | 0.70.0 | `lint-tools.json` |
 | Ruff | 0.17.5 | `tests/requirements-lint.txt` |
 | yamllint | 1.38.0 | `tests/requirements-lint.txt` |
 | PyYAML | 6.0.3 | `tests/requirements-lint.txt` |
@@ -40,6 +41,7 @@ These commands locate the checkout independently of the caller's directory:
 ./tests/linter-check.sh
 ./tests/test-check.sh
 ./tests/integration-check.sh
+./tests/e2e-check.sh
 ```
 
 The scripts reject unsupported arguments and return
@@ -53,10 +55,10 @@ local Markdown links/anchors, JSON syntax and duplicate keys, YAML syntax and
 duplicate keys, ShellCheck, Hadolint, Actionlint and Python lint/format with Ruff.
 Formatting is checked without rewriting files.
 
-ShellCheck covers standalone shell scripts. Embedded workflow shell checking
-remains disabled in Actionlint, as in the existing CI workflow. Actionlint still
-checks workflow syntax and expressions. Review the existing embedded shell
-diagnostics when migrating CI; this step does not silently rewrite workflow code.
+ShellCheck covers standalone shell scripts, including the extracted E2E checks.
+Actionlint checks the CI workflow and its embedded shell commands. The unchanged
+legacy release workflow retains syntax/expression checking without embedded shell
+checking until its separate migration.
 
 For intentional Python formatting changes after reviewing the diff:
 
@@ -67,8 +69,10 @@ For intentional Python formatting changes after reviewing the diff:
 ### Offline behavior and Compose tests
 
 `tests/test-check.sh` runs `unittest` discovery for `tests/test_*.py`. It requires
-the Docker CLI with the Compose plugin, but no running Docker daemon, registries,
-accounts or application secrets. The secrets overlay requires Compose 2.24.4+.
+the Docker CLI with the Compose plugin and `jq`, but no running Docker daemon,
+accounts or application secrets. It prepares pinned Trivy on first use, requiring
+network access for that tool download. The tests themselves need no network or
+vulnerability database. The secrets overlay requires Compose 2.24.4+.
 
 The tests exercise:
 
@@ -81,6 +85,7 @@ The tests exercise:
 - The setup variant's writable configuration mount and persistent uploads.
 - CI override build contexts relative to the root base file.
 - Secrets overlay removal of password values and the intended service grants.
+- Change planning, tested-image identity checks and full-report/gate boundaries.
 
 Compose resolution uses only the versioned public environment examples and a
 controlled environment. It does not load the private `.env`, create secret files,
@@ -103,6 +108,22 @@ The Python test also remains directly runnable. It now has a `main` guard so
 importing it never starts containers, and it rejects optimized Python execution
 because its security assertions must remain active.
 
-The full MediaWiki search/upload/extension E2E suite currently remains in the CI
-workflow. Sharing that suite and reusing built images belong to the next CI step;
-the local MemcachePHP test is not a substitute for those checks.
+Use `./tests/integration-check.sh --image EXISTING_IMAGE` to test an already built
+MemcachePHP image without rebuilding or deleting that image.
+
+### Full MediaWiki E2E suite
+
+`./tests/e2e-check.sh` builds both images once and runs the complete suite extracted
+from the former CI workflow under `tests/e2e/`. `--skip-build` requires the prepared
+images instead. Set `TEST_ARCH=amd64` or `TEST_ARCH=arm64` for architecture-specific
+tags, or omit it to use host-native `mediawiki-ci:local` and `memcachephp-ci:local`.
+The tests require Docker, Compose 2.24.4+, curl, jq and sufficient Docker memory for
+the complete ClamAV/Elasticsearch/OpenSearch stack. Initial pulls/builds require
+network access; full E2E testing is intentionally separate from offline checks.
+
+The runner creates a random Compose project, loopback port and temporary fixture
+directory. A test-only volume holds writable `LocalSettings.php`; no production
+configuration directory is mounted. All project containers/networks/volumes are
+removed on normal exit or a handled failure. Diagnostics are saved under ignored
+`.test-reports/e2e/` or the chosen `--reports` directory. The full suite also runs
+MemcachePHP security checks against its existing image without rebuilding.

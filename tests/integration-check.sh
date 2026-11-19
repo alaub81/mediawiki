@@ -3,8 +3,8 @@
 set -euo pipefail
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd -- "$PROJECT_DIR"
-if (( $# != 0 )); then
-  echo "Usage: ./tests/integration-check.sh" >&2
+if (( $# != 0 )) && { (( $# != 2 )) || [[ "$1" != --image ]]; }; then
+  echo "Usage: ./tests/integration-check.sh [--image EXISTING_IMAGE]" >&2
   exit 2
 fi
 if ! command -v docker >/dev/null 2>&1; then
@@ -16,4 +16,4 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 export PYTHONDONTWRITEBYTECODE=1
-exec "$PROJECT_DIR/tests/run-python.sh" tests/memcachephp_security_test.py
+exec "$PROJECT_DIR/tests/run-python.sh" tests/memcachephp_security_test.py "$@"

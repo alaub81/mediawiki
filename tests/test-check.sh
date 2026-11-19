@@ -11,6 +11,12 @@ if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>
   echo "Docker CLI with the Compose v2 plugin is required; no running daemon is needed." >&2
   exit 1
 fi
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq is required for the offline Trivy report/gate regression tests." >&2
+  exit 1
+fi
 export PYTHONDONTWRITEBYTECODE=1
-export PYTHONPATH="$PROJECT_DIR/tests${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$PROJECT_DIR/tools:$PROJECT_DIR/tests${PYTHONPATH:+:$PYTHONPATH}"
+export PATH="$PROJECT_DIR/.lint-tools/bin:$PATH"
+"$PROJECT_DIR/tests/run-python.sh" tests/install_lint_tools.py trivy
 exec "$PROJECT_DIR/tests/run-python.sh" -m unittest discover -s tests -p 'test_*.py'

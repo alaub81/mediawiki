@@ -6,14 +6,29 @@ services:
       args:
         MW_INSTALL_EXTENSIONS: ${MW_INSTALL_EXTENSIONS:-}
         MW_INSTALL_SKINS: ${MW_INSTALL_SKINS:-}
-    image: mmediawiki-custom
+    image: ${MW_TEST_IMAGE:-mediawiki-ci:local}
     pull_policy: never
     env_file:
       - ${MW_CI_ENV_FILE:-.env.ci}
+    environment:
+      MW_CONFIG_FILE: /var/www/html/conf/LocalSettings.php
+    ports: !override
+      - "127.0.0.1:${MW_HTTP_PORT:-8080}:80"
+    volumes:
+      - test_config:/var/www/html/conf
 
   memcachephp:
     build:
       context: ./resources/memcachephp
       dockerfile: Dockerfile
-    image: memcachephp
+    image: ${MEMCACHEPHP_TEST_IMAGE:-memcachephp-ci:local}
     pull_policy: never
+
+volumes:
+  test_config:
+
+networks:
+  app-nw:
+    driver_opts: !reset {}
+  backend-nw:
+    driver_opts: !reset {}
