@@ -128,7 +128,7 @@ RUN set -eux; \
 # Download Supercronic for the target architecture
 ARG TARGETARCH
 RUN curl -fsSLo /usr/local/bin/supercronic \
-  "https://github.com/aptible/supercronic/releases/download/v0.2.49/supercronic-linux-${TARGETARCH}" \
+  "https://github.com/aptible/supercronic/releases/download/v0.2.51/supercronic-linux-${TARGETARCH}" \
   && chmod +x /usr/local/bin/supercronic
 
 COPY --chmod=0755 mediawiki-entrypoint.sh /usr/local/bin/mediawiki-entrypoint.sh
