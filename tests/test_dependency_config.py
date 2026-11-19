@@ -97,8 +97,9 @@ class DependencyConfigTests(unittest.TestCase):
         self.assertEqual(plan["affected"], ["mediawiki"])
         self.assertEqual(plan["build"], list(IMAGES))
 
-    def test_compatibility_ranges_reject_untested_backend_lines(self):
+    def test_compatibility_ranges_reject_untested_versions(self):
         cases = {
+            "ubuntu": (["24.04"], ["22.04", "26.04", "latest"]),
             "mediawiki": (["1.46", "1.46.99"], ["1.45", "1.47", "2.0.0"]),
             "docker-registry.wikimedia.org/repos/search-platform/cirrussearch-opensearch-image": (
                 ["v1.3.20-12", "v1.3.99-123"],

@@ -23,6 +23,7 @@ and [Renovate scheduling documentation](https://docs.renovatebot.com/key-concept
 | Dependency | Source and update policy |
 | --- | --- |
 | GitHub Actions | Workflow references; related non-major updates grouped together. |
+| GitHub Ubuntu runners | Stay on `24.04` while pinned Actionlint 1.7.12 lacks Ubuntu 26.04 label support. Review the range with the next Actionlint release. |
 | Python lint tools | `tests/requirements-lint.txt`; minor/patch updates grouped. |
 | Native check tools | `lint-tools.json`; each release asset's version and SHA-256 updated together through `github-release-attachments`. |
 | Supercronic | Download URL in `resources/mediawiki/Dockerfile`; covers both target architectures. |

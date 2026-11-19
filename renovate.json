@@ -72,6 +72,19 @@
   ],
   "packageRules": [
     {
+      "description": "Keep Ubuntu runners compatible with pinned actionlint; review this range with the next actionlint release",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDatasources": [
+        "github-runners"
+      ],
+      "matchPackageNames": [
+        "ubuntu"
+      ],
+      "allowedVersions": "/^24\\.04$/"
+    },
+    {
       "matchManagers": [
         "github-actions"
       ],

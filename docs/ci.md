@@ -25,6 +25,13 @@ Independent architecture jobs use `fail-fast: false`:
 | `mediawiki-custom` | `linux/amd64`, `linux/arm64` | `ubuntu-24.04`, `ubuntu-24.04-arm` |
 | `memcachephp` | `linux/amd64`, `linux/arm64` | `ubuntu-24.04`, `ubuntu-24.04-arm` |
 
+CI and release control jobs also use `ubuntu-24.04`. The pinned Actionlint
+1.7.12 does not recognize Ubuntu 26.04 runner labels, so Renovate's
+`github-runners` rule restricts the `ubuntu` package to `24.04` for now.
+Review that range when a released Actionlint version supports the newer labels,
+then update the tool manifest and runner policy together. Runner-label checking
+remains enabled; no custom-label override is added.
+
 The third-party Wikimedia OpenSearch image remains amd64, as in the production
 template. The arm64 runner enables amd64 emulation for that dependency only; the
 two own application images build and run natively. This is not a claim that the

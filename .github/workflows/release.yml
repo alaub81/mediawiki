@@ -28,7 +28,7 @@ concurrency:
 jobs:
   plan:
     if: github.event_name != 'workflow_dispatch' || inputs.rebuild_tags
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read
@@ -152,7 +152,7 @@ jobs:
     name: Publish ${{ matrix.ref }}
     needs: [plan, platform]
     if: needs.platform.result == 'success'
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -195,7 +195,7 @@ jobs:
   notes:
     needs: [plan, publish]
     if: github.event_name == 'push' && needs.publish.result == 'success'
-    runs-on: ubuntu-26.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: write
