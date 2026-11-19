@@ -1,11 +1,17 @@
-# ToDos
+# Backlog and review notes
 
-- [?] MARIADB_VARS doch setzen und wiki DB anlegen lassen? testen
-- [!] !!nicht machen!! - MW_SITEMAP_IDENTIFIER=wiki und $wgArticlePath = "/wiki/$1"; kann noch in die redirects und in die shortURLs?
-- [?] ExternalContent Extension wenn für 1.44 verfügbar [ExternalContent](https://www.mediawiki.org/wiki/Extension:External_Content)
-- [!] !!nicht machen!! - Database Port kann weg beim mw-default installer!
-- [!] !!geht nicht als default!! copy bei SyntaxHighlight
-- [?] Artikel kleinschreiben
+Documentation and source comments are maintained in English. The review below is
+historical; its original completion markers are retained. The migration status
+section distinguishes later work from findings that still need investigation.
+
+## Ideas and operational notes
+
+- [?] Investigate setting `MARIADB_VARS` and creating the wiki database automatically.
+- [!] Do not apply the proposed `MW_SITEMAP_IDENTIFIER=wiki` / `$wgArticlePath = "/wiki/$1";` redirect and short-URL experiment without a separate review.
+- [?] Consider [ExternalContent](https://www.mediawiki.org/wiki/Extension:External_Content) when available for the relevant MediaWiki version (original note: 1.44).
+- [!] Do not remove the database port from the `mw-default-setup.sh` installer.
+- [!] Copying SyntaxHighlight configuration is not suitable as a default.
+- [?] Consider lowercase article titles. These settings change canonical titles; test on staging first:
 
   ```php
   // Make first character of page titles case-sensitive globally
@@ -14,23 +20,24 @@
   $wgCapitalLinkOverrides[NS_MAIN] = false; // Only main namespace is affected
   ```
 
-- [x] Umbau auf optionale secrets Dateien. LocalSettings.php muss beides nehmen
-- [x] Testen aller drei Installations Möglichkeiten
-- [x] Prüfen ob die Datenbank Variablen benötigt werden, oder ob sie gar zum Standard werden sollen
-- [ ] Kategorien aufräumen --> Unterkategorien --> bei den Haupt Categorien Logos und Text
-- [ ] Page Speed Results umsetzen
-- [ ] Wenn Google Adsense geht: CSP aktivieren und Header Prüfen, Pagespeed tests
-    <https://securityheaders.com/?q=https%3A%2F%2Flhlab.wiki&followRedirects=on>
-    <https://pagespeed.web.dev/analysis/https-lhlab-wiki-wiki-Dimplex_Wärmepumpe_Smart-Grid_mit_Shelly_Relais/57ygqq2725?form_factor=mobile>
+- [x] Support optional secret files; `LocalSettings.php` must support both methods.
+- [x] Test all three installation alternatives (historical result, not proof of every current variant).
+- [x] Review whether the database variables are needed or should become defaults.
+- [ ] Clean up categories/subcategories; add logos and text to main categories.
+- [ ] Apply PageSpeed findings.
+- [ ] Once Google AdSense works, enable CSP and review security headers and PageSpeed:
+  <https://securityheaders.com/?q=https%3A%2F%2Flhlab.wiki&followRedirects=on>
+  <https://pagespeed.web.dev/analysis/https-lhlab-wiki-wiki-Dimplex_Wärmepumpe_Smart-Grid_mit_Shelly_Relais/57ygqq2725?form_factor=mobile>
+- [ ] Update the wiki article.
+- [ ] Evaluate using the example Compose file as a base and all other variants as overlays. This is a proposal, not the current standalone-variant contract.
+- [ ] Consider `BIND_ADDRESS=127.0.0.1`.
 
-- [ ] Update des Wiki Artikel
-- [ ] docker compose dateien --> example als basis, alle weiteren als addon bauen
-- [ ] BIND_ADDRESS=127.0.0.1 einbauen
+Maintenance command reference (run against the correct configuration and service):
 
 ```bash
 php maintenance/run.php /var/www/html/extensions/Wanda/maintenance/ReindexAllPages.php
 
-# Jpbs für Index
+# Search-index jobs
 php maintenance/run.php ./extensions/CirrusSearch/maintenance/CirrusNeedsToBeBuilt.php
 php maintenance/run.php ./extensions/CirrusSearch/maintenance/ForceSearchIndex.php --skipLinks --indexOnSkip
 php maintenance/run.php ./extensions/CirrusSearch/maintenance/ForceSearchIndex.php --skipParse
@@ -40,7 +47,8 @@ php maintenance/run.php showJobs --group
 php maintenance/run.php runJobs
 ```
 
-## MW Setup Script
+## MW setup script reference
+
 
 ```txt
 Script runner options:
@@ -101,64 +109,86 @@ Arguments:
 
 ```
 
-## Installationen
+## Installation alternatives
 
-1. szenario: Setup mit mw-defaultsetup.sh
-    - aktivieren von .en.mwsetup
-    - die andere LocalSettings im compose file
-    - compose up -d
-    - mw-default-setup.sh starten
+1. **Setup script:** enable the setup environment file (the template is `.env.mwsetup`), select the setup configuration mount, start Compose, then explicitly run `mw-default-setup.sh`.
+2. **Preconfigured settings:** without the setup environment file, copy and customize `LocalSettings.php.example`, mount it, start Compose, then run `php maintenance/run.php installPreConfigured --conf /var/www/html/LocalSettings.php` inside the container for an empty database.
+3. **Browser configuration generator:** start without a `LocalSettings.php` mount, visit the configured public URL (original example: `http://localhost:8080`), complete the wizard using the database settings from `.env`, and persist the generated file.
 
-2. Setup via LocalSettings.php.example
-    - ohne .en.mwsetup
-    - normale LocalSettings.php was eine kopie der example ist
-    - compose up -d
-    - `php maintenance/run.php installPreConfigured --conf /var/www/html/LocalSettings.php'`
+Use the current [installation guide](docs/installation.md) for credentials, exact
+commands, configuration persistence, permissions and known variant limitations.
 
-3. Setup via Web Config generator
-    - starten des compose stacks ohne LocalSettings.php (auskommentieren)
-    - `http://localhost:8080`
-    - Setup Assistenten durchlaufen und minimum die Datenbank Konfigurationen aus der .env verwenden.
+## Historical code and README review: 2026-09-27
 
-## Code- und README-Review vom 27.09.2026
+This was a static review of the working tree at that time. `./tests/linter-check.sh`,
+`bash -n`, JSON validation of `renovate.json`, and `docker compose config --quiet`
+for example, development and secrets configurations passed. Real container/E2E
+checks were unavailable because access to the Docker daemon was denied. Existing
+changes, including uncommitted changes, were preserved. File line references below
+have been replaced with paths because the staged migration moved the code.
 
-Statische Prüfung des aktuellen Arbeitsstands. `./tests/linter-check.sh`, `bash -n`, JSON-Prüfung von `renovate.json` und `docker compose config --quiet` für Beispiel-, Entwicklungs- und Secrets-Konfiguration waren erfolgreich. Ein echter Container- und E2E-Test war nicht möglich, da der Zugriff auf den lokalen Docker-Daemon verweigert wurde. Die bestehenden, teils noch nicht committeten Änderungen wurden nicht überschrieben.
+### P0: Installation, operations and security
 
-### P0 – Installation, Betrieb und Sicherheit
+- [ ] **Unify configuration paths.** `.env.mwsetup` and the old CI installed into `/var/www/html/conf/LocalSettings.php`, but `--confpath` does not create the standard `/var/www/html/LocalSettings.php` entry point. The entrypoint, setup update call, CirrusSearch and RottenLinks maintenance commands did not consistently pass `--conf`; only the sitemap helper used `MW_CONFIG_FILE`. Either provide the standard file or prove that web and every maintenance command use the same custom path. Test installation, restart, schema update and cron jobs. Sources: `.env.mwsetup`, `resources/mediawiki/mw-default-setup.sh`, `resources/mediawiki/mediawiki-entrypoint.sh`, [Install.php](https://www.mediawiki.org/wiki/Manual:Install.php), [Run.php](https://www.mediawiki.org/wiki/Manual:Run.php).
+- [x] **Document Elastica/CirrusSearch load order.** Load order is not significant. The README states this and uses the same order as the example settings; runtime configuration was unchanged.
+- [ ] **Make the fresh-wiki quickstart executable and complete.** The old README mentioned an env file and writable configuration directory, but `compose.yml` enabled neither setup env loading nor a configuration mount, and the entrypoint did not invoke the installer. Document the setup invocation, permissions, persistent host file and read-only final mount, then test a fresh Compose project. Sources: `README.md`, `compose.yml`, `resources/mediawiki/mediawiki-entrypoint.sh`.
+- [ ] **Align CI installation with the configuration lifecycle.** Old CI used the custom config path and setup as `www-data` while only uploads were mounted. Verify writable setup storage, persistent config, empty-volume installation and container recreation. Sources: `.github/workflows/ci.yml`, `tests/compose.test.yml`, `compose.yml`.
+- [ ] **Make examples safe and usable.** The old template enabled Wanda with a placeholder API key, enabled continuous schema updates and contained known example passwords. Choose safe defaults, require real credentials at setup, and align debugging examples. Sources: `.env.example`, `.env.mwsetup`, `README.md`.
+- [ ] **Remove static wiki keys from the public example.** Replace concrete `$wgSecretKey` and `$wgUpgradeKey` values with placeholders or documented generation. Investigate whether the old public values were used in a live wiki and rotate them if so. Source: `data/mediawiki/conf/LocalSettings.php.example`.
 
-- [ ] **Konfigurationspfad einheitlich machen.** `.env.mwsetup` und CI installieren nach `/var/www/html/conf/LocalSettings.php`, aber der Installer-Parameter `--confpath` erstellt keinen Einstiegspunkt unter `/var/www/html/LocalSettings.php`. `mediawiki-entrypoint.sh`, `mw-default-setup.sh` (`$run update`), CirrusSearch- und RottenLinks-Skripte rufen Wartung ohne `--conf` auf; nur `generate-sitemap.sh` berücksichtigt `MW_CONFIG_FILE`. Entweder die Datei am Standardpfad bereitstellen oder Web- und sämtliche Wartungsaufrufe nachweislich auf denselben Pfad ausrichten. Danach Neuinstallation, Neustart, Schema-Update und Cronjobs testen. Quellen: `.env.mwsetup:6`, `resources/mediawiki/mw-default-setup.sh:95,543`, `resources/mediawiki/mediawiki-entrypoint.sh:55`, [MediaWiki-Installationshandbuch](https://www.mediawiki.org/wiki/Manual:Install.php), [run.php-Handbuch](https://www.mediawiki.org/wiki/Manual:Run.php).
-- [x] **Elastica/CirrusSearch-Ladereihenfolge dokumentieren.** Die Ladereihenfolge ist unerheblich. Die README nennt das jetzt ausdrücklich und zeigt dieselbe Reihenfolge wie `LocalSettings.php.example`; die Konfigurationen bleiben unverändert.
-- [ ] **Quickstart für eine neue Wiki vollständig beschreiben und ausführbar machen.** `README.md` nennt `env_file` und ein beschreibbares Konfigurationsverzeichnis, aber `compose.yml` aktiviert weder das Env-File noch einen Konfigurations-Mount; der Entrypoint ruft `mw-default-setup.sh` nicht auf. Die Schritte müssen den Setup-Aufruf, die Dateirechte, das persistente Ablegen von `LocalSettings.php` und die Umstellung auf einen schreibgeschützten Mount konkret zeigen. Danach den Ablauf mit einem frischen Compose-Projekt testen. Quellen: `README.md` Abschnitt „Quick start“, `compose.yml:55-69`, `resources/mediawiki/mediawiki-entrypoint.sh`.
-- [ ] **CI-Installation an denselben Konfigurationsablauf anbinden.** CI schreibt `MW_CONFIG_FILE=/var/www/html/conf/LocalSettings.php` und startet das Setup als `www-data`, während die aufgelöste CI-Compose-Konfiguration nur `/var/www/html/images` mountet. Schreibrechte und Persistenz des Konfigurationsverzeichnisses prüfen; dann den CI-Ablauf mit einem leeren Volume und nach Container-Neuerstellung nachstellen. Quellen: `.github/workflows/ci.yml:137,205-209`, `tests/compose.test.yml`, `compose.yml:58-69`.
-- [ ] **Beispielwerte sicher und startfähig machen.** `.env.example` aktiviert `MW_WANDA_ENABLED=true` mit einem Platzhalter-API-Key, setzt `MW_AUTO_UPDATE=true` dauerhaft und enthält bekannte Admin-, Datenbank- und MemcachePHP-Passwörter. Sichere Defaults wählen, echte Zugangsdaten als verpflichtenden Setup-Schritt dokumentieren und die abweichenden README-Beispiele angleichen. Quellen: `.env.example:17,83-89,100-102`, `.env.mwsetup:11`, `README.md` Abschnitte „Quick start“ und „Debugging“.
-- [ ] **Statische MediaWiki-Schlüssel aus der Beispielkonfiguration entfernen.** `LocalSettings.php.example` enthält einen konkreten `$wgSecretKey` und `$wgUpgradeKey`. Platzhalter bzw. eine dokumentierte Generierung verwenden; prüfen, ob die Werte jemals live verwendet wurden, und sie dann rotieren. Quelle: `data/mediawiki/conf/LocalSettings.php.example:129-136`.
+### P1: Behavior and test reliability
 
-### P1 – Logik und Testaussage
+- [x] **Harden MemcachePHP despite existing Basic Auth.** Escape HTML keys, values and server names; validate decoded keys/server indexes. Delete and flush use POST and session CSRF tokens. `tests/memcachephp_security_test.py` checks unauthenticated 401, rejected GET/invalid POST actions, valid delete/flush, text-only output and rejected CR/LF keys.
+- [ ] **Separate CirrusSearch bootstrap from the periodic job.** `update-cirrussearch-index.sh` treats every failed alias request as a missing index and invokes `UpdateSearchIndexConfig --startOver` plus full indexing. Distinguish reachability/configuration failures from missing aliases, avoid automatic destructive rebuilds, and read custom index base names from wiki settings.
+- [x] **Fix the CI MemcachePHP UI check.** The authenticated proxy request uses `/memcacheui/`, GET, retries, status 200 and a content assertion. Remove the ineffective check against unpublished port 8097 and its variable; the MemcachePHP port remains internal.
+- [x] **Eliminate misleading CI success.** Skin checks run in the current shell; missing skins fail. Siteinfo uses `jq` and rejects a wrong sitename. ClamAV checks verify both configuration and container values with a mandatory timeout. DB waiting uses a POSIX-compatible counter bounded at 120 seconds instead of `SECONDS` under `sh`. Negative tests for missing skins, wrong sitename and an expired counter returned status 1.
+- [x] **Test real search, Compose profiles and workflow syntax.** Create a unique search term and require it through the MediaWiki search API after bootstrap. Validate base, ClamAV, Elasticsearch/Wanda and full profiles and expected services. Run actionlint for workflow syntax/expressions/job dependencies. Keep the mandatory EICAR test.
+- [ ] **Resolve ineffective extension/skin build arguments.** `compose.dev.yml` and `tests/compose.test.yml` pass `MW_INSTALL_EXTENSIONS` and `MW_INSTALL_SKINS`, but the Dockerfile declares fixed ENV lists without corresponding ARG declarations. Wire them correctly or remove ineffective options; reconcile `MW_EXTRA_EXTENSIONS` with actual clones. Sources: `resources/mediawiki/Dockerfile`, Compose variants and CI.
+- [ ] **Define extension version strategy.** `clone_with_fallback` silently falls back from missing `REL1_46` to `main` or default HEAD. This weakens the release-branch compatibility claim and makes builds time-dependent. Fail for incompatible required branches or pin tested commits. Sources: `resources/mediawiki/Dockerfile`, README update instructions.
+- [ ] **Unify maintenance users and configuration.** Supercronic and some PHP/index jobs run as root while sitemap/RottenLinks use `www-data`. Test read-only settings and upload access and use `www-data` consistently where possible. Sources: entrypoint, index and sitemap scripts.
+- [ ] **Complete fresh-clone secrets instructions.** At review time the overlay/templates were untracked and `.env.secrets` was ignored. Track sanitized examples and overlay, document copying/permissions and test startup without pre-existing secrets. Never commit real secrets. Sources: `compose.secrets.yml`, `.env.secrets`, `secrets_example/`, `.gitignore`, README.
+- [ ] **Optimize resource usage.** Prioritize measured consumers (historical snapshot: OpenSearch 1.44 GiB, Elasticsearch 1.26 GiB, ClamAV 0.99 GiB). Check optional-service needs, heap, caches and worker sizing. Measure each change under comparable load and monitor latency, indexing, antivirus and OOM/swap. Record before/after values and chosen defaults. Sources: `.env.example`, `compose.yml`, README.
 
-- [x] **MemcachePHP trotz bestehender Basic Auth gegen XSS und unerwünschte Schreibaktionen absichern.** Cache-Schlüssel, Werte und Servernamen werden bei der HTML-Ausgabe escaped; dekodierte Schlüssel und Serverindizes werden vor Memcached-Befehlen geprüft. `delete` und `flush_all` verwenden POST-Formulare mit serverseitigem Session-CSRF-Token. Der isolierte Docker-Integrationstest `tests/memcachephp_security_test.py` prüft 401 ohne Auth, abgewiesene GET- und ungültige POST-Aktionen, gültiges Löschen/Flush, HTML-Ausgabe als Text und abgewiesene CR/LF-Schlüssel.
-- [ ] **CirrusSearch-Bootstrap vom periodischen Job trennen.** `update-cirrussearch-index.sh` wertet jeden fehlgeschlagenen Alias-Request als fehlenden Index und startet dann `UpdateSearchIndexConfig --startOver` samt Vollindexierung. Erreichbarkeit, Konfigurationsfehler und tatsächlich fehlende Aliase getrennt behandeln; automatische destruktive Rebuilds vermeiden und benutzerdefinierten Index-Basisnamen aus der MediaWiki-Konfiguration lesen. Quelle: `resources/mediawiki/update-cirrussearch-index.sh:9-32`.
-- [x] **CI-Test der MemcachePHP-UI reparieren.** Der bestehende Proxy-Schritt prüft die UI unter `/memcacheui/` mit Basic Auth, HTTP 200 nach Retries und Inhaltskontrolle. Den vorgeschalteten, wirkungslosen Test auf dem nicht veröffentlichten Port 8097 und die zugehörige Env-Variable entfernt. Die 200-Prüfung verwendet jetzt GET statt HEAD, passend zur gehärteten UI; der MemcachePHP-Port bleibt intern. Quelle: `.github/workflows/ci.yml` Abschnitt „E2E — MemcachePHP über MediaWiki-Proxy“.
-- [x] **Irreführende CI-Erfolge beseitigen.** Der Skin-Vergleich läuft jetzt in der aktuellen Bash und gibt fehlende Skins zuverlässig als Fehler zurück. Siteinfo wird mit `jq` ausgewertet und ein abweichender Sitename beendet den Schritt. Das CI-Env setzt `CLAMAV_ENABLED`; der Virenscan prüft Variable und Containerwert sowie einen verbindlichen ClamAV-Timeout. Der DB-Wartecode verwendet einen POSIX-kompatiblen Versuchszähler mit 120-Sekunden-Grenze statt `SECONDS` unter `sh`. Lokale Negativtests für fehlendes Skin, falschen Sitename und abgelaufenen Zähler lieferten jeweils Status 1. Quelle: `.github/workflows/ci.yml`.
-- [x] **CI um reale Suche, Compose-Profile und Workflow-Linting erweitern.** Die angelegte Testseite enthält einen eindeutigen Suchbegriff und muss nach dem CirrusSearch-Bootstrap über die MediaWiki-Such-API auffindbar sein. Eine Matrix validiert Basis-, ClamAV-, Elasticsearch/Wanda- und Vollprofil mit `docker compose config` und kontrolliert die jeweils enthaltenen Dienste. `actionlint` prüft zusätzlich die GitHub-Actions-Syntax, Ausdrücke und Job-Abhängigkeiten. Der bestehende EICAR-Test bleibt als verbindlicher ClamAV-Funktionstest bestehen. Quelle: `.github/workflows/ci.yml`.
-- [ ] **Build-Argumente für Erweiterungen und Skins klären.** `compose.dev.yml` und `tests/compose.test.yml` übergeben `MW_INSTALL_EXTENSIONS`/`MW_INSTALL_SKINS` als Build-Args, aber `resources/mediawiki/Dockerfile` deklariert keine entsprechenden `ARG` und setzt feste `ENV`-Listen. Entweder `ARG` korrekt verdrahten oder die wirkungslosen Optionen entfernen; zusätzlich `MW_EXTRA_EXTENSIONS` mit der tatsächlich geklonten Liste abgleichen. Quellen: `resources/mediawiki/Dockerfile:1-8`, `compose.dev.yml:5-10`, `.github/workflows/ci.yml:458-489`.
-- [ ] **Versionsstrategie für Erweiterungen festlegen.** `clone_with_fallback` weicht bei fehlendem `REL1_46` still auf `main` bzw. Default-HEAD aus. Das widerspricht der README-Aussage, nur passende Release-Branches zu verwenden, und macht Builds zeitabhängig. Für notwendige Erweiterungen inkompatible Branches als Build-Fehler behandeln oder getestete Commits pinnen. Quellen: `resources/mediawiki/Dockerfile:30-56`, `README.md` Abschnitt „Updating MediaWiki“.
-- [ ] **Wartungsjobs mit einheitlichen Rechten und Konfiguration starten.** Supercronic läuft als Root und `runJobs` sowie die CirrusSearch-Skripte starten PHP als Root, während Sitemap/RottenLinks `www-data` verwenden. Mit schreibgeschützten Konfigurationsdateien und Upload-Volume prüfen und nach Möglichkeit alle MediaWiki-Jobs als `www-data` ausführen. Quellen: `resources/mediawiki/mediawiki-entrypoint.sh:150-158`, `resources/mediawiki/generate-opensearch-index.sh`, `resources/mediawiki/generate-sitemap.sh`.
-- [ ] **Secrets-Anleitung für einen frischen Clone vervollständigen.** `README.md` verweist auf `compose.secrets.yml`, `.env.secrets` und `secrets_example/`; aktuell sind Overlay und Beispieldateien untracked, `.env.secrets` ist ignoriert. Einen versionierten, bereinigten Overlay- und Template-Satz bereitstellen, Kopier- und Rechtebefehle dokumentieren und den Start ohne vorhandene lokale Geheimnisse testen. Keine echten Secret-Dateien committen. Quellen: `README.md` Abschnitt „Use password files“, `.gitignore`, aktueller `git status`.
-- [ ] **Ressourcenverbrauch des Stacks optimieren.** Nach den getrennten Messungen für Basis- und Vollprofil die größten Verbraucher priorisieren (Momentaufnahme: OpenSearch 1,44 GiB, Elasticsearch 1,26 GiB, ClamAV 0,99 GiB). Prüfen, welche optionalen Dienste tatsächlich gebraucht werden, ob JVM-Heaps und ClamAV-Konfiguration zur Last passen und ob kleinere Einstellungen ohne Funktionsverlust möglich sind. Jede Änderung einzeln unter vergleichbarer Last messen; Antwortzeiten, Indexierung, Virenscan und OOM/Swap kontrollieren. Vorher-/Nachher-Werte und gewählte Defaults in der README dokumentieren. Quellen: `.env.example` Abschnitte „Optional Docker Services“, „OpenSearch Configuration“ und „Elasticsearch Configuration“, `compose.yml`.
+### P2: Documentation and maintenance
 
-### P2 – Dokumentation und Wartbarkeit
+- [ ] **Correct missing favicon references.** Example settings and the setup script reference `favicon-16x16.png` and `favicon-32x32.png`, absent from `resources/mediawiki/favicon/`. Supply files or remove references, then check HTTP responses.
+- [x] **Write a repository-specific security policy.** `SECURITY.md` identifies the project, supported release line, private GitHub reporting/fallback, scope and realistic response expectations; unrelated component references were removed.
+- [x] **Review old release/dependency automation.** Remove the unrelated `LOGANALYZER_VERSION` regex and use valid Renovate update types. Disable implicit metadata-action `latest`; only the highest stable release should receive `1.46`, `1` and `latest`, with old releases receiving immutable full tags only. Historical dry runs used `v1.46.5` and `v1.46.4`. The newer release implementation is documented in `docs/releases.md`.
+- [x] **Measure resource requirements and profiles.** Base profile measured for two minutes peaked at 1.57 GiB; full profile with ClamAV and Elasticsearch over four minutes reached 3.61 GiB (earlier full snapshot: 4.07 GiB). Each profile served 120 successful read API calls. Indexing covered one page and schema update found no pending changes. No OOM, restart or cgroup swap at measurement end. README preserves these provisional observations and 3/6 GiB planning values; representative larger datasets still need measurement.
 
-- [ ] **Favicon-Verweise korrigieren.** `LocalSettings.php.example` und `mw-default-setup.sh` referenzieren `favicon-16x16.png` und `favicon-32x32.png`, die unter `resources/mediawiki/favicon/` fehlen. Dateien ergänzen oder die Links entfernen; HTTP-Antworten prüfen. Quellen: `data/mediawiki/conf/LocalSettings.php.example:276-288`, `resources/mediawiki/mw-default-setup.sh:351-363`.
-- [x] **`SECURITY.md` auf dieses Repository umschreiben.** Projekt, unterstützte Versionslinie, privater GitHub-Meldeweg mit Fallback, Geltungsbereich und realistische Reaktionsaussage sind aktualisiert; fremde Komponenten und Links sind entfernt.
-- [x] **Veraltete Release- und Dependency-Automation prüfen.** Fremden `LOGANALYZER_VERSION`-Regex entfernt und Renovate-Automerge auf gültige `matchUpdateTypes` begrenzt. `docker/metadata-action` erzeugte `latest` bei SemVer-Tags implizit; dies ist jetzt deaktiviert. Nur das höchste stabile Tag erhält `1.46`, `1` und `latest`; ältere Tags erhalten nur ihren vollständigen Versions-Tag. Lokaler Dry-Run mit `v1.46.5` und `v1.46.4` erfolgreich. Quellen: `renovate.json`, `.github/workflows/release.yml`.
-- [x] **README-Ressourcenbedarf und Profile nachmessen.** Basisprofil separat gestartet und zwei Minuten gemessen: höchster erfasster Wert 1,57 GiB. Vollprofil durch Zuschalten von ClamAV und Elasticsearch vier Minuten gemessen: 3,61 GiB; eine frühere Vollprofil-Momentaufnahme lag bei 4,07 GiB. Je Profil 120 lesende API-Anfragen erfolgreich. Indexlauf verarbeitete nur eine Seite; das DB-Update fand keine ausstehenden Änderungen. Kein OOM, Neustart oder cgroup-Swap am Ende der Messung. README enthält diese Messwerte und vorläufige Planungswerte von 3/6 GiB. Auf Wunsch bleiben die Werte vorläufig; für belastbare Mindestwerte einer größeren Wiki wären Messungen mit repräsentativem Datenbestand nötig. Quellen: `README.md` Abschnitt „Requirements“, `.env.example:90-114`, `compose.yml`.
+### Additional CI proposals from the historical review
 
-### Optionale CI-Erweiterungen
+- [ ] Run the isolated MemcachePHP security regression in CI to catch escaping, CSRF, GET mutation, key-validation and Basic Auth regressions.
+- [ ] Test installer/update idempotence: repeat the setup/update path, check errors and duplicate config lines. Config persistence and container recreation remain separate P0 concerns.
+- [ ] Add generated temporary secrets and secrets-overlay Compose validation to the profile matrix, then a runtime startup test. First ensure sanitized templates/overlay are tracked.
+- [ ] Test Wanda/Elasticsearch beyond service startup: connection and configuration at minimum. An external AI API test requires an explicitly dedicated secret and separate optional job.
+- [ ] Make database authentication mandatory; missing clients or invalid credentials must fail rather than merely proving a TCP port is open.
+- [ ] Define Trivy blocking severities explicitly and upload SARIF independently of gate success.
+- [ ] Always capture bounded Compose status/log diagnostics on E2E failure and upload artifacts, including failures outside API waiting.
 
-- [ ] **Optional: MemcachePHP-Sicherheitstest in der CI ausführen.** `tests/memcachephp_security_test.py` als isolierten Job oder Schritt starten, damit Regressionen bei HTML-Escaping, CSRF-Schutz, GET-Schreibschutz, Schlüsselvalidierung und Basic Auth automatisch erkannt werden. Quelle: `tests/memcachephp_security_test.py`.
-- [ ] **Optional: Installation und Update auf Idempotenz prüfen.** Nach der Erstinstallation `mw-default-setup.sh` beziehungsweise den Updatepfad erneut ausführen und auf Fehler sowie doppelte Konfigurationszeilen prüfen. Container-Neuerstellung und Konfigurationspersistenz bleiben Teil der weiter oben aufgeführten P0-Punkte. Quellen: `.github/workflows/ci.yml`, `resources/mediawiki/mw-default-setup.sh`.
-- [ ] **Optional: Secrets-Overlay in die Compose-Matrix aufnehmen.** Temporäre Test-Secrets erzeugen, das Overlay mit `docker compose config --quiet` validieren und später einen Starttest ergänzen. Die bereinigten Beispiel- und Overlay-Dateien müssen dafür zuerst wie im offenen P1-Punkt beschrieben versioniert sein. Quellen: `compose.secrets.yml`, `.env.secrets`, `secrets_example/`.
-- [ ] **Optional: Wanda/Elasticsearch gezielt testen.** Der Vollprofil-Lauf startet Elasticsearch, prüft aber keine Wanda-Funktion. Mindestens Elasticsearch-Verbindung und Wanda-Konfiguration kontrollieren; einen Test gegen die externe KI-API nur mit ausdrücklich dafür vorgesehenem Secret und separatem optionalem Job ausführen. Quellen: `.github/workflows/ci.yml`, `compose.yml`, `.env.example`.
-- [ ] **Optional: Datenbank-Authentifizierung verpflichtend prüfen.** Den aktuellen optionalen `mysqladmin`/`mariadb-admin`-Test so gestalten, dass ein fehlender Client oder ungültige Zugangsdaten den E2E-Lauf beendet. Damit prüft die CI neben dem offenen TCP-Port auch die tatsächlich konfigurierte Anmeldung. Quelle: `.github/workflows/ci.yml` Schritt „Verify DB auth if client exists“.
-- [ ] **Optional: Trivy-Gate explizit festlegen.** Dokumentieren und konfigurieren, welche Schweregrade den Build abbrechen sollen, statt sich auf den Standardwert der Action zu verlassen. SARIF weiterhin hochladen, damit gefundene Schwachstellen unabhängig vom Gate sichtbar bleiben. Quelle: `.github/workflows/ci.yml` Schritt „Trivy scan“.
-- [ ] **Optional: Fehlerdiagnose des E2E-Jobs verbessern.** Bei jedem fehlgeschlagenen Schritt aktuelle `docker compose ps`- und begrenzte `docker compose logs`-Ausgaben sammeln und als Artefakt bereitstellen. Dadurch werden Fehler außerhalb des API-Warteschritts ebenfalls nachvollziehbar. Quelle: `.github/workflows/ci.yml`.
+## Status after migration steps 1–5
+
+The items above retain their historical markers. Later implementation changes:
+
+- CI now uses isolated projects with the standard configuration path, tests native
+  amd64/arm64 images, authenticated DB access, MemcachePHP security, real search
+  and ClamAV, and captures failure diagnostics. See [CI](docs/ci.md).
+- Secrets overlays and sanitized templates are tracked and checked by offline
+  Compose tests. A production-style secrets startup/restore exercise is not
+  implied by configuration validation.
+- HIGH/CRITICAL gates and independently uploaded full SARIF are implemented in CI
+  and release. Existing fixable findings still block publication.
+- Public templates disable continuous updates, Wanda and optional service profiles
+  by default. README requires independent passwords and preserves all advanced
+  feature guides; the public example now uses explicit wiki-key placeholders.
+  Whether old keys were used live is unverified; rotate them if applicable.
+- The new first-start guide explicitly installs and persists standard-path
+  settings. The current published installer writes `$wgAntivirus = false` when
+  ClamAV is disabled, which MediaWiki 1.46 rejects; the guide records a targeted
+  `null` workaround. Fix the runtime generator separately and retain the regression.
+- Custom-path setup, full installer/schema-update idempotence, maintenance users,
+  unsafe index bootstrap, extension fallback/build arguments, missing favicon
+  files, external Wanda functionality and resource tuning remain follow-ups.
+- Account-side Dependabot activation and Mend mode need verification; branch
+  protection remains deferred. See [dependency policy](docs/dependencies.md) and
+  [Standard v1 status](docs/standard-v1.md).

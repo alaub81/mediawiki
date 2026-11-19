@@ -2,42 +2,169 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    ":dependencyDashboard",
-    ":enableVulnerabilityAlerts",
-    "docker:enableMajor"
+    "docker:enableMajor",
+    ":dependencyDashboard"
   ],
   "timezone": "Europe/Berlin",
-  "schedule": ["before 06:00 on monday"],
-  "labels": ["dependencies"],
+  "schedule": [
+    "* 0-5 * * 1"
+  ],
+  "minimumReleaseAge": "3 days",
+  "prConcurrentLimit": 3,
+  "rebaseWhen": "conflicted",
+  "ignoreUnstable": true,
+  "automerge": false,
+  "ignoreTests": false,
+  "vulnerabilityAlerts": {
+    "enabled": false
+  },
+  "labels": [
+    "dependencies"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/.lint-venv/**",
+    "**/.lint-tools/**",
+    ".test-reports/**",
+    "secrets/**"
+  ],
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^resources/mediawiki/Dockerfile$/"],
+      "managerFilePatterns": [
+        "/^resources/mediawiki/Dockerfile$/"
+      ],
       "matchStrings": [
-        "https://github\\.com/aptible/supercronic/releases/download/(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)/supercronic-linux-"
+        "https://github\\.com/aptible/supercronic/releases/download/(?<currentValue>v\\d+\\.\\d+\\.\\d+)/supercronic-linux-"
       ],
       "depNameTemplate": "aptible/supercronic",
-      "datasourceTemplate": "github-releases"
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Update native tool versions and their per-platform SHA-256 checksums together",
+      "managerFilePatterns": [
+        "/^lint-tools\\.json$/"
+      ],
+      "matchStringsStrategy": "recursive",
+      "matchStrings": [
+        "\"repository\":\\s*\"(?<depName>[^\"]+)\"[\\s\\S]*?\"assets\":\\s*\\{[\\s\\S]*?\\n    \\}",
+        "\"version\":\\s*\"(?<currentValue>v\\d+\\.\\d+\\.\\d+)\",\\s*\"sha256\":\\s*\"(?<currentDigest>[a-f0-9]{64})\""
+      ],
+      "datasourceTemplate": "github-release-attachments",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Track Docker versions in the public environment templates",
+      "managerFilePatterns": [
+        "/^\\.env\\.(example|secrets)$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=docker depName=(?<depName>[^\\s]+)\\n[A-Z_]+_VERSION=(?<currentValue>[^\\s]+)"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
     }
   ],
   "packageRules": [
     {
-      "matchManagers": ["custom.regex"],
-      "matchPackageNames": ["aptible/supercronic"],
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest"
+      ],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "matchManagers": [
+        "pip_requirements"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "Python lint tools"
+    },
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "groupName": null
+    },
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "mediawiki"
+      ],
+      "allowedVersions": "/^1\\.46(?:\\.\\d+)?$/",
+      "groupName": "MediaWiki release line"
+    },
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker-registry.wikimedia.org/repos/search-platform/cirrussearch-opensearch-image"
+      ],
+      "allowedVersions": "/^v1\\.3\\.\\d+-\\d+$/",
+      "versioning": "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<build>\\d+)$",
+      "groupName": "CirrusSearch OpenSearch"
+    },
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.elastic.co/elasticsearch/elasticsearch"
+      ],
+      "allowedVersions": "/^8\\.19\\.\\d+$/",
+      "groupName": "Elasticsearch for Wanda"
+    },
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "ghcr.io/alaub81/mediawiki-custom",
+        "ghcr.io/alaub81/memcachephp"
+      ],
+      "enabled": false
+    },
+    {
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "groupName": null
+    },
+    {
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "aptible/supercronic"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "automerge": true,
       "automergeType": "pr",
-      "platformAutomerge": false
-    },
-    {
-      "matchManagers": ["dockerfile", "github-actions"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "automergeType": "pr"
-    },
-    {
-      "matchDatasources": ["docker"],
-      "groupName": "base-images"
+      "platformAutomerge": false,
+      "ignoreTests": false,
+      "groupName": null,
+      "rebaseWhen": "behind-base-branch"
     }
   ]
 }

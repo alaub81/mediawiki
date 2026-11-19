@@ -23,3 +23,8 @@ eicar_test_file.txt
 __pycache__/
 *.pyc
 .test-reports/
+
+# Local installation credentials and deployment overlays.
+.env.setup
+compose.override.yml
+compose.install.override.yml

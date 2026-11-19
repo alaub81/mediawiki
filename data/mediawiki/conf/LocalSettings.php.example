@@ -126,14 +126,14 @@ $wgLocaltimezone = getenv('TZ') ?: 'UTC';
 ## be publicly accessible from the web.
 #$wgCacheDirectory = "$IP/cache";
 
-$wgSecretKey = "edeb02b4cd9320388b91f6d2b929dae9a68b213bcd94d0419273ac75f4c39553";
+$wgSecretKey = "REPLACE_WITH_YOUR_OWN_64_RANDOM_HEX_CHARACTERS";
 
 # Changing this will log out all existing sessions.
 $wgAuthenticationTokenVersion = "1";
 
 # Site upgrade key. Must be set to a string (default provided) to turn on the
 # web installer while LocalSettings.php is in place
-$wgUpgradeKey = "15758aeaff60d3fa";
+$wgUpgradeKey = "REPLACE_WITH_A_DIFFERENT_RANDOM_UPGRADE_KEY";
 
 ## For attaching licensing metadata to pages, and displaying an
 ## appropriate copyright notice / icon. GNU Free Documentation
@@ -330,7 +330,7 @@ if ($clamavEnabled) {
         ],
     ];
 } else {
-    $wgAntivirus = false;
+    $wgAntivirus = null;
 }
 
 # File Upload Restriction

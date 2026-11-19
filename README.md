@@ -1,6 +1,6 @@
 # LHlab wiki — MediaWiki Docker Stack
 
-A reproducible Docker stack from **LHlab wiki**, based on MediaWiki 1.46 with MariaDB, OpenSearch, CirrusSearch, Elastica, Memcached, ClamAV, scheduled maintenance jobs, and a custom MediaWiki image.
+A customizable Docker Compose stack from **LHlab wiki**, based on MediaWiki 1.46 with MariaDB, OpenSearch, CirrusSearch, Elastica, Memcached, ClamAV, scheduled maintenance jobs, and a custom MediaWiki image.
 
 ## Included services
 
@@ -48,6 +48,220 @@ The custom MediaWiki image installs these extensions:
 - WandaScore
 
 The image build downloads Wikimedia extensions and skins from the public GitHub mirrors (`wikimedia/mediawiki-extensions-<name>` and `wikimedia/mediawiki-skins-<name>`), so it does not require access to Gerrit. Release-branch selection and pinned commits are preserved; RottenLinks continues to use its Miraheze GitHub repository.
+
+## Requirements
+
+- Docker Engine
+- Docker Compose 2.24.4 or newer
+- Plan for about 3 GiB of memory available to Docker for the core services, or about 6 GiB when explicitly enabling the optional `clamav,elasticsearch` profiles. These are provisional capacity guidelines, not measured peak requirements.
+- An amd64 host or amd64 container emulation for the Wikimedia OpenSearch image
+
+RAM measurements on a Docker Desktop VM with 7.75 GiB allocated (27 September 2026, `docker stats`, roughly four seconds between samples):
+
+| Profile | Containers | Highest sampled total | Observation |
+| --- | ---: | ---: | --- |
+| Core services, optional profiles disabled | 5 | 1.57 GiB | Two minutes, including startup from a stopped stack |
+| Full optional profiles (`clamav,elasticsearch`) | 7 | 3.61 GiB | Four minutes, adding the optional services to the running core stack |
+
+An earlier full-stack snapshot showed 4.07 GiB (ClamAV 0.99 GiB, Elasticsearch 1.26 GiB, OpenSearch 1.44 GiB, other services 0.39 GiB). Each measured profile answered 120 read-only API requests (site information, search, recent changes) successfully. A bounded search-index update processed only one page, and the MediaWiki database updater found no pending schema changes. At the end of the full-profile run, cgroup swap usage was zero and no container had been OOM-killed or restarted. These short runs on a nearly empty wiki do not establish minimum RAM or worst-case peaks. Leave room for larger indexes and maintenance jobs and, on Docker Desktop, allocate the memory to the Docker VM.
+
+## Quick start
+
+For an existing installation with a customized `docker-compose.yml`, continue
+using `docker compose -f docker-compose.yml ...` and the same project name.
+Docker Compose prefers the new `compose.yml` when both files exist; do not switch
+files implicitly or replace live settings with a template. See the
+[migration guide](docs/repository-structure.md#compose-filename-migration).
+
+### 1. Create the environment file
+
+Clone the repository and copy the public configuration template:
+
+```bash
+git clone https://github.com/alaub81/mediawiki.git
+cd mediawiki
+cp .env.example .env
+chmod 600 .env
+```
+
+Generate independent credentials for the database administrator, database
+application user and MemcachePHP administration UI. Run each command separately
+and put its output into the named variable in `.env`:
+
+```bash
+# MARIADB_ROOT_PASSWORD: database administration, not the application login.
+openssl rand -hex 32
+# MARIADB_PASSWORD: shared application database login used by the wiki.
+openssl rand -hex 32
+# MEMCACHEPHP_ADMIN_PASS: Basic Auth for the administration UI.
+openssl rand -hex 32
+```
+
+Each call generates 32 random bytes encoded as 64 hexadecimal characters. Keep
+these values different. For a new wiki, generate a fourth value later for
+`MW_ADMIN_PASS` in the ignored `.env.setup`. Keep existing credentials and volumes
+when upgrading; changing an environment file does not change stored DB accounts.
+The public templates keep optional ClamAV/Wanda services and automatic schema
+updates disabled until you intentionally enable them. Review the public wiki URL.
+
+Example:
+
+```dotenv
+PROJECT_NAME=lhwiki
+MW_VERSION=1.46
+MW_HTTP_PORT=8080
+MW_SERVER_URL=http://localhost:8080
+MW_AUTO_UPDATE=false
+
+MARIADB_VERSION=12.3
+MARIADB_ROOT_PASSWORD=change-this-root-password
+MARIADB_DATABASE=wikidb
+MARIADB_USER=wikiuser
+MARIADB_PASSWORD=change-this-database-password
+
+OPENSEARCH_VERSION=v1.3.20-12
+MW_OPENSEARCH_URL=http://opensearch:9200
+OPENSEARCH_HEAP_MIN=512m
+OPENSEARCH_HEAP_MAX=512m
+
+MEMCACHED_VERSION=alpine
+MEMCACHED_CACHE_MB=32
+
+TZ=Europe/Berlin
+```
+
+### 2. Prepare `LocalSettings.php`
+
+For an existing wiki, preserve its current `LocalSettings.php` at:
+
+```text
+data/mediawiki/conf/LocalSettings.php
+```
+
+Its CirrusSearch configuration must contain:
+
+```php
+wfLoadExtension( 'CirrusSearch' );
+wfLoadExtension( 'Elastica' );
+
+$wgCirrusSearchServers = [ 'opensearch' ];
+$wgSearchType = 'CirrusSearch';
+```
+
+For an existing installation, retain its mounts and keys; do not run the fresh
+installer over its database. For a **new** wiki using published images, follow
+[the first-install procedure](docs/installation.md#new-wiki-with-published-images).
+It prepares ignored `.env.setup` and `compose.install.override.yml` files, runs
+`mw-default-setup.sh` explicitly, copies the resulting configuration to the host,
+and switches to a read-only `compose.override.yml` mount. The entrypoint does not
+run this installer automatically. The guide also preserves the local setup,
+preconfigured-template and browser installer alternatives.
+
+When copying `data/mediawiki/conf/LocalSettings.php.example` instead of using the
+installer, replace both `$wgSecretKey` and `$wgUpgradeKey` placeholders with
+separate random values before starting. Generate the secret key with
+`openssl rand -hex 32` and the upgrade key with a separate `openssl rand -hex 16`.
+The installer generates its own keys. Preserve live keys during ordinary updates;
+if the old public example keys were ever deployed, rotate them deliberately.
+See the [configuration-key guidance](docs/installation.md#configuration-keys).
+If `LocalSettings.php` is already present but its MediaWiki database has not been installed, `MW_AUTO_UPDATE=true` skips the updater and prints the `installPreConfigured` command with the configured file path. Run that installation command before relying on scheduled maintenance jobs.
+
+When `MW_WANDA_ENABLED=true`, provide the OpenAI API key as `MW_WANDA_OPENAI_API_key` in `.env` or mount a Docker secret named `mw_wanda_openai_api_key` into the MediaWiki container at `/run/secrets/mw_wanda_openai_api_key`. The secret takes precedence. The Compose examples pass the `.env` value into the container as `MW_WANDA_OPENAI_API_KEY`, matching the uppercase lookup in `dockerSecret()`. A Docker secret must also be granted to the `mediawiki` service in your Compose configuration.
+
+For a new checkout using an existing settings file, create an ignored deployment
+override if you do not already have a customized Compose configuration:
+
+```bash
+cat > compose.override.yml <<'YAML'
+services:
+  mediawiki:
+    volumes:
+      - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
+YAML
+```
+
+Default `docker compose` commands load this override automatically. When selecting
+files with `-f`, include it explicitly. Keep custom project names and volume mounts
+when reusing an existing deployment.
+
+### Use password files with Docker Compose
+
+`compose.secrets.yml` mounts the five files from `./secrets/` and removes the password environment variables inherited from `compose.yml`. It also changes the MariaDB health check to read the root password file. Use `.env.secrets` for the remaining, non-secret settings:
+
+For a new deployment, copy the public placeholders to an ignored directory:
+
+```bash
+mkdir -p secrets
+chmod 700 secrets
+cp -n secrets_example/* secrets/
+chmod 600 secrets/*
+```
+
+These permissions protect the host copies. On Linux, also arrange ownership or
+ACLs so each mounted secret is readable by its consuming service user (including
+MediaWiki's `www-data`), without making it world-readable. Compose file-backed
+secrets inherit host-file permissions; `chmod 600` alone does not guarantee access
+from a different container UID. Validate this before switching an existing wiki.
+
+Replace `mariadb_root_password`, `mw_db_pass`, `mw_admin_pass` and
+`memcachephp_admin_pass` with four independent password values. Provide a real
+`mw_wanda_openai_api_key` only when enabling Wanda; the template is not a usable
+API key. Keep `.env.secrets` non-secret. Include your configuration override:
+
+```bash
+docker compose --env-file .env.secrets -f compose.yml -f compose.override.yml -f compose.secrets.yml config --quiet
+docker compose --env-file .env.secrets -f compose.yml -f compose.override.yml -f compose.secrets.yml up -d
+```
+
+The overlay requires Docker Compose 2.24.4 or newer for `!override`. Keep the appropriate `LocalSettings.php` mount enabled in the base Compose file. Replace the example passwords and the placeholder OpenAI key in `./secrets/` before deployment. If the MariaDB data volume already exists, its stored passwords must match the secret files; changing the files does not change database accounts. The `.env.secrets` file has no password assignments. With this overlay, inherited password environment variables are removed even if they are present in an env file, but keeping them there is unnecessary and makes an accidental start without the overlay use those values.
+
+### 3. Start the production stack
+
+After an existing settings file is mounted or the fresh-install procedure has
+completed, start with the published MediaWiki and MemcachePHP images:
+
+```bash
+docker compose --env-file .env -f compose.yml -f compose.override.yml up -d --wait
+```
+
+### 4. Inspect service health
+
+```bash
+docker compose ps
+docker compose logs --tail 100 mediawiki
+docker compose logs --tail 100 opensearch
+```
+
+The wiki is available by default at:
+
+```text
+http://localhost:8080
+```
+
+### Debugging
+
+Set `MW_DEBUG=true` in `.env` to enable `$wgShowExceptionDetails`, `$wgShowDebug`, and `$wgDevelopmentWarnings` together. The default is `false`. These settings can expose internal details in page output, so turn them off again after debugging. `MW_DEPRECATION_RELEASE_LIMIT=1.43` optionally limits MediaWiki deprecation warnings to features deprecated through release 1.43; leave it empty to see all deprecations. This value is a release number, not a boolean. The Compose configuration passes both variables to the MediaWiki container. Recreate the container after changing `.env`, for example with `docker compose --env-file .env up -d --force-recreate mediawiki`.
+
+## Build and run locally
+
+To build from the checkout, prepare the same `.env` and settings file as above.
+The standalone development file uses the same project/volumes and mounts
+`data/mediawiki/conf/LocalSettings.php` read-only:
+
+```bash
+docker compose \
+  -f compose.dev.yml \
+  --env-file .env \
+  up -d --build
+```
+
+Check the locally built stack with `docker compose -f compose.dev.yml ps` and
+`docker compose -f compose.dev.yml logs --tail 100 mediawiki`. Use that same file
+for later build/log/stop commands; preserve any existing `-p`/`COMPOSE_PROJECT_NAME`
+setting. A local build does not initialize an empty database automatically.
+For a fresh local installation, see [local setup](docs/installation.md#local-setup-variant).
+Build arguments for extension/skin lists are not wired into the current Dockerfile;
+see the [open backlog](notices_and_todos.md) before relying on custom build arguments.
 
 ## Repository layout
 
@@ -115,134 +329,6 @@ docker build -t memcachephp resources/memcachephp
 CI, release builds, Renovate and Dependabot use the same image directories.
 Scheduled rebuilds of historical tags also support the previous root-level
 Dockerfiles and repository-wide build context.
-
-## Requirements
-
-- Docker Engine
-- Docker Compose v2
-- Plan for about 3 GiB of memory available to Docker for the core services, or about 6 GiB with the `clamav,elasticsearch` profiles enabled as in `.env.example`. These are provisional capacity guidelines, not measured peak requirements.
-- An amd64 host or amd64 container emulation for the Wikimedia OpenSearch image
-
-RAM measurements on a Docker Desktop VM with 7.75 GiB allocated (27 September 2026, `docker stats`, roughly four seconds between samples):
-
-| Profile | Containers | Highest sampled total | Observation |
-| --- | ---: | ---: | --- |
-| Core services, optional profiles disabled | 5 | 1.57 GiB | Two minutes, including startup from a stopped stack |
-| Full `.env.example` profiles (`clamav,elasticsearch`) | 7 | 3.61 GiB | Four minutes, adding the optional services to the running core stack |
-
-An earlier full-stack snapshot showed 4.07 GiB (ClamAV 0.99 GiB, Elasticsearch 1.26 GiB, OpenSearch 1.44 GiB, other services 0.39 GiB). Each measured profile answered 120 read-only API requests (site information, search, recent changes) successfully. A bounded search-index update processed only one page, and the MediaWiki database updater found no pending schema changes. At the end of the full-profile run, cgroup swap usage was zero and no container had been OOM-killed or restarted. These short runs on a nearly empty wiki do not establish minimum RAM or worst-case peaks. Leave room for larger indexes and maintenance jobs and, on Docker Desktop, allocate the memory to the Docker VM.
-
-## Quick start
-
-For an existing installation with a customized `docker-compose.yml`, continue
-using `docker compose -f docker-compose.yml ...` and the same project name.
-Docker Compose prefers the new `compose.yml` when both files exist; do not switch
-files implicitly or replace live settings with a template. See the
-[migration guide](docs/repository-structure.md#compose-filename-migration).
-
-### 1. Create the environment file
-
-Copy the example configuration:
-
-```bash
-cp .env.example .env
-```
-
-At minimum, review the database passwords and public MediaWiki URL.
-
-Example:
-
-```dotenv
-PROJECT_NAME=lhwiki
-MW_VERSION=1.46
-MW_HTTP_PORT=8080
-MW_SERVER_URL=http://localhost:8080
-MW_AUTO_UPDATE=false
-
-MARIADB_VERSION=12.3
-MARIADB_ROOT_PASSWORD=change-this-root-password
-MARIADB_DATABASE=wikidb
-MARIADB_USER=wikiuser
-MARIADB_PASSWORD=change-this-database-password
-
-OPENSEARCH_VERSION=v1.3.20-12
-MW_OPENSEARCH_URL=http://opensearch:9200
-OPENSEARCH_HEAP_MIN=512m
-OPENSEARCH_HEAP_MAX=512m
-
-MEMCACHED_VERSION=alpine
-MEMCACHED_CACHE_MB=32
-
-TZ=Europe/Berlin
-```
-
-### 2. Prepare `LocalSettings.php`
-
-For an existing wiki, copy the current `LocalSettings.php` to:
-
-```text
-data/mediawiki/conf/LocalSettings.php
-```
-
-Its CirrusSearch configuration must contain:
-
-```php
-wfLoadExtension( 'CirrusSearch' );
-wfLoadExtension( 'Elastica' );
-
-$wgCirrusSearchServers = [ 'opensearch' ];
-$wgSearchType = 'CirrusSearch';
-```
-
-For a new installation, enable `env_file: .env.mwsetup` for the MediaWiki service and make the configuration directory writable during initial setup. Most setup-only entries in `.env.mwsetup` have direct values; review the admin password. `MW_DB_NAME`, `MW_DB_USER`, and `MW_DB_PASS` use `MARIADB_DATABASE`, `MARIADB_USER`, and `MARIADB_PASSWORD` from `.env` when set. `MW_SITENAME` and `MARIADB_ROOT_PASSWORD` also use values from `.env` when set. Variables also set under the MediaWiki service's Compose `environment`, such as `MW_SITENAME`, take precedence over `.env.mwsetup`. The development Compose file reads `MW_DB_PASS` from `.env.mwsetup`. After setup, disable the env file and mount the generated `LocalSettings.php` read-only.
-
-If `LocalSettings.php` is already present but its MediaWiki database has not been installed, `MW_AUTO_UPDATE=true` skips the updater and prints the `installPreConfigured` command with the configured file path. Run that installation command before relying on scheduled maintenance jobs.
-
-When `MW_WANDA_ENABLED=true`, provide the OpenAI API key as `MW_WANDA_OPENAI_API_key` in `.env` or mount a Docker secret named `mw_wanda_openai_api_key` into the MediaWiki container at `/run/secrets/mw_wanda_openai_api_key`. The secret takes precedence. The Compose examples pass the `.env` value into the container as `MW_WANDA_OPENAI_API_KEY`, matching the uppercase lookup in `dockerSecret()`. A Docker secret must also be granted to the `mediawiki` service in your Compose configuration.
-
-### Use password files with Docker Compose
-
-`compose.secrets.yml` mounts the five files from `./secrets/` and removes the password environment variables inherited from `compose.yml`. It also changes the MariaDB health check to read the root password file. Use `.env.secrets` for the remaining, non-secret settings:
-
-```bash
-docker compose --env-file .env.secrets -f compose.yml -f compose.secrets.yml config --quiet
-docker compose --env-file .env.secrets -f compose.yml -f compose.secrets.yml up -d
-```
-
-The overlay requires Docker Compose 2.24.4 or newer for `!override`. Keep the appropriate `LocalSettings.php` mount enabled in the base Compose file. Replace the example passwords and the placeholder OpenAI key in `./secrets/` before deployment. If the MariaDB data volume already exists, its stored passwords must match the secret files; changing the files does not change database accounts. The `.env.secrets` file has no password assignments. With this overlay, inherited password environment variables are removed even if they are present in an env file, but keeping them there is unnecessary and makes an accidental start without the overlay use those values.
-
-### 3. Start the development stack
-
-```bash
-docker compose \
-  -f compose.dev.yml \
-  --env-file .env \
-  up -d --build
-```
-
-To use the prebuilt MediaWiki and MemcachePHP images, use the production file:
-
-```bash
-docker compose --env-file .env -f compose.yml up -d
-```
-
-### 4. Inspect service health
-
-```bash
-docker compose ps
-docker compose logs --tail 100 mediawiki
-docker compose logs --tail 100 opensearch
-```
-
-The wiki is available by default at:
-
-```text
-http://localhost:8080
-```
-
-### Debugging
-
-Set `MW_DEBUG=true` in `.env` to enable `$wgShowExceptionDetails`, `$wgShowDebug`, and `$wgDevelopmentWarnings` together. The default is `false`. These settings can expose internal details in page output, so turn them off again after debugging. `MW_DEPRECATION_RELEASE_LIMIT=1.43` optionally limits MediaWiki deprecation warnings to features deprecated through release 1.43; leave it empty to see all deprecations. This value is a release number, not a boolean. The Compose configuration passes both variables to the MediaWiki container. Recreate the container after changing `.env`, for example with `docker compose --env-file .env up -d --force-recreate mediawiki`.
 
 ## OpenSearch configuration
 
@@ -536,6 +622,11 @@ OPENSEARCH_HEAP_MIN=512m
 OPENSEARCH_HEAP_MAX=512m
 ```
 
+## Dependency updates
+
+For dependency PR timing, Supercronic automerge, compatibility limits and the
+division between Renovate and Dependabot, see the [dependency policy](docs/dependencies.md).
+
 ## Releases
 
 Push the source commit and wait for successful default-branch CI before pushing
@@ -632,6 +723,18 @@ docker compose exec -T mediawiki \
 docker compose exec -T mediawiki \
   php maintenance/run.php CirrusSearch:ForceSearchIndex
 ```
+
+## Help and security
+
+The [documentation index](docs/README.md) also links installation, backup/restore
+guidance and the [Standard v1 status](docs/standard-v1.md), including open work.
+
+For failures, start with the [troubleshooting examples](#troubleshooting) and
+collect the image tag/commit, host architecture, Docker/Compose versions, enabled
+profiles, service health and relevant sanitized logs. Open a
+[bug report](https://github.com/alaub81/mediawiki/issues/new/choose) with those
+facts. Do not attach `.env`, cookies, API keys, secret files or private wiki content.
+Report suspected vulnerabilities privately according to [SECURITY.md](SECURITY.md).
 
 ## Security notes
 
