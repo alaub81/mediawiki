@@ -34,6 +34,41 @@ this manifest, so macOS users must provide Hadolint 2.15.1 on PATH first. Missin
 assets, wrong versions and checksum failures stop the check; they are not skipped.
 Keep all platform versions/checksums together when updating the manifest.
 
+## Before every commit
+
+Run both checks from the repository root before every commit, including
+documentation-only changes:
+
+```bash
+./tests/linter-check.sh && ./tests/test-check.sh
+```
+
+Both commands must pass. The first checks linters, configuration syntax and local
+documentation links. The second runs the offline behavior and Compose
+configuration tests. Neither requires a running Docker daemon. The Docker CLI
+with the Compose plugin and `jq` are still required; initial tool preparation
+may need network access. These checks do not start the application stack or use
+production volumes.
+
+Run additional tests according to the files and behavior changed:
+
+| Change | Additional test before committing |
+| --- | --- |
+| MemcachePHP application code or its Dockerfile | `./tests/integration-check.sh` |
+| MediaWiki image, entrypoint or maintenance scripts, extensions, or Compose runtime configuration | `./tests/e2e-check.sh` |
+| Changes affecting the whole stack or interactions between services | `./tests/e2e-check.sh` |
+
+The additional tests require a running Docker daemon and use isolated test
+resources. Full E2E testing builds both images and includes the MemcachePHP
+security checks, so a successful full E2E run covers the separate integration
+test as well. See the detailed sections below for prerequisites and scope.
+
+After pushing, check the GitHub CI results for both supported architectures and
+the actual image vulnerability scans. `test-check.sh` exercises the Trivy report
+and gate logic with fixtures; it does not scan application images. Passing local
+checks does not replace successful CI. Fixable HIGH/CRITICAL findings must still
+block the gate, while full SARIF reports are uploaded independently.
+
 ## Entry points
 
 These commands locate the checkout independently of the caller's directory:

@@ -5,14 +5,18 @@ A customizable Docker Compose stack from **LHlab wiki**, based on MediaWiki 1.46
 ## Included services
 
 - **MediaWiki 1.46** with Apache and PHP
-- **MariaDB 12.3** as the database
+- **MariaDB 12.3 LTS** as the database
 - **OpenSearch 1.3.20** as the CirrusSearch backend
 - **CirrusSearch** and **Elastica** from the MediaWiki `REL1_46` branches
 - **Memcached** and the MemcachePHP administration UI
-- **ClamAV** for upload scanning
+- **ClamAV** for upload scanning (optional `clamav` profile)
+- **Elasticsearch 8.19** for Wanda (optional `elasticsearch` profile; separate from CirrusSearch's OpenSearch backend)
 - **Supercronic** for MediaWiki jobs, sitemap generation, RottenLinks, and search-index maintenance
 
 OpenSearch runs only on the internal Docker network and is not exposed publicly.
+ClamAV and Wanda are disabled in the public environment templates. Enable their
+Compose profiles and matching application flags together; see [ClamAV](#clamav)
+and [Wanda and Elasticsearch](#wanda-and-elasticsearch).
 
 ## Important compatibility information
 
@@ -28,7 +32,9 @@ The image is primarily intended for `linux/amd64`. On Apple Silicon, Docker may 
 
 ## Included MediaWiki extensions
 
-The custom MediaWiki image installs these extensions:
+The custom Dockerfile adds the following 16 extensions to the MediaWiki base
+image. The list was checked against `resources/mediawiki/Dockerfile` and the
+extensions present in the custom image:
 
 - Lockdown
 - Description2
@@ -47,7 +53,37 @@ The custom MediaWiki image installs these extensions:
 - Wanda
 - WandaScore
 
-The image build downloads Wikimedia extensions and skins from the public GitHub mirrors (`wikimedia/mediawiki-extensions-<name>` and `wikimedia/mediawiki-skins-<name>`), so it does not require access to Gerrit. Release-branch selection and pinned commits are preserved; RottenLinks continues to use its Miraheze GitHub repository.
+`intersection` is the extension directory and load identifier; its displayed
+extension name is **DynamicPageList**. It is one extension, not two.
+
+The build downloads these extensions from the public Wikimedia GitHub mirrors
+(`wikimedia/mediawiki-extensions-<name>`), except RottenLinks, which uses its
+Miraheze GitHub repository. Wanda and RottenLinks use explicit commit pins.
+These clones do not require Gerrit access.
+Other clones prefer the matching `REL1_46` branch but currently fall back to
+`main` or the default HEAD if it is absent. Check build logs and compatibility;
+the fallback does not guarantee a matching release branch. See the
+[extension-version backlog](notices_and_todos.md).
+
+### Extension activation and skins
+
+Files present in the image are not automatically active in every wiki. The
+example `LocalSettings.php` loads the additional extensions listed above other than
+Wanda/WandaScore; those two are conditional on `MW_WANDA_ENABLED=true`.
+For fresh installation, an empty `MW_ACTIVE_EXTENSIONS` in the setup settings
+selects all installed extensions except Wanda/WandaScore. A nonempty value
+selects a space-separated list for the installer. Existing wikis retain the
+extensions enabled in their own settings.
+
+The custom Dockerfile currently installs no additional skins (`MW_INSTALL_SKINS`
+is empty).
+
+To see the extensions actually loaded by a running wiki, visit `Special:Version`
+or query its API (authentication may be required for a private wiki):
+
+```text
+/api.php?action=query&meta=siteinfo&siprop=extensions&format=json
+```
 
 ## Requirements
 
@@ -67,11 +103,24 @@ An earlier full-stack snapshot showed 4.07 GiB (ClamAV 0.99 GiB, Elasticsearch 1
 
 ## Quick start
 
-For an existing installation with a customized `docker-compose.yml`, continue
-using `docker compose -f docker-compose.yml ...` and the same project name.
-Docker Compose prefers the new `compose.yml` when both files exist; do not switch
-files implicitly or replace live settings with a template. See the
-[migration guide](docs/repository-structure.md#compose-filename-migration).
+The current Compose files have these roles:
+
+| File | Purpose |
+| --- | --- |
+| `compose.yml` | Production stack using published project images |
+| `compose.dev.yml` | Standalone stack that builds both project images locally |
+| `compose.setup.yml` | Local-build setup variant with a writable configuration directory |
+| `compose.secrets.yml` | Password-file overlay, combined with a base file and the configuration mount |
+| `tests/compose.test.yml` | CI/E2E overlay, combined with the production base |
+
+The commands below use these current filenames. When migrating an existing
+customized deployment, first follow the
+[Compose filename migration guide](docs/repository-structure.md#compose-filename-migration).
+It retains the previous filenames and explicit-file commands for older setups.
+Keep the same project name, configuration mounts and volumes; do not switch files
+implicitly or replace live settings with a template. `PROJECT_NAME` controls the
+bridge-interface names here; preserve any separate `-p`/`COMPOSE_PROJECT_NAME`
+setting that identifies your existing Compose project.
 
 ### 1. Create the environment file
 
@@ -213,7 +262,7 @@ docker compose --env-file .env.secrets -f compose.yml -f compose.override.yml -f
 docker compose --env-file .env.secrets -f compose.yml -f compose.override.yml -f compose.secrets.yml up -d
 ```
 
-The overlay requires Docker Compose 2.24.4 or newer for `!override`. Keep the appropriate `LocalSettings.php` mount enabled in the base Compose file. Replace the example passwords and the placeholder OpenAI key in `./secrets/` before deployment. If the MariaDB data volume already exists, its stored passwords must match the secret files; changing the files does not change database accounts. The `.env.secrets` file has no password assignments. With this overlay, inherited password environment variables are removed even if they are present in an env file, but keeping them there is unnecessary and makes an accidental start without the overlay use those values.
+The overlay requires Docker Compose 2.24.4 or newer for `!override`. Include the appropriate `LocalSettings.php` mount through your deployment override or existing customized base file. Replace the example passwords and the placeholder OpenAI key in `./secrets/` before deployment. If the MariaDB data volume already exists, its stored passwords must match the secret files; changing the files does not change database accounts. The `.env.secrets` file has no password assignments. With this overlay, inherited password environment variables are removed even if they are present in an env file, but keeping them there is unnecessary and makes an accidental start without the overlay use those values.
 
 ### 3. Start the production stack
 
@@ -396,7 +445,8 @@ docker compose exec -T opensearch \
   curl -fsS http://localhost:9200/
 ```
 
-The response should report OpenSearch 1.3.20.
+With the default `v1.3.20-12` image tag, the response should report OpenSearch
+1.3.20. If you deliberately selected another compatible tag, check that version.
 
 List the installed plugins:
 
@@ -525,6 +575,35 @@ CLAMAV_PORT=3310
 
 Disable both the profile and `CLAMAV_ENABLED` if ClamAV is not required.
 
+## Wanda and Elasticsearch
+
+Wanda and WandaScore are installed in the image but loaded conditionally by the
+example and setup-generated settings. To enable them, configure a real API key
+and start their dedicated Elasticsearch service:
+
+```dotenv
+COMPOSE_PROFILES=elasticsearch
+MW_WANDA_ENABLED=true
+MW_WANDA_OPENAI_API_key=replace-with-your-own-api-key
+MW_ELASTICSEARCH_URL=http://elasticsearch:9200
+ELASTICSEARCH_VERSION=8.19.21
+ELASTICSEARCH_HEAP_MIN=512m
+ELASTICSEARCH_HEAP_MAX=512m
+```
+
+Use `COMPOSE_PROFILES=clamav,elasticsearch` when enabling both optional services.
+The `.env` key's spelling above matches the public template; Compose passes it
+into the container as `MW_WANDA_OPENAI_API_KEY`. The password-file alternative
+is described under [Use password files with Docker Compose](#use-password-files-with-docker-compose).
+Elasticsearch serves Wanda; CirrusSearch continues using OpenSearch. Keep both
+search services internal. The example settings disable Wanda's automatic full
+reindex; perform the initial reindex deliberately after configuration:
+
+```bash
+docker compose exec -T -u www-data mediawiki \
+  php maintenance/run.php extensions/Wanda/maintenance/ReindexAllPages.php
+```
+
 ## Memcached and MemcachePHP
 
 Example configuration:
@@ -554,9 +633,13 @@ The UI requires Basic Auth. Deleting an item or flushing a server uses a POST fo
 - `data_db` stores the MariaDB database.
 - `data_mw_images` stores uploaded MediaWiki files.
 - `data_osdata` stores OpenSearch indexes.
+- `data_esdata` stores the optional Wanda Elasticsearch data.
 - `clamav_db` stores ClamAV signatures.
 
 The OpenSearch index is derived data and can be rebuilt from the MediaWiki database. Database and uploaded-file backups remain essential.
+The live `LocalSettings.php` is a separate host-mounted file, not part of those
+named volumes. Preserve it together with private environment/secret files and
+deployment overrides; see [operations and recovery](docs/operations.md).
 
 ## Development and checks
 
@@ -577,6 +660,8 @@ The E2E command builds both current-source images once and runs the full isolate
 MediaWiki suite. CI reuses its already built images with `--skip-build`.
 See [local development and checks](docs/development.md) for requirements,
 tool versions, test coverage and the staged CI migration.
+The [pre-commit checklist](docs/development.md#before-every-commit) distinguishes
+the checks required for every commit from additional tests by change type.
 
 ## CI and E2E tests
 
@@ -593,12 +678,16 @@ seven days even after a gate failure; SARIF is also uploaded to Code Scanning on
 public main pushes. PRs retain the full reports as artifacts without requiring
 Code Scanning write access. See the [CI and scan policy](docs/ci.md).
 
-The CI workflow uses `compose.yml` as its base configuration. Therefore, OpenSearch must be configured consistently in both:
+The CI workflow uses `compose.yml` as its base configuration. Keep OpenSearch
+settings consistent across all standalone variants:
 
 - `compose.dev.yml`
 - `compose.yml`
+- `compose.setup.yml`
 
-The E2E workflow should address the service as `opensearch`:
+CI adds `tests/compose.test.yml` to the production base for isolated builds.
+The E2E checks address the service as `opensearch`; for a normally started stack,
+the equivalent diagnostic is:
 
 ```bash
 docker compose exec -T opensearch sh -lc \
@@ -645,17 +734,17 @@ This checklist covers the changes since `v1.45.5`. Keep the existing production 
 
 | Area | Change to review |
 | --- | --- |
-| Images | MediaWiki `1.45` → `1.46`; MariaDB `11.8` → `12.3`; Supercronic `0.2.45` → `0.2.49`. Pin the production image tags you intend to run. |
+| Images | MediaWiki `1.45` → `1.46`; MariaDB `11.8` → `12.3` LTS; Supercronic `0.2.45` → `0.2.51` in the current Dockerfile. Pin the production image tags you intend to run. |
 | Search | CirrusSearch now uses the Wikimedia OpenSearch image `v1.3.20-12` and a new `data_osdata` volume. Rename `ES_VERSION` → `OPENSEARCH_VERSION`, `MW_ES_URL` → `MW_OPENSEARCH_URL`, and `ES_HEAP_MIN`/`ES_HEAP_MAX` → `OPENSEARCH_HEAP_MIN`/`OPENSEARCH_HEAP_MAX`. `OPENSEARCH_PLATFORM` defaults to `linux/amd64`. The old Elasticsearch volume is not an OpenSearch data volume. |
 | Optional services | Elasticsearch `8.19.21` is now separate and used by Wanda 3. Set `MW_WANDA_ENABLED` together with the `elasticsearch` Compose profile and review `MW_ELASTICSEARCH_URL`, `ELASTICSEARCH_VERSION`, `ELASTICSEARCH_HEAP_MIN`, and `ELASTICSEARCH_HEAP_MAX`. `CLAMAV_VERSION` is new; keep `CLAMAV_ENABLED` and the `clamav` profile in sync. |
 | Wiki configuration | `MW_SITENAME` and `MW_METANAMESPACE` can now supply site names. The example `LocalSettings.php` changed its database name from `wiki` to `wikidb`: retain the **actual production database name and credentials**. Review the new file-extension allowlist, searchable namespaces, and conditional Wanda configuration before merging settings. |
 | Extensions | The image pins Wanda 3 and an updated RottenLinks commit, adds ExternalData, and no longer pins CookieConsent to its old commit. The example settings now load ExternalData and CheckUser. The image also applies a private-wiki RelatedArticles patch. Review the production extension list. |
 | Maintenance and UI | `MW_CS_INDEX_CRON=15 * * * *` now runs at minute 15 each hour. MemcachePHP can read `MEMCACHEPHP_ADMIN_PASS_FILE` when a password file is mounted; its health check supports this too. |
 
-Before upgrading, make verified backups of the MariaDB database, `data_mw_images`, and the live `LocalSettings.php`. Perform the following steps during a maintenance window:
+Before upgrading, make verified backups of the MariaDB database, `data_mw_images`, and the live `LocalSettings.php`. The commands below assume the current Compose filenames and default deployment override. For a customized or older deployment, select the same files and project consistently as described in the [migration guide](docs/repository-structure.md#compose-filename-migration). Perform the following steps during a maintenance window:
 
 1. Stop MediaWiki while the old database is still running: `docker compose --env-file .env stop mediawiki`. Run `git pull` to get the new stack files.
-2. Update the **existing** production `.env`, `docker-compose.yml`, and mounted `LocalSettings.php` using their example files as references. Do not replace the live files wholesale: retain the actual database name, credentials, uploaded-file mounts, and other production settings. Set `MARIADB_VERSION=12.3` and the new OpenSearch variables, and point `$wgCirrusSearchServers` at `opensearch`. Changing MariaDB password variables does not change credentials in an existing database volume. Keep `MW_WANDA_ENABLED=false` until its API key and separate Elasticsearch service are ready. If you use a nonstandard `MW_CONFIG_FILE`, pass it **into the container** and point it at the mounted file; merely placing it in `.env` is not enough with the example Compose file.
+2. Update the **existing** production `.env`, Compose configuration (`compose.yml` and your deployment overrides in the current layout), and mounted `LocalSettings.php` using their example files as references. Do not replace the live files wholesale: retain the actual database name, credentials, uploaded-file mounts, and other production settings. Set `MARIADB_VERSION=12.3` and the new OpenSearch variables, and point `$wgCirrusSearchServers` at `opensearch`. Changing MariaDB password variables does not change credentials in an existing database volume. Keep `MW_WANDA_ENABLED=false` until its API key and separate Elasticsearch service are ready. If you use a nonstandard `MW_CONFIG_FILE`, pass it **into the container** and point it at the mounted file; merely placing it in `.env` is not enough with the example Compose file.
 3. Pull the new images: `docker compose --env-file .env pull`.
 4. If the old Elasticsearch search volume is no longer needed, stop and remove the container using it, identify the **exact** old project volume with `docker volume ls`, and remove only that volume with `docker volume rm <old-project>_data_esdata`. Never remove `data_db` or `data_mw_images`. The new Compose file also uses `data_esdata` for Wanda's optional Elasticsearch service, so check whether that service uses the volume before deleting it. The old search volume can be retained until the migration has been verified.
 5. Start only the new MariaDB image: `docker compose --env-file .env up -d database`. Once it is healthy, run `docker compose --env-file .env exec --user root database mariadb-upgrade --user=root --password` and enter the **existing** database root password at the prompt. Run `docker compose --env-file .env restart database` and verify its health with `docker compose --env-file .env ps`. The Compose file does not set `MARIADB_AUTO_UPGRADE`, so the system-table upgrade does not run automatically. See the [MariaDB upgrade guide](https://mariadb.com/docs/server/clients-and-utilities/deployment-tools/mariadb-upgrade).
@@ -670,7 +759,7 @@ The [MediaWiki 1.46 upgrade notes](https://www.mediawiki.org/wiki/Release_notes/
 When upgrading to another MediaWiki branch:
 
 1. Update the MediaWiki base-image version.
-2. Ensure all Wikimedia extensions use the matching `RELx_xx` branch.
+2. Review the matching `RELx_xx` branch or tested commit for each extension. Check build logs for branch fallbacks; the current fallback to `main`/default HEAD is not a compatibility guarantee.
 3. Check the CirrusSearch compatibility requirements before changing the OpenSearch version.
 4. Enable `MW_AUTO_UPDATE=true` for the first controlled startup.
 5. After the MediaWiki schema update succeeds, set `MW_AUTO_UPDATE=false` again.
