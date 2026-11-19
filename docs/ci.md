@@ -92,6 +92,14 @@ upload SARIF to Code Scanning after checking file existence. Fork/Dependabot PRs
 keep full artifact reports without requesting Code Scanning upload. Published
 release images are not changed by this CI migration.
 
+CI detects the reports in `RUNNER_TEMP` with an `always()` Bash step and passes
+its result to the upload condition. Both detection and upload therefore run
+independently of the vulnerability gate's exit status. Do not use `hashFiles()`
+for these temporary paths: GitHub restricts that function to files inside
+`GITHUB_WORKSPACE` ([expression documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/expressions#hashfiles)).
+Release reports already reside under the workspace's `reports/trivy` directory,
+where its existing `hashFiles()` existence check remains valid.
+
 ## Local verification on 2026-11-18
 
 Both own images built for amd64 and arm64. The full E2E suite and MemcachePHP
