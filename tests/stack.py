@@ -9,7 +9,11 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def resolve(port=8080):
+def resolve(port=8080, source_root=ROOT):
+    source_root = Path(source_root).resolve()
+    base = source_root / "compose.yml"
+    if not base.is_file():
+        base = source_root / "docker-compose.example.yml"
     environment = {
         key: value for key, value in os.environ.items() if key in ("PATH", "HOME", "TMPDIR")
     }
@@ -33,9 +37,9 @@ def resolve(port=8080):
             "--env-file",
             "tests/e2e.env",
             "-f",
-            "compose.yml",
+            str(base),
             "-f",
-            "tests/compose.test.yml",
+            str(ROOT / "tests/compose.test.yml"),
             "config",
             "--format",
             "json",

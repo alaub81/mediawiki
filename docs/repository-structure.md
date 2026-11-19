@@ -79,7 +79,8 @@ docker compose --env-file .env.ci-test -f compose.yml -f tests/compose.test.yml 
 Step 1 changed only filenames. The subsequent CI migration now uses a disposable
 stack resolved from the production base, the test override and `tests/e2e.env`;
 it no longer copies a root `docker-compose.yml`. See the [CI guide](ci.md).
-Release workflow logic is unchanged. Historical tags retain their own layouts.
+Step 4 also migrates the [release workflow](releases.md). Historical tags retain
+their own layouts and remain subject to exact-commit CI and release validation.
 
 ## GitHub templates and funding
 

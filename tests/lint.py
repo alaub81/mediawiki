@@ -176,19 +176,8 @@ def main():
     )
     check(
         "GitHub Actions",
-        [
-            p
-            for p in files
-            if p.startswith(".github/workflows/")
-            and p.endswith((".yml", ".yaml"))
-            and p != ".github/workflows/release.yml"
-        ],
+        [p for p in files if p.startswith(".github/workflows/") and p.endswith((".yml", ".yaml"))],
         command=["actionlint", "-pyflakes="],
-    )
-    check(
-        "Legacy release workflow syntax",
-        [p for p in files if p == ".github/workflows/release.yml"],
-        command=["actionlint", "-shellcheck=", "-pyflakes="],
     )
     check(
         "Python / Ruff",

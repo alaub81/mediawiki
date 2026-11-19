@@ -2,6 +2,8 @@
 
 from pathlib import Path
 import unittest
+import tempfile
+import shutil
 from unittest.mock import patch
 
 from stack import ROOT, resolve
@@ -27,6 +29,18 @@ class StackTests(unittest.TestCase):
         for network in config["networks"].values():
             self.assertFalse(network.get("driver_opts"))
         self.assertEqual(config["services"]["opensearch"]["platform"], "linux/amd64")
+
+    def test_release_runtime_uses_selected_source_and_historical_compose_name(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary)
+            shutil.copyfile(ROOT / "compose.yml", source / "docker-compose.example.yml")
+            with patch.dict("os.environ", TEST_ARCH="amd64"):
+                config = resolve(18999, source)
+            self.assertEqual(
+                Path(config["services"]["mediawiki"]["build"]["context"]),
+                source.resolve() / "resources/mediawiki",
+            )
+            self.assertEqual(config["services"]["mediawiki"]["image"], "mediawiki-ci:amd64")
 
     def test_unknown_platform_cannot_silently_use_host_architecture(self):
         with patch.dict("os.environ", TEST_ARCH="arm/v7"):

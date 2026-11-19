@@ -16,6 +16,7 @@ from stack import ROOT, resolve
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--source-root", type=Path, default=ROOT)
     parser.add_argument("--reports", type=Path, default=ROOT / ".test-reports/e2e")
     args = parser.parse_args()
     args.reports = args.reports.resolve()
@@ -30,7 +31,7 @@ def main():
     project = f"mw-e2e-{uuid.uuid4().hex[:10]}"
     with tempfile.TemporaryDirectory(prefix="mediawiki-e2e-") as temporary:
         directory = Path(temporary)
-        config = resolve(port)
+        config = resolve(port, args.source_root)
         config.pop("name", None)
         # Resolved Compose output contains explicit resource names from planning.
         # Remove them so the random runtime project owns every disposable resource.
@@ -59,6 +60,10 @@ def main():
         try:
             if not args.skip_build:
                 run(*command, "build", "--pull")
+            # Strip build definitions so reused images cannot trigger an implicit build.
+            for service in config["services"].values():
+                service.pop("build", None)
+            compose.write_text(json.dumps(config))
             # Set the owner of the test-only configuration volume before running the installer.
             run(
                 *command,

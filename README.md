@@ -536,6 +536,18 @@ OPENSEARCH_HEAP_MIN=512m
 OPENSEARCH_HEAP_MAX=512m
 ```
 
+## Releases
+
+Push the source commit and wait for successful default-branch CI before pushing
+a stable `vMAJOR.MINOR.PATCH` tag. The release workflow checks that exact commit,
+builds changed images or reuses previous immutable digests, and runs full E2E and
+Trivy checks on native amd64 and arm64 runners. Only complete successful results
+can update public image aliases and create English release notes.
+
+Tuesday refreshes and manual runs with `rebuild_tags=true` rebuild the selected
+recent tags without replacing existing release notes. Existing HIGH/CRITICAL
+findings remain blocking. See [release operation and recovery](docs/releases.md).
+
 ## Production upgrade from 1.45.x to 1.46
 
 This checklist covers the changes since `v1.45.5`. Keep the existing production Compose project, database volume, uploaded files, and `LocalSettings.php`; do not replace the live settings file with the example or run `docker compose down -v`.

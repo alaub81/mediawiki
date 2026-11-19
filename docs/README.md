@@ -7,6 +7,7 @@ retained during the staged Repository Standard v1 migration.
 - [Repository structure and Compose filename migration](repository-structure.md)
 - [Local development, pinned tools and test commands](development.md)
 - [CI architectures, test isolation and Trivy policy](ci.md)
+- [Release gates, image reuse, version aliases and release notes](releases.md)
 - [Requirements](../README.md#requirements)
 - [Quick start and password files](../README.md#quick-start)
 - [Local image builds](../README.md#repository-layout)

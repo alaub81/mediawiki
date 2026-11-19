@@ -1,7 +1,7 @@
 # CI and Trivy policy
 
-This is step 3 of Repository Standard v1. The release workflow is unchanged and
-will be migrated separately. Branch protection remains deferred; `CI required`
+This describes step 3 of Repository Standard v1. The subsequent release migration
+is documented in the [release guide](releases.md). Branch protection remains deferred; `CI required`
 is a workflow result, not an assertion that GitHub enforces branch rules.
 
 ## Plan and execute only applicable checks

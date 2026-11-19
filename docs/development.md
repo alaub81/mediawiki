@@ -1,8 +1,9 @@
 # Local development and checks
 
 Local entry points and pinned tools are shared with CI. CI now runs both supported
-architectures; the release workflow is still awaiting its separate migration.
-Branch protection remains deferred. See the [CI and scan policy](ci.md).
+architectures; release validation reuses the same E2E and scan entry points.
+Branch protection remains deferred. See the [CI and scan policy](ci.md) and
+[release guide](releases.md).
 
 ## Requirements and tool installation
 
@@ -56,9 +57,7 @@ duplicate keys, ShellCheck, Hadolint, Actionlint and Python lint/format with Ruf
 Formatting is checked without rewriting files.
 
 ShellCheck covers standalone shell scripts, including the extracted E2E checks.
-Actionlint checks the CI workflow and its embedded shell commands. The unchanged
-legacy release workflow retains syntax/expression checking without embedded shell
-checking until its separate migration.
+Actionlint checks both workflows and their embedded shell commands.
 
 For intentional Python formatting changes after reviewing the diff:
 
@@ -86,6 +85,8 @@ The tests exercise:
 - CI override build contexts relative to the root base file.
 - Secrets overlay removal of password values and the intended service grants.
 - Change planning, tested-image identity checks and full-report/gate boundaries.
+- Exact-commit release gates, immutable reuse, failed-validation publication
+  guards, both platform receipts, version aliases and idempotent release notes.
 
 Compose resolution uses only the versioned public environment examples and a
 controlled environment. It does not load the private `.env`, create secret files,
@@ -127,3 +128,8 @@ configuration directory is mounted. All project containers/networks/volumes are
 removed on normal exit or a handled failure. Diagnostics are saved under ignored
 `.test-reports/e2e/` or the chosen `--reports` directory. The full suite also runs
 MemcachePHP security checks against its existing image without rebuilding.
+
+Release automation passes `--source-root` to resolve runtime settings from the
+same selected checkout as its image build. Historical `docker-compose.example.yml`
+layouts are recognized; they still need qualifying CI and successful current
+release validation. No historical validation bypass is provided.
