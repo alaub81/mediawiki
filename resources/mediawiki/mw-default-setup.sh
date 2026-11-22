@@ -477,7 +477,7 @@ if ( $wandaEnabled ) {
 	$wgWandaLLMApiEndpoint = 'https://api.openai.com/v1';
 
 	// Dedicated Elasticsearch service used only by Wanda.
-	$wgWandaLLMElasticsearchUrl =
+	$wgWandaSearchEngineUrl =
 		getenv( 'MW_ELASTICSEARCH_URL' ) ?: 'http://elasticsearch:9200';
 
 	// Interface and feature settings.

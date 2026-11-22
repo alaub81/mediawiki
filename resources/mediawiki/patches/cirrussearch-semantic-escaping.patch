@@ -1,0 +1,19 @@
+CirrusSearch REL1_46: escape raw semantic search snippets
+
+Backport the escaping correction from upstream commit
+fe24bd12cb4ebe8870198d47931bfe53028fae14 (Escape semantic snippets that have no highlight).
+Use the existing HighlightingTrait to escape page content while preserving
+CirrusSearch's highlighting markers. Keep the MediaWiki 1.46 release branch.
+
+diff --git a/extensions/CirrusSearch/includes/Search/SemanticSearchResultBuilder.php b/extensions/CirrusSearch/includes/Search/SemanticSearchResultBuilder.php
+--- a/extensions/CirrusSearch/includes/Search/SemanticSearchResultBuilder.php
++++ b/extensions/CirrusSearch/includes/Search/SemanticSearchResultBuilder.php
+@@ -92,7 +92,7 @@ class SemanticSearchResultBuilder {
+ 	private function doInnerHits( Title $title, array $innerHits ): void {
+ 		foreach ( $innerHits[$this->innerHitsField]['hits']['hits'] as $hit ) {
+ 			if ( isset( $hit['_source'][$this->snippetField] ) ) {
+-				$this->builder->textSnippet( $hit['_source'][$this->snippetField] );
++				$this->builder->textSnippet( $this->escapeHighlightedText( $hit['_source'][$this->snippetField] ) );
+ 			}
+ 			if ( isset( $hit['_source'][$this->sectionField] ) ) {
+ 				$this->builder->sectionTitle( $title->createFragmentTarget( $this->titleHelper->sanitizeSectionFragment(
