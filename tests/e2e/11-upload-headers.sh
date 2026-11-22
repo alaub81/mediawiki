@@ -18,6 +18,9 @@ set -eu
 printf 'upload-security-ok' > "$1/static.txt"
 printf '<?php echo "unexpected-script-execution";' > "$1/probe.php"
 cp "$1/probe.php" "$1/probe.php.jpg"
+cp "$1/probe.php" "$1/probe.php.pdf"
+printf '%s\n' '%PDF-1.4' '%%EOF' > "$1/document.pdf"
+cp "$1/document.pdf" "$1/document.PDF"
 printf 'private' > "$1/.hidden"
 # Any interpretation of this file would cause HTTP 500.
 printf 'InvalidUploadOverrideDirective On\n' > "$1/.htaccess"
@@ -37,7 +40,16 @@ if ! grep -qi '^Content-Security-Policy:.*sandbox' <<< "$HEADERS"; then
   echo "::error::sandbox policy missing on upload"
   exit 1
 fi
-for file in probe.php probe.php.jpg .hidden .htaccess; do
+for file in document.pdf document.PDF; do
+  PDF_HEADERS=$(curl -fsSI "$URL/$file")
+  if [[ "$(grep -ci '^Content-Security-Policy:' <<< "$PDF_HEADERS")" != 1 ]] ||
+      ! grep -qi "^Content-Security-Policy:.*object-src 'self'" <<< "$PDF_HEADERS" ||
+      grep -qi '^Content-Security-Policy:.*sandbox' <<< "$PDF_HEADERS"; then
+    echo "::error::expected one PDF policy with object-src and without sandbox for $file"
+    exit 1
+  fi
+done
+for file in probe.php probe.php.jpg probe.php.pdf .hidden .htaccess; do
   status=$(curl -sS -o /dev/null -w '%{http_code}' "$URL/$file")
   if [[ "$status" != 403 ]]; then
     echo "::error::expected HTTP 403 for $file, got $status"
