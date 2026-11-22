@@ -65,9 +65,9 @@ COMPOSE_FILE=compose.yml:compose.config.yml:compose.dev.yml:compose.override.yml
 An optional personal `compose.local.yml` can be selected the same way; it is
 ignored by Git. Only name files that actually exist.
 
-### Optional Autoheal example
+### Optional Autoheal and Watchtower labels
 
-To enable Autoheal for all seven application services, copy the public example
+To enable Autoheal and Watchtower labels for all seven application services, copy the public example
 if you do not already have a personal `compose.local.yml`:
 
 ```bash
@@ -85,12 +85,16 @@ docker compose config --quiet
 docker compose up -d
 ```
 
-The example labels every application service with `autoheal: "true"`, including
+The example labels every application service with `autoheal: "true"` and
+`com.centurylinklabs.watchtower.enable: "true"`, including
 ClamAV and Elasticsearch when their profiles are enabled. It relies on an
 Autoheal service already running in another stack and configured to monitor
 `autoheal=true` labels. That service restarts labelled containers when their
 existing healthcheck reports `unhealthy`. See the
 [Autoheal documentation](https://github.com/willfarrell/docker-autoheal).
+The Watchtower label opts these services into an existing Watchtower instance
+configured to select labelled containers. The shared `compose.yml` contains
+neither label; both are selected through the local overlay.
 
 The sanitized `.env.secrets` template selects
 `compose.yml:compose.config.yml:compose.secrets.yml`. For local builds, use

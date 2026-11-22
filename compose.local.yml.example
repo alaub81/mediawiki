@@ -1,31 +1,38 @@
 # Copy to compose.local.yml and append it to COMPOSE_FILE in .env.
 # Requires an existing Autoheal service configured to monitor autoheal=true labels.
-# Labels enable Autoheal for every application service, including optional profiles.
+# Labels enable Autoheal and Watchtower for every application service, including optional profiles.
 services:
   mediawiki:
     labels:
       autoheal: "true"
+      com.centurylinklabs.watchtower.enable: "true"
 
   database:
     labels:
       autoheal: "true"
+      com.centurylinklabs.watchtower.enable: "true"
 
   clamav:
     labels:
       autoheal: "true"
+      com.centurylinklabs.watchtower.enable: "true"
 
   memcached:
     labels:
       autoheal: "true"
+      com.centurylinklabs.watchtower.enable: "true"
 
   memcachephp:
     labels:
       autoheal: "true"
+      com.centurylinklabs.watchtower.enable: "true"
 
   opensearch:
     labels:
       autoheal: "true"
+      com.centurylinklabs.watchtower.enable: "true"
 
   elasticsearch:
     labels:
       autoheal: "true"
+      com.centurylinklabs.watchtower.enable: "true"
