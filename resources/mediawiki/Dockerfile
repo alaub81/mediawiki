@@ -89,7 +89,13 @@ RUN set -eux; \
   # Extensions
   for ext in $MW_INSTALL_EXTENSIONS; do \
     url="https://github.com/wikimedia/mediawiki-extensions-${ext}.git"; \
-    clone_with_fallback "$url" "/var/www/html/extensions/$ext"; \
+    if [ "$ext" = "ExternalData" ]; then \
+      # Pin ExternalData 3.7.1 including the CVE-2026-132734 security fix.
+      clone_fixed_commit "$url" "/var/www/html/extensions/$ext" \
+                         "33f353579dde7928dc2de024934363819ecff6f5" "master"; \
+    else \
+      clone_with_fallback "$url" "/var/www/html/extensions/$ext"; \
+    fi; \
   done; \
   # Skins
   for skin in $MW_INSTALL_SKINS; do \
@@ -107,9 +113,9 @@ RUN set -eux; \
   # clone_fixed_commit "https://github.com/wikimedia/mediawiki-extensions-CookieConsent.git" \
   #                    "/var/www/html/extensions/CookieConsent" \
   #                    "$COMMIT" "$BRANCH"; \
-  # Pin Wanda 3.0.0 from the Wikimedia GitHub mirror because REL1_46 contains Wanda 2.0.0.
+  # Pin Wanda 3.1.0 including the API endpoint override/secret leak security fix.
   BRANCH="master"; \
-  COMMIT="92f7e9bdaf71e905959186d81abc0236a443ea92"; \
+  COMMIT="ad8876cb2fa3f7d55e9098235e871700dc32ac4a"; \
   clone_fixed_commit "https://github.com/wikimedia/mediawiki-extensions-Wanda.git" \
                      "/var/www/html/extensions/Wanda" \
                      "$COMMIT" "$BRANCH"; \
@@ -156,6 +162,8 @@ RUN set -eux; \
 COPY patches/relatedarticles-private-wiki.patch /tmp/relatedarticles-private-wiki.patch
 # Wanda: UTF-8-safe truncation of the LLM context (OpenAI HTTP 400 with umlauts).
 COPY patches/wanda-utf8-truncation.patch /tmp/wanda-utf8-truncation.patch
+# Backport semantic snippet escaping while retaining CirrusSearch REL1_46.
+COPY patches/cirrussearch-semantic-escaping.patch /tmp/cirrussearch-semantic-escaping.patch
 
 RUN set -eux; \
     apt-get update; \
@@ -176,6 +184,7 @@ RUN set -eux; \
     }; \
     apply_patch /tmp/relatedarticles-private-wiki.patch; \
     apply_patch /tmp/wanda-utf8-truncation.patch; \
+    apply_patch /tmp/cirrussearch-semantic-escaping.patch; \
     apt-get purge -y --auto-remove patch; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*

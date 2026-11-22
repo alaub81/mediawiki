@@ -1,55 +1,29 @@
-Wanda 3.0.0 (master @ 92f7e9bdaf71): UTF-8-safe truncation + configurable search candidates
+Wanda 3.1.0 (master @ ad8876cb2fa3): UTF-8-safe truncation + configurable search candidates
 
-1) UTF-8-safe truncation of LLM prompt text
-   generateLLMResponse() and the query handlers cut context text with substr() to a
-   byte budget. If the cut lands inside a multibyte UTF-8 character (e.g. German
-   umlauts), json_encode() returns false and an empty body is sent to the LLM ->
-   OpenAI "HTTP 400: We could not parse the JSON body".
-   - substr() -> mb_strcut( ..., 'UTF-8' ) wherever text for a prompt is truncated
-   - JSON_INVALID_UTF8_SUBSTITUTE on all outgoing LLM/embedding/search payloads
-
-2) $wgWandaSearchCandidates
-   Vector and text search fetched only 5 hits from Elasticsearch and filtered them by
-   $wgWandaAllowedNamespaces/read permission afterwards; if all 5 were filtered out,
-   Wanda fell back to text search although better allowed pages existed.
-   New setting: number of hits fetched before filtering (default 5 = unchanged).
+Preserve UTF-8 boundaries when truncating LLM context, and substitute invalid
+UTF-8 in outgoing LLM and search JSON. Provider requests now share LLMClient.
+WandaSearchCandidates configures the hybrid chat retrieval pool before namespace
+and read-permission filtering (default 10, matching Wanda 3.1.0).
 
 Apply from the MediaWiki root: patch -p1 -d /var/www/html < wanda-utf8-truncation.patch
 
 diff --git a/extensions/Wanda/extension.json b/extensions/Wanda/extension.json
-index d798a2f..cbdc886 100644
+index 794a7b7..4bbec34 100644
 --- a/extensions/Wanda/extension.json
 +++ b/extensions/Wanda/extension.json
-@@ -230,6 +230,7 @@
+@@ -322,6 +322,7 @@
  		"WandaLLMEmbeddingModel": null,
- 		"WandaLLMElasticsearchUrl": null,
+ 		"WandaSearchEngineUrl": null,
  		"WandaVectorSearchMinScore": 1.7,
-+		"WandaSearchCandidates": 5,
++		"WandaSearchCandidates": 10,
  		"WandaLLMMaxTokens": 1000,
  		"WandaLLMTemperature": "0.7",
  		"WandaLLMTimeout": 30,
 diff --git a/extensions/Wanda/includes/APIChat.php b/extensions/Wanda/includes/APIChat.php
-index 321d587..b21d4d8 100644
+index fd2d7c3..4f45b52 100644
 --- a/extensions/Wanda/includes/APIChat.php
 +++ b/extensions/Wanda/includes/APIChat.php
-@@ -44,6 +44,8 @@ class APIChat extends ApiBase {
- 	private static $useContentLang = false;
- 	/** @var float */
- 	private static $vectorSearchMinScore;
-+	/** @var int Hits fetched from Elasticsearch before the namespace/permission filter */
-+	private static $searchCandidates = 5;
- 	/** @var bool */
- 	private static $enableConversationMemory = true;
- 	/** @var int */
-@@ -116,6 +118,7 @@ class APIChat extends ApiBase {
- 		self::$customPrompt = $this->getConfig()->get( 'WandaCustomPrompt' ) ?? "";
- 		self::$useContentLang = $this->getConfig()->get( 'WandaUseContentLang' ) ?? false;
- 		self::$vectorSearchMinScore = $this->getConfig()->get( 'WandaVectorSearchMinScore' ) ?? 1.7;
-+		self::$searchCandidates = max( 1, (int)( $this->getConfig()->get( 'WandaSearchCandidates' ) ?? 5 ) );
- 		self::$enableConversationMemory = true;
- 		self::$conversationMaxChars = $this->getConfig()->get( 'WandaConversationMaxChars' ) ?? 6000;
- 		self::$disabledSources = (array)( $this->getConfig()->get( 'WandaDisabledSources' ) ?? [] );
-@@ -596,7 +599,7 @@ class APIChat extends ApiBase {
+@@ -719,7 +719,7 @@ class APIChat extends ApiBase {
  					foreach ( $lines as $line ) {
  						$line = trim( $line );
  						if ( !empty( $line ) && !preg_match( '/^[\[\{]/', $line ) ) {
@@ -58,97 +32,16 @@ index 321d587..b21d4d8 100644
  							break;
  						}
  					}
-@@ -677,7 +680,7 @@ class APIChat extends ApiBase {
- 
- 				$text = $this->extractReadableHtmlText( $body );
+@@ -804,7 +804,7 @@ class APIChat extends ApiBase {
+ 					$text = $this->extractReadableHtmlText( $body );
+ 				}
  				if ( strlen( $text ) > 4000 ) {
 -					$text = substr( $text, 0, 4000 ) . "\n[...truncated...]";
 +					$text = mb_strcut( $text, 0, 4000, 'UTF-8' ) . "\n[...truncated...]";
  				}
  				$urlParts[] = "--- From: " . $url . " ---\n" . trim( $text );
  			}
-@@ -894,7 +897,7 @@ class APIChat extends ApiBase {
- 
- 		// Perform kNN search across all chunks using nested query
- 		$queryData = [
--			"size" => 5,
-+			"size" => self::$searchCandidates,
- 			"query" => [
- 				"nested" => [
- 					"path" => "content_vectors",
-@@ -925,7 +928,7 @@ class APIChat extends ApiBase {
- 
- 		$ch = curl_init( $searchUrl );
- 		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
--		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $queryData ) );
-+		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $queryData, JSON_INVALID_UTF8_SUBSTITUTE ) );
- 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
- 		curl_setopt( $ch, CURLOPT_TIMEOUT, self::$timeout );
- 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ "Content-Type: application/json" ] );
-@@ -1032,7 +1035,7 @@ class APIChat extends ApiBase {
- 					"fuzziness" => "AUTO"
- 				]
- 			],
--			"size" => 5,
-+			"size" => self::$searchCandidates,
- 			"_source" => [ "title", "content", "text" ],
- 			"min_score" => 1.0
- 		];
-@@ -1042,7 +1045,7 @@ class APIChat extends ApiBase {
- 
- 		$ch = curl_init( $searchUrl );
- 		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
--		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $queryData ) );
-+		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $queryData, JSON_INVALID_UTF8_SUBSTITUTE ) );
- 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
- 		curl_setopt( $ch, CURLOPT_TIMEOUT, self::$timeout );
- 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ "Content-Type: application/json" ] );
-@@ -1224,7 +1227,7 @@ class APIChat extends ApiBase {
- 
- 			$ch = curl_init( $url );
- 			curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, 'POST' );
--			curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $payload ) );
-+			curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ) );
- 			curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
- 			curl_setopt( $ch, CURLOPT_TIMEOUT, self::$timeout );
- 			curl_setopt( $ch, CURLOPT_HTTPHEADER, [ 'Content-Type: application/json' ] );
-@@ -1348,7 +1351,7 @@ class APIChat extends ApiBase {
- 			}
- 		}
- 
--		$data = json_encode( $payload );
-+		$data = json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE );
- 
- 		$ch = curl_init( self::$llmApiEndpoint . "generate" );
- 		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
-@@ -1491,7 +1494,7 @@ class APIChat extends ApiBase {
- 		$payload[$tokenKey] = self::$maxTokens;
- 
- 		$sendRequest = static function ( $payloadData ) {
--			$data = json_encode( $payloadData );
-+			$data = json_encode( $payloadData, JSON_INVALID_UTF8_SUBSTITUTE );
- 
- 			$ch = curl_init( "https://api.openai.com/v1/chat/completions" );
- 			curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
-@@ -1647,7 +1650,7 @@ class APIChat extends ApiBase {
- 		if ( !empty( $systemPrompt ) ) {
- 			$payloadData['system'] = $systemPrompt;
- 		}
--		$data = json_encode( $payloadData );
-+		$data = json_encode( $payloadData, JSON_INVALID_UTF8_SUBSTITUTE );
- 
- 		$ch = curl_init( "https://api.anthropic.com/v1/messages" );
- 		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
-@@ -1763,7 +1766,7 @@ class APIChat extends ApiBase {
- 			"messages" => $messages,
- 			$tokenKey => self::$maxTokens,
- 			"temperature" => self::$temperature
--		] );
-+		], JSON_INVALID_UTF8_SUBSTITUTE );
- 
- 		// Azure endpoint should include the deployment name
- 		$ch = curl_init( self::$llmApiEndpoint );
-@@ -2052,7 +2055,7 @@ class APIChat extends ApiBase {
+@@ -1418,7 +1418,7 @@ class APIChat extends ApiBase {
  		if ( $wikidataContext !== '' ) {
  			$wikidataBudget = min( $wikidataBudgetCap, $maxContextChars );
  			if ( strlen( $wikidataContext ) > $wikidataBudget ) {
@@ -157,7 +50,7 @@ index 321d587..b21d4d8 100644
  			}
  		}
  
-@@ -2060,7 +2063,7 @@ class APIChat extends ApiBase {
+@@ -1426,7 +1426,7 @@ class APIChat extends ApiBase {
  		if ( $cargoContext !== '' ) {
  			$cargoBudget = min( $cargoBudgetCap, $maxContextChars - strlen( $wikidataContext ) );
  			if ( strlen( $cargoContext ) > $cargoBudget ) {
@@ -166,7 +59,7 @@ index 321d587..b21d4d8 100644
  			}
  		}
  
-@@ -2068,7 +2071,7 @@ class APIChat extends ApiBase {
+@@ -1434,7 +1434,7 @@ class APIChat extends ApiBase {
  		if ( $smwContext !== '' ) {
  			$smwBudget = min( $smwBudgetCap, $maxContextChars - strlen( $wikidataContext ) - strlen( $cargoContext ) );
  			if ( strlen( $smwContext ) > $smwBudget ) {
@@ -175,7 +68,7 @@ index 321d587..b21d4d8 100644
  			}
  		}
  
-@@ -2079,7 +2082,7 @@ class APIChat extends ApiBase {
+@@ -1445,7 +1445,7 @@ class APIChat extends ApiBase {
  				$maxContextChars - strlen( $wikidataContext ) - strlen( $cargoContext ) - strlen( $smwContext )
  			);
  			if ( strlen( $ragContext ) > $ragBudget ) {
@@ -184,7 +77,7 @@ index 321d587..b21d4d8 100644
  			}
  		}
  
-@@ -2091,7 +2094,7 @@ class APIChat extends ApiBase {
+@@ -1457,7 +1457,7 @@ class APIChat extends ApiBase {
  					strlen( $smwContext ) - strlen( $ragContext )
  			);
  			if ( strlen( $externalWikiContext ) > $externalWikiBudget ) {
@@ -193,7 +86,7 @@ index 321d587..b21d4d8 100644
  					. "\n[...truncated...]";
  			}
  		}
-@@ -2100,7 +2103,7 @@ class APIChat extends ApiBase {
+@@ -1466,7 +1466,7 @@ class APIChat extends ApiBase {
  			strlen( $cargoContext ) - strlen( $smwContext ) - strlen( $ragContext ) -
  			strlen( $externalWikiContext ) );
  		if ( $context !== '' && strlen( $context ) > $wikiBudget ) {
@@ -203,10 +96,10 @@ index 321d587..b21d4d8 100644
  
  		$contextBlock = '';
 diff --git a/extensions/Wanda/includes/CargoQueryHandler.php b/extensions/Wanda/includes/CargoQueryHandler.php
-index 0b1e917..bac9257 100644
+index 01f7fb0..009dc68 100644
 --- a/extensions/Wanda/includes/CargoQueryHandler.php
 +++ b/extensions/Wanda/includes/CargoQueryHandler.php
-@@ -595,7 +595,7 @@ class CargoQueryHandler {
+@@ -578,7 +578,7 @@ class CargoQueryHandler {
  	): ?array {
  		$maxPreviousChars = 6000;
  		if ( strlen( $previousResults ) > $maxPreviousChars ) {
@@ -215,96 +108,24 @@ index 0b1e917..bac9257 100644
  				"\n[... earlier results truncated ...]";
  		}
  
-@@ -1042,7 +1042,7 @@ class CargoQueryHandler {
+diff --git a/extensions/Wanda/includes/LLMClient.php b/extensions/Wanda/includes/LLMClient.php
+index c4d4ba9..d1d7712 100644
+--- a/extensions/Wanda/includes/LLMClient.php
++++ b/extensions/Wanda/includes/LLMClient.php
+@@ -497,7 +497,7 @@ class LLMClient {
+ 	 * @return array{json:array,status:int,error:?string,apiMessage:string}
+ 	 */
+ 	private function post( string $url, array $payload, array $headers ): array {
+-		$data = json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
++		$data = json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE );
  
- 		$response = $this->curlPost(
- 			$this->llmApiEndpoint . 'generate',
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[ 'Content-Type: application/json' ]
- 		);
- 
-@@ -1083,7 +1083,7 @@ class CargoQueryHandler {
- 		$sendRequest = function ( $payload ) use ( $headers ): ?string {
- 			$response = $this->curlPost(
- 				'https://api.openai.com/v1/chat/completions',
--				json_encode( $payload ),
-+				json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 				$headers
- 			);
- 			return $response;
-@@ -1145,7 +1145,7 @@ class CargoQueryHandler {
- 
- 		$response = $this->curlPost(
- 			'https://api.anthropic.com/v1/messages',
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[
- 				'Content-Type: application/json',
- 				'x-api-key: ' . $this->llmApiKey,
-@@ -1190,7 +1190,7 @@ class CargoQueryHandler {
- 
- 		$response = $this->curlPost(
- 			$this->llmApiEndpoint,
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[
- 				'Content-Type: application/json',
- 				'api-key: ' . $this->llmApiKey
-@@ -1239,7 +1239,7 @@ class CargoQueryHandler {
- 
- 		$response = $this->curlPost(
- 			$url,
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[ 'Content-Type: application/json' ]
- 		);
- 
-diff --git a/extensions/Wanda/includes/EmbeddingGenerator.php b/extensions/Wanda/includes/EmbeddingGenerator.php
-index 2e926e1..a4ca101 100644
---- a/extensions/Wanda/includes/EmbeddingGenerator.php
-+++ b/extensions/Wanda/includes/EmbeddingGenerator.php
-@@ -225,7 +225,7 @@ class EmbeddingGenerator {
- 		$ch = curl_init( $url );
- 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
- 		curl_setopt( $ch, CURLOPT_POST, true );
--		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data ) );
-+		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data, JSON_INVALID_UTF8_SUBSTITUTE ) );
- 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [
- 			'Content-Type: application/json',
- 			'Authorization: Bearer ' . $apiKey
-@@ -270,7 +270,7 @@ class EmbeddingGenerator {
- 		$ch = curl_init( $url );
- 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
- 		curl_setopt( $ch, CURLOPT_POST, true );
--		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data ) );
-+		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data, JSON_INVALID_UTF8_SUBSTITUTE ) );
- 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ 'Content-Type: application/json' ] );
- 		curl_setopt( $ch, CURLOPT_TIMEOUT, $timeout );
- 		if ( !empty( $wgproxy ) ) {
-@@ -315,7 +315,7 @@ class EmbeddingGenerator {
- 		$ch = curl_init( $url );
- 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
- 		curl_setopt( $ch, CURLOPT_POST, true );
--		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data ) );
-+		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data, JSON_INVALID_UTF8_SUBSTITUTE ) );
- 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ 'Content-Type: application/json' ] );
- 		curl_setopt( $ch, CURLOPT_TIMEOUT, $timeout );
- 		if ( !empty( $wgproxy ) ) {
-@@ -366,7 +366,7 @@ class EmbeddingGenerator {
- 		$ch = curl_init( $url );
- 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
- 		curl_setopt( $ch, CURLOPT_POST, true );
--		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data ) );
-+		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $data, JSON_INVALID_UTF8_SUBSTITUTE ) );
- 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [
- 			'Content-Type: application/json',
- 			'api-key: ' . $apiKey
+ 		for ( $attempt = 1; ; $attempt++ ) {
+ 			[ 'status' => $status, 'body' => $body, 'error' => $error, 'timedOut' => $timedOut ] =
 diff --git a/extensions/Wanda/includes/SMWQueryHandler.php b/extensions/Wanda/includes/SMWQueryHandler.php
-index a57f084..655c68e 100644
+index c7d4df5..26ea37a 100644
 --- a/extensions/Wanda/includes/SMWQueryHandler.php
 +++ b/extensions/Wanda/includes/SMWQueryHandler.php
-@@ -403,7 +403,7 @@ class SMWQueryHandler {
+@@ -386,7 +386,7 @@ class SMWQueryHandler {
  	): ?array {
  		$maxPreviousChars = 6000;
  		if ( strlen( $previousResults ) > $maxPreviousChars ) {
@@ -313,105 +134,33 @@ index a57f084..655c68e 100644
  				"\n[... earlier results truncated ...]";
  		}
  
-@@ -868,7 +868,7 @@ class SMWQueryHandler {
+diff --git a/extensions/Wanda/includes/WandaSemanticDiscovery.php b/extensions/Wanda/includes/WandaSemanticDiscovery.php
+index ca1341c..c7d8398 100644
+--- a/extensions/Wanda/includes/WandaSemanticDiscovery.php
++++ b/extensions/Wanda/includes/WandaSemanticDiscovery.php
+@@ -121,7 +121,7 @@ class WandaSemanticDiscovery {
+ 		$config = $this->context->getConfig();
+ 		$minScore = (float)( $config->get( 'WandaVectorSearchMinScore' ) ?? 1.7 );
+ 		$timeout = (int)( $config->get( 'WandaLLMTimeout' ) ?? 30 );
+-		$pool = max( $limit * self::POOL_MULTIPLIER, 10 );
++		$pool = max( 1, (int)( $config->get( 'WandaSearchCandidates' ) ?? 10 ) );
  
- 		$response = $this->curlPost(
- 			$this->llmApiEndpoint . 'generate',
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[ 'Content-Type: application/json' ]
- 		);
- 
-@@ -909,7 +909,7 @@ class SMWQueryHandler {
- 		$sendRequest = function ( $payload ) use ( $headers ): ?string {
- 			return $this->curlPost(
- 				'https://api.openai.com/v1/chat/completions',
--				json_encode( $payload ),
-+				json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 				$headers
- 			);
- 		};
-@@ -970,7 +970,7 @@ class SMWQueryHandler {
- 
- 		$response = $this->curlPost(
- 			'https://api.anthropic.com/v1/messages',
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[
- 				'Content-Type: application/json',
- 				'x-api-key: ' . $this->llmApiKey,
-@@ -1015,7 +1015,7 @@ class SMWQueryHandler {
- 
- 		$response = $this->curlPost(
- 			$this->llmApiEndpoint,
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[
- 				'Content-Type: application/json',
- 				'api-key: ' . $this->llmApiKey
-@@ -1064,7 +1064,7 @@ class SMWQueryHandler {
- 
- 		$response = $this->curlPost(
- 			$url,
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[ 'Content-Type: application/json' ]
- 		);
- 
-diff --git a/extensions/Wanda/includes/WandaEditHandler.php b/extensions/Wanda/includes/WandaEditHandler.php
-index a80974d..56867b3 100644
---- a/extensions/Wanda/includes/WandaEditHandler.php
-+++ b/extensions/Wanda/includes/WandaEditHandler.php
-@@ -244,7 +244,7 @@ class WandaEditHandler {
- 
- 		$response = $this->curlPost(
- 			$this->llmApiEndpoint . 'generate',
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[ 'Content-Type: application/json' ]
- 		);
- 
-@@ -285,7 +285,7 @@ class WandaEditHandler {
- 		$sendRequest = function ( $payload ) use ( $headers ): ?string {
- 			return $this->curlPost(
- 				'https://api.openai.com/v1/chat/completions',
--				json_encode( $payload ),
-+				json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 				$headers
- 			);
- 		};
-@@ -346,7 +346,7 @@ class WandaEditHandler {
- 
- 		$response = $this->curlPost(
- 			'https://api.anthropic.com/v1/messages',
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[
- 				'Content-Type: application/json',
- 				'x-api-key: ' . $this->llmApiKey,
-@@ -391,7 +391,7 @@ class WandaEditHandler {
- 
- 		$response = $this->curlPost(
- 			$this->llmApiEndpoint,
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[
- 				'Content-Type: application/json',
- 				'api-key: ' . $this->llmApiKey
-@@ -440,7 +440,7 @@ class WandaEditHandler {
- 
- 		$response = $this->curlPost(
- 			$url,
--			json_encode( $payload ),
-+			json_encode( $payload, JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[ 'Content-Type: application/json' ]
- 		);
- 
+ 		$embedding = $this->embed( $query );
+ 		$vectorHits = [];
+@@ -540,7 +540,7 @@ class WandaSemanticDiscovery {
+ 	private function post( string $url, array $body, int $timeout ): array {
+ 		$ch = curl_init( $url );
+ 		curl_setopt( $ch, CURLOPT_CUSTOMREQUEST, 'POST' );
+-		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $body ) );
++		curl_setopt( $ch, CURLOPT_POSTFIELDS, json_encode( $body, JSON_INVALID_UTF8_SUBSTITUTE ) );
+ 		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
+ 		curl_setopt( $ch, CURLOPT_TIMEOUT, $timeout );
+ 		curl_setopt( $ch, CURLOPT_HTTPHEADER, [ 'Content-Type: application/json' ] );
 diff --git a/extensions/Wanda/includes/WikibaseQueryHandler.php b/extensions/Wanda/includes/WikibaseQueryHandler.php
-index 1e2bce3..2a64692 100644
+index 7a4a907..62091a2 100644
 --- a/extensions/Wanda/includes/WikibaseQueryHandler.php
 +++ b/extensions/Wanda/includes/WikibaseQueryHandler.php
-@@ -104,7 +104,7 @@ class WikibaseQueryHandler {
+@@ -92,7 +92,7 @@ class WikibaseQueryHandler {
  	 */
  	public function query( string $userQuery ): array {
  		if ( strlen( $userQuery ) > self::MAX_USER_QUERY_LEN ) {
@@ -420,7 +169,7 @@ index 1e2bce3..2a64692 100644
  		}
  		$steps = [];
  		$empty = [
-@@ -638,7 +638,7 @@ class WikibaseQueryHandler {
+@@ -626,7 +626,7 @@ class WikibaseQueryHandler {
  		if ( strlen( $previousResults ) > $maxPreviousChars ) {
  			// Keep the tail — the most recent step is most relevant for the next query.
  			$previousResults = "[... earlier results truncated ...]\n" .
@@ -429,57 +178,3 @@ index 1e2bce3..2a64692 100644
  		}
  
  		$prompt = PromptTemplate::render( 'wikidata-followup', [
-@@ -875,7 +875,7 @@ class WikibaseQueryHandler {
- 		}
- 		$response = $this->curlPost(
- 			$base,
--			json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
-+			json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[ 'Content-Type: application/json' ]
- 		);
- 
-@@ -913,7 +913,7 @@ class WikibaseQueryHandler {
- 
- 		$response = $this->curlPost(
- 			'https://api.openai.com/v1/chat/completions',
--			json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
-+			json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE ),
- 			$headers
- 		);
- 
-@@ -937,7 +937,7 @@ class WikibaseQueryHandler {
- 				unset( $payload[$tokenKey] );
- 				$response = $this->curlPost(
- 					'https://api.openai.com/v1/chat/completions',
--					json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
-+					json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE ),
- 					$headers
- 				);
- 				$json = $response !== null ? json_decode( $response, true ) : null;
-@@ -967,7 +967,7 @@ class WikibaseQueryHandler {
- 
- 		$response = $this->curlPost(
- 			'https://api.anthropic.com/v1/messages',
--			json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
-+			json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[
- 				'Content-Type: application/json',
- 				'x-api-key: ' . $this->llmApiKey,
-@@ -1007,7 +1007,7 @@ class WikibaseQueryHandler {
- 
- 		$response = $this->curlPost(
- 			$this->llmApiEndpoint,
--			json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
-+			json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[
- 				'Content-Type: application/json',
- 				'api-key: ' . $this->llmApiKey,
-@@ -1053,7 +1053,7 @@ class WikibaseQueryHandler {
- 
- 		$response = $this->curlPost(
- 			$url,
--			json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES ),
-+			json_encode( $payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE ),
- 			[ 'Content-Type: application/json' ]
- 		);
- 		if ( $response === null ) {

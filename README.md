@@ -58,12 +58,22 @@ extension name is **DynamicPageList**. It is one extension, not two.
 
 The build downloads these extensions from the public Wikimedia GitHub mirrors
 (`wikimedia/mediawiki-extensions-<name>`), except RottenLinks, which uses its
-Miraheze GitHub repository. Wanda and RottenLinks use explicit commit pins.
+Miraheze GitHub repository. ExternalData (3.7.1, including CVE-2026-132734),
+Wanda (3.1.0, including the API endpoint override/secret leak fix) and RottenLinks
+use explicit commit pins.
+Existing Wanda configurations must use `$wgWandaSearchEngineUrl` instead of
+`$wgWandaLLMElasticsearchUrl` with Wanda 3.1.0; the setup script and example
+settings use the new name.
 These clones do not require Gerrit access.
 Other clones prefer the matching `REL1_46` branch but currently fall back to
 `main` or the default HEAD if it is absent. Check build logs and compatibility;
 the fallback does not guarantee a matching release branch. See the
 [extension-version backlog](notices_and_todos.md).
+
+CirrusSearch stays on `REL1_46`. The image applies a local backport of upstream
+commit `fe24bd12cb4ebe8870198d47931bfe53028fae14` to escape raw semantic search
+snippets while preserving highlighting. The build rejects conflicting patches
+and accepts the correction if it is already present upstream.
 
 ### Extension activation and skins
 
