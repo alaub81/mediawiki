@@ -8,10 +8,10 @@ services:
         MW_INSTALL_EXTENSIONS: ${MW_INSTALL_EXTENSIONS:-}
         MW_INSTALL_SKINS: ${MW_INSTALL_SKINS:-}
         MW_CONFIG_FILE: ${MW_CONFIG_FILE:-}
-    image: mediawiki-custom
+    image: mediawiki-custom:local
 
   memcachephp:
     build:
       context: ./resources/memcachephp
       dockerfile: Dockerfile
-    image: memcachephp
+    image: memcachephp:local

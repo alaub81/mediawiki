@@ -4,7 +4,8 @@ Normal operation and local development share `compose.yml`. It contains service
 configuration, published project images, dependencies, healthchecks, profiles,
 networks and named volumes. `compose.config.yml` adds the existing private
 `data/mediawiki/conf/LocalSettings.php` as a read-only mount. `compose.dev.yml`
-adds only local build definitions and the original local image names.
+adds only local build definitions and the local image names
+`mediawiki-custom:local` and `memcachephp:local`.
 
 ## Select files in .env
 
