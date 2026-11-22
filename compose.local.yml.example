@@ -1,0 +1,31 @@
+# Copy to compose.local.yml and append it to COMPOSE_FILE in .env.
+# Requires an existing Autoheal service configured to monitor autoheal=true labels.
+# Labels enable Autoheal for every application service, including optional profiles.
+services:
+  mediawiki:
+    labels:
+      autoheal: "true"
+
+  database:
+    labels:
+      autoheal: "true"
+
+  clamav:
+    labels:
+      autoheal: "true"
+
+  memcached:
+    labels:
+      autoheal: "true"
+
+  memcachephp:
+    labels:
+      autoheal: "true"
+
+  opensearch:
+    labels:
+      autoheal: "true"
+
+  elasticsearch:
+    labels:
+      autoheal: "true"

@@ -63,9 +63,34 @@ COMPOSE_FILE=compose.yml:compose.config.yml:compose.dev.yml:compose.override.yml
 ```
 
 An optional personal `compose.local.yml` can be selected the same way; it is
-ignored by Git. Only name files that actually exist. This step adds no Autoheal
-service or automatic restart behavior. Existing configuration overrides remain
-under the operator's control.
+ignored by Git. Only name files that actually exist.
+
+### Optional Autoheal example
+
+To enable Autoheal for all seven application services, copy the public example
+if you do not already have a personal `compose.local.yml`:
+
+```bash
+cp -n compose.local.yml.example compose.local.yml
+```
+
+Append `compose.local.yml` to your active `COMPOSE_FILE`.
+For published images, use
+`COMPOSE_FILE=compose.yml:compose.config.yml:compose.local.yml`.
+If the local file already exists, merge the example's labels into it.
+Then validate and apply the selected configuration:
+
+```bash
+docker compose config --quiet
+docker compose up -d
+```
+
+The example labels every application service with `autoheal: "true"`, including
+ClamAV and Elasticsearch when their profiles are enabled. It relies on an
+Autoheal service already running in another stack and configured to monitor
+`autoheal=true` labels. That service restarts labelled containers when their
+existing healthcheck reports `unhealthy`. See the
+[Autoheal documentation](https://github.com/willfarrell/docker-autoheal).
 
 The sanitized `.env.secrets` template selects
 `compose.yml:compose.config.yml:compose.secrets.yml`. For local builds, use
