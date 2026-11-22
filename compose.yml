@@ -1,3 +1,4 @@
+# Shared runtime base with published project images. Select overlays in .env.
 services:
   mediawiki:
     image: ghcr.io/alaub81/mediawiki-custom:${MW_VERSION:-latest}
@@ -61,9 +62,8 @@ services:
       com.centurylinklabs.watchtower.enable: true
     volumes:
       - data_mw_images:/var/www/html/images
-      # After initial setup, download LocalSettings.php to data/conf directory
-      # and uncomment the following line and use compose to restart
-      # the mediawiki service
+      # Normal operation loads the read-only settings mount via compose.config.yml.
+      # Custom deployment mounts can still be added in an explicit local overlay.
       # - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
       # or custom config file don't forget to set MW_CONFIG_FILE env var in .env
       # - ./data/mediawiki/conf/mw_local_settings:/var/www/html/conf/:rw

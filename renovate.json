@@ -22,6 +22,7 @@
     "dependencies"
   ],
   "ignorePaths": [
+    "archive/**",
     "**/node_modules/**",
     "**/bower_components/**",
     "**/vendor/**",

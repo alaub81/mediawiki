@@ -5,6 +5,10 @@ architectures; release validation reuses the same E2E and scan entry points.
 Branch protection remains deferred. See the [CI and scan policy](ci.md) and
 [release guide](releases.md).
 
+For ordinary deployments and local image builds, select the shared base and
+overlays through `.env`; see [Compose modes](compose-modes.md). Container tests
+continue using explicit isolated inputs rather than private deployment settings.
+
 ## Requirements and tool installation
 
 Use Bash, Git and Python 3.10 or newer. Linters support Linux and macOS on amd64

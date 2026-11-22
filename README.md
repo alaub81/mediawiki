@@ -107,8 +107,9 @@ The current Compose files have these roles:
 
 | File | Purpose |
 | --- | --- |
-| `compose.yml` | Production stack using published project images |
-| `compose.dev.yml` | Standalone stack that builds both project images locally |
+| `compose.yml` | Shared runtime base using published project images |
+| `compose.config.yml` | Normal-operation overlay mounting the existing settings file read-only |
+| `compose.dev.yml` | Local-build overlay for both project images; load after the base and config overlay |
 | `compose.setup.yml` | Local-build setup variant with a writable configuration directory |
 | `compose.secrets.yml` | Password-file overlay, combined with a base file and the configuration mount |
 | `tests/compose.test.yml` | CI/E2E overlay, combined with the production base |
@@ -121,6 +122,14 @@ Keep the same project name, configuration mounts and volumes; do not switch file
 implicitly or replace live settings with a template. `PROJECT_NAME` controls the
 bridge-interface names here; preserve any separate `-p`/`COMPOSE_PROJECT_NAME`
 setting that identifies your existing Compose project.
+
+Select normal operation in `.env` with
+`COMPOSE_FILE=compose.yml:compose.config.yml`. For local builds, use
+`COMPOSE_FILE=compose.yml:compose.config.yml:compose.dev.yml` instead. Compose
+loads the files in that order for ordinary `docker compose` commands. Explicit
+`-f` arguments replace this selection. See the
+[selection and migration guide](docs/compose-modes.md), including existing local
+overrides, secrets, archived originals and the unchanged standalone setup variant.
 
 ### 1. Create the environment file
 
@@ -202,7 +211,7 @@ installer over its database. For a **new** wiki using published images, follow
 [the first-install procedure](docs/installation.md#new-wiki-with-published-images).
 It prepares ignored `.env.setup` and `compose.install.override.yml` files, runs
 `mw-default-setup.sh` explicitly, copies the resulting configuration to the host,
-and switches to a read-only `compose.override.yml` mount. The entrypoint does not
+and switches to the read-only `compose.config.yml` mount. The entrypoint does not
 run this installer automatically. The guide also preserves the local setup,
 preconfigured-template and browser installer alternatives.
 
@@ -217,21 +226,18 @@ If `LocalSettings.php` is already present but its MediaWiki database has not bee
 
 When `MW_WANDA_ENABLED=true`, provide the OpenAI API key as `MW_WANDA_OPENAI_API_key` in `.env` or mount a Docker secret named `mw_wanda_openai_api_key` into the MediaWiki container at `/run/secrets/mw_wanda_openai_api_key`. The secret takes precedence. The Compose examples pass the `.env` value into the container as `MW_WANDA_OPENAI_API_KEY`, matching the uppercase lookup in `dockerSecret()`. A Docker secret must also be granted to the `mediawiki` service in your Compose configuration.
 
-For a new checkout using an existing settings file, create an ignored deployment
-override if you do not already have a customized Compose configuration:
+For a new checkout using an existing settings file, select the tracked normal
+configuration overlay in `.env`:
 
-```bash
-cat > compose.override.yml <<'YAML'
-services:
-  mediawiki:
-    volumes:
-      - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
-YAML
+```dotenv
+COMPOSE_FILE=compose.yml:compose.config.yml
 ```
 
-Default `docker compose` commands load this override automatically. When selecting
-files with `-f`, include it explicitly. Keep custom project names and volume mounts
-when reusing an existing deployment.
+The selected config overlay mounts the settings file read-only. When selecting
+files with `-f`, include it explicitly. An existing `compose.override.yml` is not
+automatically appended to `COMPOSE_FILE`: retain it as the last entry if it holds
+personal settings. Keep custom project names and volume mounts when reusing an
+existing deployment. No existing local override needs to be overwritten.
 
 ### Use password files with Docker Compose
 
@@ -258,8 +264,8 @@ Replace `mariadb_root_password`, `mw_db_pass`, `mw_admin_pass` and
 API key. Keep `.env.secrets` non-secret. Include your configuration override:
 
 ```bash
-docker compose --env-file .env.secrets -f compose.yml -f compose.override.yml -f compose.secrets.yml config --quiet
-docker compose --env-file .env.secrets -f compose.yml -f compose.override.yml -f compose.secrets.yml up -d
+docker compose --env-file .env.secrets config --quiet
+docker compose --env-file .env.secrets up -d
 ```
 
 The overlay requires Docker Compose 2.24.4 or newer for `!override`. Include the appropriate `LocalSettings.php` mount through your deployment override or existing customized base file. Replace the example passwords and the placeholder OpenAI key in `./secrets/` before deployment. If the MariaDB data volume already exists, its stored passwords must match the secret files; changing the files does not change database accounts. The `.env.secrets` file has no password assignments. With this overlay, inherited password environment variables are removed even if they are present in an env file, but keeping them there is unnecessary and makes an accidental start without the overlay use those values.
@@ -270,7 +276,7 @@ After an existing settings file is mounted or the fresh-install procedure has
 completed, start with the published MediaWiki and MemcachePHP images:
 
 ```bash
-docker compose --env-file .env -f compose.yml -f compose.override.yml up -d --wait
+docker compose --env-file .env up -d --wait
 ```
 
 ### 4. Inspect service health
@@ -294,20 +300,27 @@ Set `MW_DEBUG=true` in `.env` to enable `$wgShowExceptionDetails`, `$wgShowDebug
 ## Build and run locally
 
 To build from the checkout, prepare the same `.env` and settings file as above.
-The standalone development file uses the same project/volumes and mounts
-`data/mediawiki/conf/LocalSettings.php` read-only:
+Set this selection in `.env`; keep its other settings and credentials:
 
-```bash
-docker compose \
-  -f compose.dev.yml \
-  --env-file .env \
-  up -d --build
+```dotenv
+COMPOSE_FILE=compose.yml:compose.config.yml:compose.dev.yml
 ```
 
-Check the locally built stack with `docker compose -f compose.dev.yml ps` and
-`docker compose -f compose.dev.yml logs --tail 100 mediawiki`. Use that same file
-for later build/log/stop commands; preserve any existing `-p`/`COMPOSE_PROJECT_NAME`
-setting. A local build does not initialize an empty database automatically.
+The dev overlay only changes build settings and the two project image names.
+The shared config overlay mounts `data/mediawiki/conf/LocalSettings.php` read-only.
+Start the selected stack with:
+
+```bash
+docker compose --env-file .env up -d --build
+```
+
+Check the locally built stack with `docker compose ps` and
+`docker compose logs --tail 100 mediawiki`. Keep the same `.env` selection for
+later build/log/stop commands and preserve any existing `-p`/`COMPOSE_PROJECT_NAME`
+setting. Alternatively, specify all three files explicitly with `-f`.
+The dev file is now an overlay, not a standalone stack. A local build does not
+initialize an empty database automatically. Switch back to published images by
+removing `:compose.dev.yml` from `COMPOSE_FILE` and recreate the services.
 For a fresh local installation, see [local setup](docs/installation.md#local-setup-variant).
 Build arguments for extension/skin lists are not wired into the current Dockerfile;
 see the [open backlog](notices_and_todos.md) before relying on custom build arguments.
@@ -317,10 +330,12 @@ see the [open backlog](notices_and_todos.md) before relying on custom build argu
 ```text
 .
 ├── compose.yml
+├── compose.config.yml
 ├── compose.dev.yml
 ├── compose.setup.yml
 ├── compose.secrets.yml
 ├── .env.example
+├── archive/
 ├── .github/
 │   ├── FUNDING.yml
 │   ├── ISSUE_TEMPLATE/
@@ -678,10 +693,9 @@ seven days even after a gate failure; SARIF is also uploaded to Code Scanning on
 public main pushes. PRs retain the full reports as artifacts without requiring
 Code Scanning write access. See the [CI and scan policy](docs/ci.md).
 
-The CI workflow uses `compose.yml` as its base configuration. Keep OpenSearch
-settings consistent across all standalone variants:
+The CI workflow and local dev overlay inherit OpenSearch from `compose.yml`.
+Keep settings consistent with the still-standalone setup variant:
 
-- `compose.dev.yml`
 - `compose.yml`
 - `compose.setup.yml`
 

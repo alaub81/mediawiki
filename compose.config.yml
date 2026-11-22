@@ -1,0 +1,6 @@
+# Normal-operation overlay: the existing settings file is mounted read-only.
+# Omit this overlay during fresh installation; keep the base file first.
+services:
+  mediawiki:
+    volumes:
+      - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro

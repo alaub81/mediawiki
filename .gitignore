@@ -28,3 +28,7 @@ __pycache__/
 .env.setup
 compose.override.yml
 compose.install.override.yml
+compose.local.yml
+
+# Private backups of local deployment settings.
+/archive/**/private/

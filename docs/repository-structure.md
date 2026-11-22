@@ -11,8 +11,9 @@ Branch protection remains deferred. No other repository is changed.
 | --- | --- |
 | `resources/mediawiki/` | MediaWiki image inputs, scripts, Apache configuration, favicons and extension patches |
 | `resources/memcachephp/` | MemcachePHP image inputs and PHP application |
-| `compose.yml` | Published-image production template |
-| `compose.dev.yml` | Standalone local-build stack |
+| `compose.yml` | Shared runtime base with published project images |
+| `compose.config.yml` | Existing private settings mounted read-only during normal operation |
+| `compose.dev.yml` | Local-build overlay; combine with the base and config overlay |
 | `compose.setup.yml` | Existing development/setup variant with `.env.mwsetup` and writable configuration mount |
 | `compose.secrets.yml` | Password-file overlay; combine with a root-level base Compose file |
 | `tests/compose.test.yml` | CI build override; combine with the root-level production file |
@@ -20,6 +21,7 @@ Branch protection remains deferred. No other repository is changed.
 | `tools/` | Host-side development utilities |
 | `docs/examples/` | Optional host configuration examples |
 | `data/` | Existing runtime configuration templates and supplied assets |
+| `archive/` | Historical snapshots; private backups are Git-ignored and Renovate excludes the archive |
 | `.github/` | Workflows, issue/PR templates, dependency configuration and `FUNDING.yml` |
 
 The image contexts remain self-contained. The host-only commit lookup utility
@@ -62,7 +64,11 @@ If your ignored `docker-compose.yml` is a symlink to the old
 its current target with `readlink docker-compose.yml`. This only changes the
 link target; it must not replace a regular customized production file.
 
-New deployments use `compose.yml` explicitly; local builds use `compose.dev.yml`.
+Normal operation now selects `compose.yml:compose.config.yml` through
+`COMPOSE_FILE` in `.env`. Local builds append `:compose.dev.yml`; that file is
+now an overlay, not a standalone stack. Read the
+[shared-base migration guide](compose-modes.md) before changing existing local
+overrides or project selection. The archived pre-migration files remain available.
 Run commands from the repository root. The setup variant retains its existing
 setup requirements; renaming it does not fix or change installation behavior.
 All overlay paths are resolved relative to the first Compose file, so keep the

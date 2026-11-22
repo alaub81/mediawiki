@@ -11,7 +11,9 @@ from stack import ROOT, resolve
 
 class StackTests(unittest.TestCase):
     def test_test_stack_uses_both_current_images_and_only_test_volumes(self):
-        with patch.dict("os.environ", TEST_ARCH="arm64"):
+        with patch.dict(
+            "os.environ", TEST_ARCH="arm64", COMPOSE_FILE="compose.yml:compose.config.yml"
+        ):
             config = resolve(18999)
         for service in ("mediawiki", "memcachephp"):
             self.assertEqual(config["services"][service]["image"], f"{service}-ci:arm64")

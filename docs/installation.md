@@ -95,18 +95,12 @@ Use suitable administrative permissions for host-side editing and backups.
 Docker Desktop may represent ownership differently; the container must be able
 to read the file. The parent directory and other tracked examples remain unchanged.
 
-Switch to the normal read-only mount and recreate MediaWiki. The normal stack no
-longer receives `.env.setup`:
+Switch to the tracked normal read-only mount and recreate MediaWiki. Keep
+`COMPOSE_FILE=compose.yml:compose.config.yml` in `.env`. The normal stack no longer
+receives `.env.setup`:
 
 ```bash
-cat > compose.override.yml <<'YAML'
-services:
-  mediawiki:
-    volumes:
-      - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
-YAML
-
-docker compose --env-file .env -f compose.yml -f compose.override.yml up -d --wait
+docker compose --env-file .env -f compose.yml -f compose.config.yml up -d --wait
 docker compose --env-file .env ps
 curl -fsS 'http://localhost:8080/api.php?action=query&meta=siteinfo&format=json'
 ```
@@ -116,9 +110,11 @@ Expect healthy services and a JSON response containing `query`. Verify that the
 home page loads. Keep the database and upload volumes and the generated file when
 recreating containers. Do not run `down -v` on a real wiki.
 
-Default Compose discovery loads `compose.override.yml` with `compose.yml`.
-Explicit `-f` commands must include the override. The local files `.env.setup`,
-`compose.install.override.yml` and `compose.override.yml` are Git-ignored.
+The `.env` file selects the normal base and config overlay; explicit `-f`
+commands must include both. Existing personal `compose.override.yml` files are
+not automatically appended to `COMPOSE_FILE`; preserve and explicitly select
+them last when needed. See [Compose modes](compose-modes.md). The local files
+`.env.setup`, `compose.install.override.yml` and `compose.override.yml` are Git-ignored.
 After installation, store or remove the setup-only password file securely; it is
 not required for normal startup. Review the [security notes](../README.md#security-notes).
 
@@ -135,8 +131,9 @@ rewritten by the documentation migration.
 Its custom configuration path, schema-update and scheduled-maintenance behavior
 need the end-to-end follow-up recorded in the [backlog](../notices_and_todos.md).
 The standard-path published-image procedure above avoids relying on that custom
-path. After generating a valid host settings file, the standalone `compose.dev.yml`
-local-build path in the README mounts it read-only.
+path. After generating a valid host settings file, the shared base/config/dev
+combination in the README mounts it read-only. The setup file itself remains
+unchanged and standalone until its separate migration.
 
 ## Preconfigured example and browser installer alternatives
 

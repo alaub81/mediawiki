@@ -5,24 +5,38 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import re
+import shutil
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES = ((), ("clamav",), ("elasticsearch",), ("clamav", "elasticsearch"))
+STACKS = {
+    "production": ("compose.yml", "compose.config.yml"),
+    "development": ("compose.yml", "compose.config.yml", "compose.dev.yml"),
+    "setup": ("compose.setup.yml",),
+}
 
 
-def resolve(files, profiles=(), env_file=".env.example"):
+def resolve(
+    files=(), profiles=(), env_file=".env.example", directory=ROOT, project="mw-config-test"
+):
     # Personal .env values and exported application variables must not affect tests.
     environment = {
         key: value for key, value in os.environ.items() if key in ("PATH", "HOME", "TMPDIR")
     }
     environment["COMPOSE_PROFILES"] = ",".join(profiles)
-    args = ["docker", "compose", "--project-name", "mw-config-test", "--env-file", env_file]
+    args = ["docker", "compose"]
+    if project:
+        args.extend(("--project-name", project))
+    if env_file:
+        args.extend(("--env-file", str(env_file)))
     for file in files:
         args.extend(("-f", file))
     result = subprocess.run(
         [*args, "config", "--format", "json"],
-        cwd=ROOT,
+        cwd=directory,
         env=environment,
         capture_output=True,
         text=True,
@@ -39,8 +53,8 @@ class ComposeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.configurations = {
-            (file, profiles): resolve([file], profiles)
-            for file in ("compose.yml", "compose.dev.yml", "compose.setup.yml")
+            (variant, profiles): resolve(files, profiles)
+            for variant, files in STACKS.items()
             for profiles in PROFILES
         }
 
@@ -56,10 +70,10 @@ class ComposeTests(unittest.TestCase):
     def test_production_development_runtime_parity(self):
         for profiles in PROFILES:
             with self.subTest(profiles=profiles):
-                production = copy.deepcopy(self.configurations[("compose.yml", profiles)])
-                development = copy.deepcopy(self.configurations[("compose.dev.yml", profiles)])
+                production = copy.deepcopy(self.configurations[("production", profiles)])
+                development = copy.deepcopy(self.configurations[("development", profiles)])
                 volumes = development["services"]["mediawiki"]["volumes"]
-                # The development variant intentionally mounts an existing local configuration.
+                # Both normal-operation modes mount the same existing read-only settings.
                 local = [
                     volume
                     for volume in volumes
@@ -68,9 +82,6 @@ class ComposeTests(unittest.TestCase):
                 self.assertEqual(len(local), 1)
                 self.assertEqual(local[0]["type"], "bind")
                 self.assertTrue(local[0]["read_only"])
-                development["services"]["mediawiki"]["volumes"] = [
-                    volume for volume in volumes if volume not in local
-                ]
                 for config in (production, development):
                     for image in ("mediawiki", "memcachephp"):
                         config["services"][image].pop("build", None)
@@ -78,7 +89,7 @@ class ComposeTests(unittest.TestCase):
                 self.assertEqual(production, development)
 
     def test_setup_keeps_writable_configuration_and_uploads(self):
-        config = self.configurations[("compose.setup.yml", ())]
+        config = self.configurations[("setup", ())]
         mounts = {mount["target"]: mount for mount in config["services"]["mediawiki"]["volumes"]}
         self.assertEqual(mounts["/var/www/html/conf"]["type"], "bind")
         self.assertFalse(mounts["/var/www/html/conf"].get("read_only", False))
@@ -97,7 +108,7 @@ class ComposeTests(unittest.TestCase):
         )
 
     def test_secrets_overlay_removes_password_values_and_exposes_only_required_files(self):
-        config = resolve(["compose.yml", "compose.secrets.yml"], env_file=".env.secrets")
+        config = resolve(env_file=".env.secrets")
         services = config["services"]
         for service, variables in {
             "mediawiki": ("MW_DB_PASS", "MW_WANDA_OPENAI_API_KEY"),
@@ -125,6 +136,75 @@ class ComposeTests(unittest.TestCase):
             services["memcachephp"]["environment"]["MEMCACHEPHP_ADMIN_PASS_FILE"],
             "/run/secrets/memcachephp_admin_pass",
         )
+
+    def test_environment_selection_matches_explicit_files(self):
+        implicit = resolve()
+        self.assertEqual(implicit, self.configurations[("production", ())])
+        self.assertNotIn("build", implicit["services"]["mediawiki"])
+        self.assertNotIn("build", implicit["services"]["memcachephp"])
+
+    def test_default_env_discovery_switches_builds_and_keeps_project_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            for name in ("compose.yml", "compose.config.yml", "compose.dev.yml"):
+                shutil.copyfile(ROOT / name, directory / name)
+            template = (ROOT / ".env.example").read_text()
+            results = {}
+            for variant in ("production", "development"):
+                selection = ":".join(STACKS[variant])
+                content = re.sub(
+                    r"^COMPOSE_FILE=.*$", f"COMPOSE_FILE={selection}", template, flags=re.MULTILINE
+                )
+                (directory / ".env").write_text(content + "\nCOMPOSE_PROJECT_NAME=existing-wiki\n")
+                config = resolve(env_file=None, directory=directory, project=None)
+                self.assertEqual(config["name"], "existing-wiki")
+                self.assertEqual(config["volumes"]["data_db"]["name"], "existing-wiki_data_db")
+                self.assertEqual(
+                    config["volumes"]["data_mw_images"]["name"], "existing-wiki_data_mw_images"
+                )
+                self.assertEqual(len(config["services"]["mediawiki"]["ports"]), 1)
+                results[variant] = config
+            for service in ("mediawiki", "memcachephp"):
+                self.assertNotIn("build", results["production"]["services"][service])
+                self.assertIn("build", results["development"]["services"][service])
+                self.assertEqual(
+                    Path(results["development"]["services"][service]["build"]["context"]),
+                    directory.resolve() / "resources" / service,
+                )
+
+    def test_explicit_files_override_environment_selection_for_setup_and_ci(self):
+        self.assertEqual(resolve(STACKS["setup"]), self.configurations[("setup", ())])
+        with tempfile.TemporaryDirectory() as temporary:
+            template = Path(temporary) / "ci.env"
+            template.write_text(
+                (ROOT / ".env.example").read_text() + "\nMW_CI_ENV_FILE=.env.ci-test\n"
+            )
+            ci = resolve(("compose.yml", "tests/compose.test.yml"), env_file=template)
+        self.assertFalse(
+            any(mount["type"] == "bind" for mount in ci["services"]["mediawiki"]["volumes"])
+        )
+
+    def test_local_overlay_loads_last_and_secrets_work_with_dev_profiles(self):
+        for profiles in PROFILES:
+            with self.subTest(profiles=profiles):
+                config = resolve(
+                    (*STACKS["development"], "compose.secrets.yml"), profiles, ".env.secrets"
+                )
+                self.assertIn("build", config["services"]["mediawiki"])
+                self.assertNotIn("MW_DB_PASS", config["services"]["mediawiki"]["environment"])
+                self.assertEqual(
+                    config["services"]["mediawiki"]["secrets"][0]["source"], "mw_db_pass"
+                )
+        with tempfile.TemporaryDirectory() as temporary:
+            overlay = Path(temporary) / "compose.local.yml"
+            overlay.write_text(
+                'services:\n  mediawiki:\n    environment:\n      MW_SITENAME: "Local wiki"\n'
+            )
+            config = resolve((*STACKS["development"], str(overlay)))
+            self.assertEqual(
+                config["services"]["mediawiki"]["environment"]["MW_SITENAME"], "Local wiki"
+            )
+            self.assertIn("build", config["services"]["mediawiki"])
 
 
 if __name__ == "__main__":

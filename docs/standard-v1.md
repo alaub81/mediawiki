@@ -9,6 +9,7 @@ The shared target document is maintained outside this repository under
 | Area | Repository implementation |
 | --- | --- |
 | Structure | Image-specific files under `resources/mediawiki` and `resources/memcachephp`; [layout and Compose migration](repository-structure.md). |
+| Compose modes | Shared runtime base, read-only config overlay and local-build overlay selected through `.env`; [mode selection](compose-modes.md). The existing setup stack remains standalone pending its separate migration. |
 | Local verification | Shared lint/test entry points and pinned tool releases with checksums; [development](development.md). |
 | CI and security | Change planning, native tests for both architectures, shared image artifacts, HIGH/CRITICAL gates and independently uploaded full SARIF; [CI](ci.md). |
 | Releases | Successful source CI required before publication, compatible image reuse, explicit alias promotion and automatic release notes; [releases](releases.md). |

@@ -82,7 +82,8 @@ class DependencyConfigTests(unittest.TestCase):
             for variable, package in names.items():
                 value = re.search(rf"^{variable}=(\S+)$", content, re.MULTILINE)[1]
                 expected[(package, value)] += 1
-                for compose in ("compose.yml", "compose.dev.yml", "compose.setup.yml"):
+                # The dev overlay inherits service versions from the common base.
+                for compose in ("compose.yml", "compose.setup.yml"):
                     with self.subTest(template=path, variable=variable, compose=compose):
                         self.assertIn(f"${{{variable}:-{value}}}", (ROOT / compose).read_text())
             self.assertEqual(
