@@ -121,12 +121,9 @@ profiles, security tests and Trivy gates remain in force.
 
 ## Archived originals and verification
 
-The [snapshot](../archive/2026-11-19-compose-base-dev/README.md) contains the public
-Compose files and environment templates from before the migration, plus the old
-README as `README.md.txt`. Private local settings were separately backed up into
-its Git-ignored `private/` directory with restrictive permissions. `SHA256SUMS`
-verifies the public copies. Renovate excludes `archive/**`; these historical
-Compose files are not active dependency inputs.
+The former `archive/2026-11-19-compose-base-dev/` snapshot was removed from
+the working tree. Its public Compose files, environment templates and README
+remain available in Git history before commit `06fd34f`.
 
 Offline Compose tests validate all four optional-profile combinations, runtime
 parity, environment-based mode selection, project/volume identity, local overlay

@@ -13,6 +13,7 @@ retained during the staged Repository Standard v1 migration.
 - [Dependency update ownership, schedules and compatibility](dependencies.md)
 - [Installation, private settings and first-start persistence](installation.md)
 - [Operations, backups and restore verification](operations.md)
+- [Read-only extension usage audit](extension-audit.md)
 - [Standard v1 implementation and remaining work](standard-v1.md)
 - [Requirements](../README.md#requirements)
 - [Quick start and password files](../README.md#quick-start)
