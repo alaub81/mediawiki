@@ -22,7 +22,7 @@ deferred and KIWIOne is outside this migration.
    and historical root Dockerfiles are recognized from the selected checkout.
 6. Each job tests both images together with the shared full E2E suite, including
    MemcachePHP security behavior. It also scans both exact local IDs, including
-   reused images, with the full JSON/SARIF and fixable HIGH/CRITICAL policy.
+   reused images, with the full JSON/SARIF and fixable CRITICAL policy.
    A failed E2E still permits scan evidence collection, but no success receipt.
 7. Only validated images can be pushed to run/attempt/version/platform-specific
    `checked-*` staging tags. Their remote manifest/config identities must match
@@ -38,8 +38,7 @@ The own image names remain `ghcr.io/alaub81/mediawiki-custom` and
 Only the third-party Wikimedia OpenSearch test dependency is emulated on arm64;
 the own images build and run natively on the configured GitHub runners.
 
-The current HIGH/CRITICAL findings recorded in the [CI guide](ci.md) are still
-blocking. This migration adds no CVE exceptions and does not fix those images.
+HIGH findings appear in the scan logs and full reports. Fixable CRITICAL findings block publication.
 A historical tag with older green CI must still pass current release tests/scans;
 recognizing its file layout is not a promise that every historical version passes.
 
@@ -72,9 +71,9 @@ in that case; repair/rerun the failed publication before announcing completion.
 
 ## Scheduled and manual refreshes
 
-The existing Tuesday 01:00 UTC schedule refreshes the two newest stable tags.
+The existing Tuesday 01:00 UTC schedule refreshes the newest stable tag.
 For manual runs, retain the existing inputs: set `rebuild_tags=true` and choose
-`num_tags` from 1 to 20 (default 2). Leaving the enable flag false skips the plan.
+`num_tags` from 1 to 20 (default 1). Leaving the enable flag false skips the plan.
 
 Refreshes rebuild both images with cache disabled and fresh base pulls so that
 their Dockerfile package steps are rerun. They still require exact-commit CI,

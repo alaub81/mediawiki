@@ -176,8 +176,8 @@ The items above retain their historical markers. Later implementation changes:
 - Secrets overlays and sanitized templates are tracked and checked by offline
   Compose tests. A production-style secrets startup/restore exercise is not
   implied by configuration validation.
-- HIGH/CRITICAL gates and independently uploaded full SARIF are implemented in CI
-  and release. Existing fixable findings still block publication.
+- Fixable CRITICAL gates and independently uploaded full SARIF are implemented in CI
+  and release. HIGH findings are advisory.
 - Public templates disable continuous updates, Wanda and optional service profiles
   by default. README requires independent passwords and preserves all advanced
   feature guides; the public example now uses explicit wiki-key placeholders.

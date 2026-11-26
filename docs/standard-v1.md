@@ -11,7 +11,7 @@ The shared target document is maintained outside this repository under
 | Structure | Image-specific files under `resources/mediawiki` and `resources/memcachephp`; [layout and Compose migration](repository-structure.md). |
 | Compose modes | Shared runtime base, read-only config overlay and local-build overlay selected through `.env`; [mode selection](compose-modes.md). The existing setup stack remains standalone pending its separate migration. |
 | Local verification | Shared lint/test entry points and pinned tool releases with checksums; [development](development.md). |
-| CI and security | Change planning, native tests for both architectures, shared image artifacts, HIGH/CRITICAL gates and independently uploaded full SARIF; [CI](ci.md). |
+| CI and security | Change planning, native tests for both architectures, shared image artifacts, fixable CRITICAL gates and independently uploaded full SARIF; [CI](ci.md). |
 | Releases | Successful source CI required before publication, compatible image reuse, explicit alias promotion and automatic release notes; [releases](releases.md). |
 | Dependencies | Renovate regular updates, Dependabot security ownership, compatibility ranges and Supercronic allowlist; [dependency policy](dependencies.md). |
 | Documentation | Root README keeps local builds, setup, profiles, maintenance and advanced features; detailed [installation](installation.md) and [operations](operations.md) guides supplement it. |
@@ -25,8 +25,7 @@ Do not replace advanced features with a shortened generic quickstart.
 
 ## Outstanding work and verification limits
 
-- Existing fixable HIGH/CRITICAL image findings remain release blockers. Updating
-  Renovate policy does not fix them, and no exceptions or relaxed gates are added.
+- Fixable CRITICAL image findings block releases. HIGH findings remain visible in scan reports.
 - Dependabot alerts/security-update activation and current Mend application mode
   need account-side verification; see the dependency policy.
 - The published installer currently writes an invalid boolean antivirus value

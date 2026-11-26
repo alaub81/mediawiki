@@ -70,7 +70,7 @@ test as well. See the detailed sections below for prerequisites and scope.
 After pushing, check the GitHub CI results for both supported architectures and
 the actual image vulnerability scans. `test-check.sh` exercises the Trivy report
 and gate logic with fixtures; it does not scan application images. Passing local
-checks does not replace successful CI. Fixable HIGH/CRITICAL findings must still
+checks does not replace successful CI. Fixable CRITICAL findings must still
 block the gate, while full SARIF reports are uploaded independently.
 
 ## Entry points

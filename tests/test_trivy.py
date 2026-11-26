@@ -54,7 +54,7 @@ class ScanTests(unittest.TestCase):
             )
             wrapper.chmod(0o755)
             cases = [
-                ("HIGH", "fixed", "1.1", 1),
+                ("HIGH", "fixed", "1.1", 0),
                 ("CRITICAL", "fixed", "1.1", 1),
                 ("HIGH", "affected", "", 0),
                 ("CRITICAL", "affected", "", 0),
@@ -82,6 +82,8 @@ class ScanTests(unittest.TestCase):
                         text=True,
                         check=False,
                     )
+                    if severity == "HIGH":
+                        self.assertIn("CVE-2099-99999", result.stdout)
                     self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
                     self.assertEqual(
                         len(

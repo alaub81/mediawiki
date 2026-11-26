@@ -698,7 +698,7 @@ changes skip application builds; unknown/shared inputs run the complete stack.
 The final `CI required` status rejects failed, cancelled or unexpectedly skipped checks.
 
 Trivy scans each own image once to full JSON and derives full SARIF plus a
-fixable HIGH/CRITICAL gate. Complete reports and E2E diagnostics are retained for
+fixable CRITICAL gate. Complete reports and E2E diagnostics are retained for
 seven days even after a gate failure; SARIF is also uploaded to Code Scanning on
 public main pushes. PRs retain the full reports as artifacts without requiring
 Code Scanning write access. See the [CI and scan policy](docs/ci.md).
@@ -748,9 +748,9 @@ builds changed images or reuses previous immutable digests, and runs full E2E an
 Trivy checks on native amd64 and arm64 runners. Only complete successful results
 can update public image aliases and create English release notes.
 
-Tuesday refreshes and manual runs with `rebuild_tags=true` rebuild the selected
-recent tags without replacing existing release notes. Existing HIGH/CRITICAL
-findings remain blocking. See [release operation and recovery](docs/releases.md).
+Tuesday refreshes rebuild the newest stable tag. Manual runs with `rebuild_tags=true`
+can refresh additional recent tags. HIGH findings appear in scan logs and reports.
+Only fixable CRITICAL findings block publication on vulnerability grounds. See [release operation and recovery](docs/releases.md).
 
 ## Production upgrade from 1.45.x to 1.46
 

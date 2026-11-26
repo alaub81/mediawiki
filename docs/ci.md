@@ -79,8 +79,8 @@ Trivy 0.70.0 is pinned, including download checksums, in `lint-tools.json`.
 
 - JSON and derived SARIF retain UNKNOWN, LOW, MEDIUM, HIGH and CRITICAL findings,
   including vulnerabilities without a fix.
-- A separate gate input retains fixable findings. Conversion blocks HIGH and
-  CRITICAL with exit code 1. Full reports are never filtered by the gate.
+- A separate gate input retains fixable findings. Conversion blocks only CRITICAL findings in that input
+  with exit code 1. HIGH findings appear in the job log. Full reports are never filtered by the gate.
 - There are no blanket suppressions, `continue-on-error` gates or CVE exceptions.
   Scanner/database/conversion errors fail the job.
 - Image/architecture-specific filenames and SARIF categories keep results distinct.
@@ -89,7 +89,7 @@ Trivy 0.70.0 is pinned, including download checksums, in `lint-tools.json`.
 
 This follows Trivy's [JSON conversion interface](https://trivy.dev/docs/latest/references/configuration/cli/trivy_convert/).
 Real pinned Trivy conversion is exercised offline with synthetic vulnerabilities
-to verify fixable HIGH/CRITICAL failures and preservation of full JSON/SARIF.
+to verify advisory HIGH findings, fixable CRITICAL failures and preservation of full JSON/SARIF.
 Only the image-reading step is simulated in those tests, so no database or
 registry is needed for policy regressions.
 

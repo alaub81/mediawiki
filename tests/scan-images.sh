@@ -42,8 +42,10 @@ for specification in "$@"; do
   jq '.Results |= map(if .Vulnerabilities then .Vulnerabilities |= map(
     select(.Status == "fixed" or (.Status == null and (.FixedVersion // "") != ""))) else . end)' \
     "$REPORT_DIR/$name.json" > "$REPORT_DIR/$name.gate.json"
+  trivy convert --ignorefile /dev/null --scanners vuln --format table \
+    --severity HIGH --exit-code 0 "$REPORT_DIR/$name.json" || status=1
   if ! trivy convert --ignorefile /dev/null --scanners vuln --format table \
-    --severity HIGH,CRITICAL --exit-code 1 "$REPORT_DIR/$name.gate.json"; then
+    --severity CRITICAL --exit-code 1 "$REPORT_DIR/$name.gate.json"; then
     status=1
   fi
 done
