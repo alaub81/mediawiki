@@ -1,0 +1,146 @@
+Source: https://github.com/wikimedia/mediawiki-vendor/commit/bd1174ebc44b091655f9e3bfb38e3c8e7ad798b3
+
+diff --git a/composer.json b/composer.json
+index 294deec39..b1c17e6b9 100644
+--- a/composer.json
++++ b/composer.json
+@@ -87,7 +87,7 @@
+ 		"wikimedia/minify": "2.10.0",
+ 		"wikimedia/normalized-exception": "2.1.1",
+ 		"wikimedia/object-factory": "6.0.0",
+-		"wikimedia/parsoid": "0.23.2",
++		"wikimedia/parsoid": "0.23.3",
+ 		"wikimedia/php-session-serializer": "3.0.2",
+ 		"wikimedia/purtle": "2.0.0",
+ 		"wikimedia/relpath": "4.1.1",
+diff --git a/composer.lock b/composer.lock
+index f4aaf980b..55b0315f3 100644
+--- a/composer.lock
++++ b/composer.lock
+@@ -4,7 +4,7 @@
+         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+         "This file is @generated automatically"
+     ],
+-    "content-hash": "bee9c231ac4114a416668238b2c494f1",
++    "content-hash": "5a05d5578eff007cc531974da0e3e444",
+     "packages": [
+         {
+             "name": "bacon/bacon-qr-code",
+@@ -4788,16 +4788,16 @@
+         },
+         {
+             "name": "wikimedia/parsoid",
+-            "version": "v0.23.2",
++            "version": "v0.23.3",
+             "source": {
+                 "type": "git",
+                 "url": "https://github.com/wikimedia/mediawiki-services-parsoid.git",
+-                "reference": "2a85d2bce04ee4a22a6bc7d190ee7f2bb3a723c2"
++                "reference": "71fa7ec11993a00104e221741b5d6852ef982055"
+             },
+             "dist": {
+                 "type": "zip",
+-                "url": "https://api.github.com/repos/wikimedia/mediawiki-services-parsoid/zipball/2a85d2bce04ee4a22a6bc7d190ee7f2bb3a723c2",
+-                "reference": "2a85d2bce04ee4a22a6bc7d190ee7f2bb3a723c2",
++                "url": "https://api.github.com/repos/wikimedia/mediawiki-services-parsoid/zipball/71fa7ec11993a00104e221741b5d6852ef982055",
++                "reference": "71fa7ec11993a00104e221741b5d6852ef982055",
+                 "shasum": ""
+             },
+             "require": {
+@@ -4869,11 +4869,11 @@
+             ],
+             "support": {
+                 "irc": "irc://irc.libera.chat/mediawiki-parsoid",
+-                "source": "https://github.com/wikimedia/mediawiki-services-parsoid/tree/v0.23.2",
++                "source": "https://github.com/wikimedia/mediawiki-services-parsoid/tree/v0.23.3",
+                 "wiki": "https://www.mediawiki.org/wiki/Parsoid"
+             },
+-            "time": "2026-11-07T01:54:18+00:00",
+-            "published-time": "2026-11-18T20:00:36+00:00"
++            "time": "2026-11-19T16:34:22+00:00",
++            "published-time": "2026-11-19T21:21:57+00:00"
+         },
+         {
+             "name": "wikimedia/php-session-serializer",
+diff --git a/composer/installed.json b/composer/installed.json
+index 84330aff6..4935fdfc0 100644
+--- a/composer/installed.json
++++ b/composer/installed.json
+@@ -4995,17 +4995,17 @@
+         },
+         {
+             "name": "wikimedia/parsoid",
+-            "version": "v0.23.2",
+-            "version_normalized": "0.23.2.0",
++            "version": "v0.23.3",
++            "version_normalized": "0.23.3.0",
+             "source": {
+                 "type": "git",
+                 "url": "https://github.com/wikimedia/mediawiki-services-parsoid.git",
+-                "reference": "2a85d2bce04ee4a22a6bc7d190ee7f2bb3a723c2"
++                "reference": "71fa7ec11993a00104e221741b5d6852ef982055"
+             },
+             "dist": {
+                 "type": "zip",
+-                "url": "https://api.github.com/repos/wikimedia/mediawiki-services-parsoid/zipball/2a85d2bce04ee4a22a6bc7d190ee7f2bb3a723c2",
+-                "reference": "2a85d2bce04ee4a22a6bc7d190ee7f2bb3a723c2",
++                "url": "https://api.github.com/repos/wikimedia/mediawiki-services-parsoid/zipball/71fa7ec11993a00104e221741b5d6852ef982055",
++                "reference": "71fa7ec11993a00104e221741b5d6852ef982055",
+                 "shasum": ""
+             },
+             "require": {
+@@ -5053,8 +5053,8 @@
+             "suggest": {
+                 "wikimedia/langconv": "Provides script conversion support"
+             },
+-            "time": "2026-11-07T01:54:18+00:00",
+-            "published-time": "2026-11-18T20:00:36+00:00",
++            "time": "2026-11-19T16:34:22+00:00",
++            "published-time": "2026-11-19T21:21:57+00:00",
+             "type": "library",
+             "installation-source": "dist",
+             "autoload": {
+@@ -5080,7 +5080,7 @@
+             ],
+             "support": {
+                 "irc": "irc://irc.libera.chat/mediawiki-parsoid",
+-                "source": "https://github.com/wikimedia/mediawiki-services-parsoid/tree/v0.23.2",
++                "source": "https://github.com/wikimedia/mediawiki-services-parsoid/tree/v0.23.3",
+                 "wiki": "https://www.mediawiki.org/wiki/Parsoid"
+             },
+             "install-path": "../wikimedia/parsoid"
+diff --git a/composer/installed.php b/composer/installed.php
+index 77daca09f..f9e68b978 100644
+--- a/composer/installed.php
++++ b/composer/installed.php
+@@ -3,7 +3,7 @@
+         'name' => '__root__',
+         'pretty_version' => 'dev-master',
+         'version' => 'dev-master',
+-        'reference' => '6d2bdfd63cfb3babe2f0cca048df277aa3572a7b',
++        'reference' => 'b11f703205c61952a775fa6a20ce1e680bbb1124',
+         'type' => 'library',
+         'install_path' => __DIR__ . '/../',
+         'aliases' => array(),
+@@ -13,7 +13,7 @@
+         '__root__' => array(
+             'pretty_version' => 'dev-master',
+             'version' => 'dev-master',
+-            'reference' => '6d2bdfd63cfb3babe2f0cca048df277aa3572a7b',
++            'reference' => 'b11f703205c61952a775fa6a20ce1e680bbb1124',
+             'type' => 'library',
+             'install_path' => __DIR__ . '/../',
+             'aliases' => array(),
+@@ -780,9 +780,9 @@
+             'dev_requirement' => false,
+         ),
+         'wikimedia/parsoid' => array(
+-            'pretty_version' => 'v0.23.2',
+-            'version' => '0.23.2.0',
+-            'reference' => '2a85d2bce04ee4a22a6bc7d190ee7f2bb3a723c2',
++            'pretty_version' => 'v0.23.3',
++            'version' => '0.23.3.0',
++            'reference' => '71fa7ec11993a00104e221741b5d6852ef982055',
+             'type' => 'library',
+             'install_path' => __DIR__ . '/../wikimedia/parsoid',
+             'aliases' => array(),

@@ -189,5 +189,10 @@ RUN set -eux; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
 
+# MediaWiki 1.46.3 tarball workaround (Wikimedia T445593).
+RUN --mount=type=bind,source=fix-parsoid.sh,target=/tmp/fix-parsoid.sh \
+    --mount=type=bind,source=patches/parsoid-vendor-metadata.patch,target=/tmp/parsoid-vendor-metadata.patch \
+    sh /tmp/fix-parsoid.sh
+
 ENTRYPOINT ["/usr/local/bin/mediawiki-entrypoint.sh"]
 CMD ["apache2-foreground"]
