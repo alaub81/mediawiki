@@ -165,6 +165,9 @@ COPY patches/wanda-utf8-truncation.patch /tmp/wanda-utf8-truncation.patch
 # Backport semantic snippet escaping while retaining CirrusSearch REL1_46.
 COPY patches/cirrussearch-semantic-escaping.patch /tmp/cirrussearch-semantic-escaping.patch
 
+# Wikimedia REL1_46 passkey login fix (T445618).
+COPY patches/oathauth-userhandle.patch /tmp/oathauth-userhandle.patch
+
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends patch; \
@@ -185,6 +188,7 @@ RUN set -eux; \
     apply_patch /tmp/relatedarticles-private-wiki.patch; \
     apply_patch /tmp/wanda-utf8-truncation.patch; \
     apply_patch /tmp/cirrussearch-semantic-escaping.patch; \
+    apply_patch /tmp/oathauth-userhandle.patch; \
     apt-get purge -y --auto-remove patch; \
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
