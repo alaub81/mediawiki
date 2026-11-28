@@ -3,6 +3,16 @@
 # Labels enable Autoheal and Watchtower for every application service, including optional profiles.
 services:
   mediawiki:
+    # For a custom settings directory, enable the matching mount below and
+    # set MW_CONFIG_FILE in .env to the settings file's path in the container.
+    # environment:
+    #   MW_CONFIG_FILE: ${MW_CONFIG_FILE}
+    # volumes:
+    #   - ./data/mediawiki/conf/mw_local_settings:/var/www/html/conf/:rw
+    #   - ./data/mediawiki/conf/robots.txt:/var/www/html/robots.txt:ro
+    #   - ./data/mediawiki/conf/.htaccess:/var/www/html/.htaccess:ro
+    #   - ./data/mediawiki/favicon/:/var/www/html/favicon:ro
+    #   - ./data/mediawiki/conf/ads.txt:/var/www/html/ads.txt:ro
     labels:
       autoheal: "true"
       com.centurylinklabs.watchtower.enable: "true"
@@ -13,6 +23,8 @@ services:
       com.centurylinklabs.watchtower.enable: "true"
 
   clamav:
+    # volumes:
+    #   - ./data/clamav/conf/clamd.conf:/etc/clamav/clamd.conf:ro
     labels:
       autoheal: "true"
       com.centurylinklabs.watchtower.enable: "true"

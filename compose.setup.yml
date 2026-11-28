@@ -67,17 +67,8 @@ services:
       com.centurylinklabs.watchtower.enable: true
     volumes:
       - data_mw_images:/var/www/html/images
-      # After initial setup, download LocalSettings.php to data/conf directory
-      # and uncomment the following line and use compose to restart
-      # the mediawiki service
-      # - ./data/mediawiki/conf/LocalSettings.php:/var/www/html/LocalSettings.php:ro
-      # or custom config file don't forget to set MW_CONFIG_FILE env var in .env
+      # Writable settings directory for the installer.
       - ./data/mediawiki/conf/mw_local_settings:/var/www/html/conf/:rw
-      # --- Custom files and volumes: ---
-      # - ./data/mediawiki/conf/robots.txt:/var/www/html/robots.txt:ro
-      # - ./data/mediawiki/conf/.htaccess:/var/www/html/.htaccess:ro
-      # - ./data/mediawiki/favicon/:/var/www/html/favicon:ro
-      # - ./data/mediawiki/conf/ads.txt:/var/www/html/ads.txt:ro
     healthcheck:
       test:
         - CMD-SHELL
@@ -134,8 +125,6 @@ services:
     profiles: ["clamav"]
     volumes:
       - clamav_db:/var/lib/clamav
-      # if you want to use custom clamd.conf, uncomment the following line
-      # - ./data/clamav/conf/clamd.conf:/etc/clamav/clamd.conf:ro
     environment:
       - TZ=${TZ:-UTC}
     labels:

@@ -66,10 +66,10 @@ COMPOSE_FILE=compose.yml:compose.config.yml:compose.dev.yml:compose.override.yml
 An optional personal `compose.local.yml` can be selected the same way; it is
 ignored by Git. Only name files that actually exist.
 
-### Optional Autoheal and Watchtower labels
+### Local overlay
 
-To enable Autoheal and Watchtower labels for all seven application services, copy the public example
-if you do not already have a personal `compose.local.yml`:
+If you do not already have a personal `compose.local.yml`, copy the
+[example](../compose.local.yml.example):
 
 ```bash
 cp -n compose.local.yml.example compose.local.yml
@@ -78,13 +78,30 @@ cp -n compose.local.yml.example compose.local.yml
 Append `compose.local.yml` to your active `COMPOSE_FILE`.
 For published images, use
 `COMPOSE_FILE=compose.yml:compose.config.yml:compose.local.yml`.
-If the local file already exists, merge the example's labels into it.
-Then validate and apply the selected configuration:
+If the local file already exists, merge the entries you want into it.
+After configuring your local overlay, validate and apply it:
 
 ```bash
 docker compose config --quiet
 docker compose up -d
 ```
+
+### Optional bind mounts
+
+In `compose.local.yml`, uncomment the `volumes:` key for the relevant service
+and the entries you want to use. Create the corresponding host files or
+directories before starting the services.
+
+- Under `mediawiki`, enable any of the read-only mounts for `robots.txt`,
+  `.htaccess`, `favicon/`, or `ads.txt`.
+- For a custom MediaWiki settings directory, enable the writable
+  `mw_local_settings` mount and the matching `environment` entry. Set
+  `MW_CONFIG_FILE` in `.env` to the container path of the settings file, for
+  example `/var/www/html/conf/LocalSettings.php`.
+- Under `clamav`, enable the read-only `clamd.conf` mount when using the
+  `clamav` profile with a custom configuration.
+
+### Autoheal and Watchtower labels
 
 The example labels every application service with `autoheal: "true"` and
 `com.centurylinklabs.watchtower.enable: "true"`, including
